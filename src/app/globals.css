@@ -55,7 +55,7 @@ h1, h2, h3 {
     @apply flex flex-col gap-1.5 text-[13px] font-semibold text-neutro-texto;
   }
   .campo input, .campo select, .campo textarea {
-    @apply min-h-11 rounded-lg border border-[#c9c5ba] bg-white px-3 text-sm font-normal text-tinta outline-none focus:border-acento focus:ring-2 focus:ring-info-fondo;
+    @apply min-h-11 w-full min-w-0 rounded-lg border border-[#c9c5ba] bg-white px-3 text-sm font-normal text-tinta outline-none focus:border-acento focus:ring-2 focus:ring-info-fondo;
   }
   .campo textarea {
     @apply py-2;
