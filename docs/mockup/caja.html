@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caja y patrimonio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F4FD1}a:hover{color:#163A9C}
+.card{background:#FFFFFF;border:1px solid #DEDBD2;border-radius:10px;padding:20px;box-sizing:border-box}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.num{font-family:'IBM Plex Mono',monospace}
+.nav a{display:block;padding:12px 14px;border-radius:8px;color:#D6D9DE;text-decoration:none;font-size:15px}
+.nav a:hover{background:#2A3038;color:#FFFFFF}
+.nav a.on{background:#1F4FD1;color:#FFFFFF}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0}
+.lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#5B6169;font-weight:600}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid #ECEAE4;font-size:14px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:600;color:#5B6169;font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid #DEDBD2;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid #ECEAE4;white-space:nowrap}
+.r{text-align:right}
+.in{color:#1B5E35}.out{color:#8A3A08}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #F4F3EF; font-family: 'IBM Plex Sans', sans-serif; color: #1B1F24">
+  <nav class="nav" aria-label="Menú principal" style="flex: 1 1 220px; background: #1B1F24; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+    <div style="color: #FFFFFF; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 20px; padding: 0 14px 20px">Salón <span style="color: #8FA9F0">· gestión</span></div>
+    <a href="dashboard.html">Inicio</a>
+    <a href="contactos.html">Contactos y agenda</a>
+    <a href="stock.html">Stock</a>
+    <a href="venta.html">Ventas</a>
+    <a class="on" href="caja.html">Caja y patrimonio</a>
+    <a href="index.html">Cómo funciona</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+    <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h1 style="font-size: 30px">Caja y patrimonio</h1>
+        <span style="color: #4A5058; font-size: 15px">La caja muestra solo plata líquida. El patrimonio suma además los autos y lo que hay por cobrar.</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <a class="btn" href="caja.html" style="border: 1px solid #1F4FD1; color: #1F4FD1">+ Ingreso</a>
+        <a class="btn" href="caja.html" style="background: #1F4FD1; color: #FFFFFF">+ Egreso / retiro</a>
+      </div>
+    </header>
+
+    <section aria-label="Saldos de caja" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+      <div class="card" style="display: flex; flex-direction: column; gap: 8px"><span class="lbl">Efectivo pesos</span><span class="num" style="font-size: 28px; font-weight: 500">$ 6.100.000</span></div>
+      <div class="card" style="display: flex; flex-direction: column; gap: 8px"><span class="lbl">Banco (cuenta del salón)</span><span class="num" style="font-size: 28px; font-weight: 500">$ 12.200.000</span></div>
+      <div class="card" style="display: flex; flex-direction: column; gap: 8px"><span class="lbl">Dólares</span><span class="num" style="font-size: 28px; font-weight: 500">USD 12.000</span><span style="font-size: 13px; color: #5B6169">≈ $ 18.480.000 al dólar de hoy</span></div>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+      <section class="card" aria-label="Patrimonio" style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 18px">Patrimonio hoy</h2>
+        <div role="img" aria-label="Composición del patrimonio: stock 89 por ciento, caja 9 por ciento, a cobrar 2 por ciento" style="display: flex; height: 18px; border-radius: 99px; overflow: hidden">
+          <div style="width: 89%; background: #C2410C"></div><div style="width: 9%; background: #1E7A46"></div><div style="width: 2%; background: #1F4FD1"></div>
+        </div>
+        <div class="row"><span><span aria-hidden="true" style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #1E7A46"></span> Caja (pesos + dólares)</span><span class="num">$ 36.780.000</span></div>
+        <div class="row"><span><span aria-hidden="true" style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #C2410C"></span> 24 autos en stock, al costo</span><span class="num">$ 368.000.000</span></div>
+        <div class="row"><span><span aria-hidden="true" style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #1F4FD1"></span> A cobrar (créditos bancarios)</span><span class="num">$ 9.000.000</span></div>
+        <div class="row"><span>A pagar (chapista y gestoría)</span><span class="num out">− $ 1.780.000</span></div>
+        <div class="row" style="font-weight: 600; font-size: 16px"><span>Patrimonio total</span><span class="num">$ 412.000.000</span></div>
+      </section>
+
+      <section class="card" aria-label="Pendiente de repartir" style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+        <h2 style="font-size: 18px; padding-bottom: 8px">Ganancias pendientes de pago</h2>
+        <div class="row"><span>Inversor · V-0039 Amarok V6</span><span class="num">$ 3.075.000</span></div>
+        <div class="row"><span>Inversor · V-0040 Cronos</span><span class="num">$ 945.000</span></div>
+        <div class="row"><span>Salón · V-0040 Cronos</span><span class="num">$ 1.120.000</span></div>
+        <div class="row" style="font-weight: 600"><span>Total pendiente</span><span class="num">$ 5.140.000</span></div>
+        <span style="font-size: 13px; color: #5B6169; padding-top: 8px">Cada pago o retiro queda asociado a la venta que lo generó.</span>
+      </section>
+    </div>
+
+    <section class="card" aria-label="Movimientos" style="display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline">
+        <h2 style="font-size: 18px">Últimos movimientos</h2>
+        <span style="font-size: 13px; color: #5B6169">Cada movimiento guarda quién lo cargó y el dólar del día.</span>
+      </div>
+      <div style="overflow-x: auto">
+        <table>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Referencia</th><th>Caja</th><th class="r">Importe</th><th>Cargó</th></tr></thead>
+          <tbody>
+            <tr><td class="num">14/10</td><td>Pago al inversor</td><td>V-0038 Hilux</td><td>Banco</td><td class="num r out">− $ 2.640.000</td><td>Bruno</td></tr>
+            <tr><td class="num">13/10</td><td>Cobro crédito bancario</td><td>V-0038 · Bco. Patagonia</td><td>Banco</td><td class="num r in">+ $ 7.500.000</td><td>Pablo</td></tr>
+            <tr><td class="num">12/10</td><td>Gasto: chapa y pintura</td><td>AB112CD</td><td>Efectivo</td><td class="num r out">− $ 300.000</td><td>Bruno</td></tr>
+            <tr><td class="num">11/10</td><td>Retiro de ganancia</td><td>V-0038 · parte salón</td><td>Efectivo</td><td class="num r out">− $ 1.500.000</td><td>Bruno</td></tr>
+            <tr><td class="num">10/10</td><td>Seña</td><td><a href="venta.html">V-0042 · Marcos Pérez</a></td><td>Efectivo</td><td class="num r in">+ $ 300.000</td><td>Pablo</td></tr>
+            <tr><td class="num">08/10</td><td>Gasto del salón: publicidad</td><td>Marketplace</td><td>Banco</td><td class="num r out">− $ 85.000</td><td>Pablo</td></tr>
+            <tr><td class="num">06/10</td><td>Pago de compra</td><td>AD019FG Ranger</td><td>Dólares</td><td class="num r out">− USD 17.500</td><td>Bruno</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

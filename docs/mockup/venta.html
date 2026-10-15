@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operación de venta V-0042</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F4FD1}a:hover{color:#163A9C}
+.card{background:#FFFFFF;border:1px solid #DEDBD2;border-radius:10px;padding:20px;box-sizing:border-box}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.num{font-family:'IBM Plex Mono',monospace}
+.nav a{display:block;padding:12px 14px;border-radius:8px;color:#D6D9DE;text-decoration:none;font-size:15px}
+.nav a:hover{background:#2A3038;color:#FFFFFF}
+.nav a.on{background:#1F4FD1;color:#FFFFFF}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid #ECEAE4;font-size:14px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:600;color:#5B6169;font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid #DEDBD2;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid #ECEAE4;white-space:nowrap}
+.r{text-align:right}
+.step{flex:1 1 140px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #F4F3EF; font-family: 'IBM Plex Sans', sans-serif; color: #1B1F24">
+  <nav class="nav" aria-label="Menú principal" style="flex: 1 1 220px; background: #1B1F24; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+    <div style="color: #FFFFFF; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 20px; padding: 0 14px 20px">Salón <span style="color: #8FA9F0">· gestión</span></div>
+    <a href="dashboard.html">Inicio</a>
+    <a href="contactos.html">Contactos y agenda</a>
+    <a href="stock.html">Stock</a>
+    <a class="on" href="venta.html">Ventas</a>
+    <a href="caja.html">Caja y patrimonio</a>
+    <a href="index.html">Cómo funciona</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+    <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span class="num" style="color: #5B6169">Operación V-0042 · abierta el 10/10 por Pablo</span>
+        <h1 style="font-size: 30px">Venta a Marcos Pérez</h1>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <a class="btn" href="venta.html" style="border: 1px solid #8A3A08; color: #8A3A08">Devolver seña</a>
+        <a class="btn" href="venta.html" style="border: 1px solid #1F4FD1; color: #1F4FD1">+ Agregar pago</a>
+        <a class="btn" href="caja.html" style="background: #1F4FD1; color: #FFFFFF">Cerrar venta</a>
+      </div>
+    </header>
+
+    <section class="card" aria-label="Etapas de la operación" style="display: flex; flex-wrap: wrap; gap: 16px">
+      <div class="step"><div style="height: 6px; border-radius: 99px; background: #1E7A46"></div><b>Preventa</b><span style="color: #5B6169">10/10</span></div>
+      <div class="step"><div style="height: 6px; border-radius: 99px; background: #1F4FD1"></div><b>Señada</b><span style="color: #5B6169">$ 300.000 · vence 16/10</span></div>
+      <div class="step"><div style="height: 6px; border-radius: 99px; background: #DEDBD2"></div><b style="color: #5B6169">Cerrada</b><span style="color: #5B6169">cuando los pagos suman el precio</span></div>
+      <div class="step"><div style="height: 6px; border-radius: 99px; background: #DEDBD2"></div><b style="color: #5B6169">Entregada</b><span style="color: #5B6169">fecha y hora de entrega</span></div>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch">
+      <section class="card" aria-label="Cliente" style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 4px">
+        <h2 style="font-size: 18px; padding-bottom: 8px">Cliente</h2>
+        <div class="row"><span>Nombre</span><b>Marcos Pérez</b></div>
+        <div class="row"><span>Teléfono</span><span class="num">291 555-0142</span></div>
+        <div class="row"><span>Vino por</span><span>WhatsApp</span></div>
+        <div class="row"><span>Calificación</span><span>$ 8.000.000 · Bco. Provincia</span></div>
+      </section>
+      <section class="card" aria-label="Auto que compra" style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 4px">
+        <h2 style="font-size: 18px; padding-bottom: 8px">Auto que compra</h2>
+        <div class="row"><span>Patente</span><a href="ficha.html" class="num" style="font-weight: 500">AE908RT</a></div>
+        <div class="row"><span>Auto</span><span>Toyota Hilux SRV 2.8 4x4 · 2020</span></div>
+        <div class="row"><span>Estado</span><span class="chip" style="background: #DCE5FA; color: #163A9C">RESERVADO</span></div>
+        <div class="row" style="font-weight: 600"><span>Precio de venta</span><span class="num">$ 44.900.000</span></div>
+      </section>
+    </div>
+
+    <section class="card" aria-label="Cómo paga" style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline">
+        <h2 style="font-size: 18px">Cómo paga</h2>
+        <span style="font-size: 13px; color: #5B6169">Solo efectivo y transferencias entran a la caja.</span>
+      </div>
+      <div style="overflow-x: auto">
+        <table>
+          <thead><tr><th>Forma</th><th>Detalle</th><th class="r">Importe</th><th>Dónde impacta</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td>Seña</td><td>Efectivo · 10/10</td><td class="num r">$ 300.000</td><td>Caja</td><td><span class="chip" style="background: #DCEBDF; color: #1B5E35">Cobrado</span></td></tr>
+            <tr><td>Efectivo</td><td>Al cerrar</td><td class="num r">$ 12.200.000</td><td>Caja</td><td><span class="chip" style="background: #E6E3DA; color: #3D4249">A cobrar</span></td></tr>
+            <tr><td>Transferencia</td><td>Cuenta del salón</td><td class="num r">$ 20.400.000</td><td>Caja (banco)</td><td><span class="chip" style="background: #E6E3DA; color: #3D4249">A cobrar</span></td></tr>
+            <tr><td>Crédito bancario</td><td>Banco Provincia · aprobado</td><td class="num r">$ 8.000.000</td><td>Cuentas a cobrar</td><td><span class="chip" style="background: #DCE5FA; color: #163A9C">Espera liquidación</span></td></tr>
+            <tr><td>Usado en parte de pago</td><td><a href="ficha.html">Ford Fiesta 2015 · OPQ214</a> · entra al stock "por ingresar"</td><td class="num r">$ 4.000.000</td><td>Stock (patrimonio)</td><td><span class="chip" style="background: #FDE7D3; color: #8A3A08">Peritaje hoy</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; justify-content: space-between; font-size: 14px"><b>Cubierto</b><span class="num">$ 44.900.000 de $ 44.900.000</span></div>
+        <div style="height: 12px; background: #ECEAE4; border-radius: 99px; display: flex; overflow: hidden">
+          <div style="width: 73%; background: #1E7A46"></div><div style="width: 18%; background: #1F4FD1"></div><div style="width: 9%; background: #C2410C"></div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: #3D4249">
+          <span><span aria-hidden="true" style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #1E7A46"></span> Caja $ 32,9 M</span>
+          <span><span aria-hidden="true" style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #1F4FD1"></span> Banco a cobrar $ 8 M</span>
+          <span><span aria-hidden="true" style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #C2410C"></span> Usado $ 4 M</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Liquidación prevista" style="display: flex; flex-wrap: wrap; gap: 32px">
+      <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+        <h2 style="font-size: 18px; padding-bottom: 8px">Liquidación al cerrar</h2>
+        <div class="row"><span>Precio de venta</span><span class="num">$ 44.900.000</span></div>
+        <div class="row"><span>Costo real del auto</span><span class="num">− $ 38.700.000</span></div>
+        <div class="row" style="font-weight: 600"><span>Ganancia</span><span class="num">$ 6.200.000</span></div>
+        <div class="row"><span>Ganancia base (15 % del costo)</span><span class="num">$ 5.805.000</span></div>
+        <div class="row"><span>Sobreprecio</span><span class="num">$ 395.000</span></div>
+      </div>
+      <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 10px">
+        <h2 style="font-size: 18px; padding-bottom: 4px">Reparto</h2>
+        <div style="padding: 14px; border-radius: 8px; background: #DCE5FA; display: flex; justify-content: space-between; gap: 12px"><span><b>Inversor</b> · 7,5 %</span><span class="num">$ 2.902.500</span></div>
+        <div style="padding: 14px; border-radius: 8px; background: #DCEBDF; display: flex; justify-content: space-between; gap: 12px"><span><b>Salón</b> · 7,5 % + sobreprecio</span><span class="num">$ 3.297.500</span></div>
+        <div style="padding: 14px; border-radius: 8px; background: #F4F3EF; border: 1px solid #DEDBD2; font-size: 14px; line-height: 1.5">
+          <b>En dólares:</b> invertidos USD 26.690 (dólar $ 1.450) · vendido USD 29.156 (dólar $ 1.540) · resultado <b>USD 2.466 (9,2 %)</b>. El dólar se comió parte del margen.
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

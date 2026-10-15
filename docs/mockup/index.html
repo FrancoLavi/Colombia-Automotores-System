@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cómo funciona el sistema</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F4FD1}a:hover{color:#163A9C}
+.card{background:#FFFFFF;border:1px solid #DEDBD2;border-radius:10px;padding:20px;box-sizing:border-box}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.num{font-family:'IBM Plex Mono',monospace}
+.nav a{display:block;padding:12px 14px;border-radius:8px;color:#D6D9DE;text-decoration:none;font-size:15px}
+.nav a:hover{background:#2A3038;color:#FFFFFF}
+.nav a.on{background:#1F4FD1;color:#FFFFFF}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #F4F3EF; font-family: 'IBM Plex Sans', sans-serif; color: #1B1F24">
+  <nav class="nav" aria-label="Menú principal" style="flex: 1 1 220px; background: #1B1F24; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+    <div style="color: #FFFFFF; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 20px; padding: 0 14px 20px">Salón <span style="color: #8FA9F0">· gestión</span></div>
+    <a href="dashboard.html">Inicio</a>
+    <a href="contactos.html">Contactos y agenda</a>
+    <a href="stock.html">Stock</a>
+    <a href="venta.html">Ventas</a>
+    <a href="caja.html">Caja y patrimonio</a>
+    <a class="on" href="index.html">Cómo funciona</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 40px 48px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px; max-width: 1180px">
+    <header style="display: flex; flex-direction: column; gap: 10px">
+      <span class="chip" style="background: #E6E3DA; color: #3D4249; align-self: flex-start">Propuesta · primera versión (MVP)</span>
+      <h1 style="font-size: 40px; line-height: 1.1">Cómo funciona el sistema del salón</h1>
+      <p style="margin: 0; font-size: 18px; line-height: 1.5; color: #4A5058; max-width: 760px">El recorrido completo de un auto y de la plata: desde que alguien consulta hasta que se entrega el auto y se reparte la ganancia. Cada paso abre la pantalla correspondiente.</p>
+    </header>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="font-size: 24px">1. El recorrido, paso a paso</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 1</span>
+          <h3 style="font-size: 18px">Llega una consulta</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Todo contacto se carga como <b>dato</b>: de dónde vino (WhatsApp, Marketplace, Facebook…), qué busca, si trae usado, cuánto le presta el banco y cuándo volver a llamarlo.</p>
+          <a href="contactos.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver contactos →</a>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 2</span>
+          <h3 style="font-size: 18px">Ingresa un auto</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Por <b>compra, permuta o consignación</b>, identificado por patente. Queda <b>"por ingresar"</b> hasta tener los papeles y el peritaje con fotos. Se guarda el dólar del día.</p>
+          <a href="ficha.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver ficha del auto →</a>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 3</span>
+          <h3 style="font-size: 18px">Se prepara</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Chapista, alistaje, gestoría, VTV, multas: cada gasto se carga cuando aparece y <b>suma al costo real</b> del auto. La ubicación (salón, chapista, alistaje) se ve aparte del estado.</p>
+          <a href="ficha.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver gastos →</a>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 4</span>
+          <h3 style="font-size: 18px">Queda disponible</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">El sistema sugiere el precio: <b>costo + 15 %</b>, más o menos un ajuste comercial. El precio se publica en pesos y no se toca a diario.</p>
+          <a href="stock.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver stock →</a>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 5</span>
+          <h3 style="font-size: 18px">Preventa y seña</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">El dato pasa a <b>preventa</b> con un auto elegido. Si deja seña, el auto queda <b>reservado</b>. Si la operación se cae, la seña se devuelve.</p>
+          <a href="venta.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver operación →</a>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 6</span>
+          <h3 style="font-size: 18px">Se cierra la venta</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Se arma cómo paga: efectivo, transferencia, crédito del banco y usado en parte de pago. Cuando todo suma el precio, la venta se cierra.</p>
+          <a href="venta.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver forma de pago →</a>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 7</span>
+          <h3 style="font-size: 18px">Se entrega</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Se registra <b>fecha y hora de entrega</b>: desde ese momento, multas y patentes son del comprador. El usado recibido entra al stock como un auto nuevo.</p>
+          <a href="venta.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver entrega →</a>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="num" style="font-size: 13px; color: #1F4FD1; font-weight: 500">PASO 8</span>
+          <h3 style="font-size: 18px">Se reparte la ganancia</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Primero se repone el costo a la caja. Después, la ganancia se reparte entre el inversor y el salón, y cada pago queda registrado.</p>
+          <a href="caja.html" style="font-size: 14px; font-weight: 600; margin-top: auto">Ver caja →</a>
+        </div>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="font-size: 24px">2. Estado y ubicación del auto</h2>
+      <div class="card" style="display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px">
+          <span class="chip" style="background: #FDE7D3; color: #8A3A08">POR INGRESAR</span><span aria-hidden="true">→</span>
+          <span class="chip" style="background: #DCEBDF; color: #1B5E35">DISPONIBLE</span><span aria-hidden="true">→</span>
+          <span class="chip" style="background: #DCE5FA; color: #163A9C">RESERVADO</span><span aria-hidden="true">→</span>
+          <span class="chip" style="background: #E6E3DA; color: #3D4249">VENDIDO</span><span aria-hidden="true">→</span>
+          <span class="chip" style="background: #1B1F24; color: #FFFFFF">ENTREGADO</span>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Para pasar a <b>disponible</b> hacen falta los papeles obligatorios y el peritaje apto. Si el peritaje da no apto, el auto queda <b>rechazado</b>. Si se devuelve la seña, vuelve a disponible.</p>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; padding-top: 14px; border-top: 1px solid #ECEAE4">
+          <b>Ubicación (aparte del estado):</b>
+          <span class="chip" style="background: #F4F3EF; color: #1B1F24; border: 1px solid #C9C5BA">Salón</span>
+          <span class="chip" style="background: #F4F3EF; color: #1B1F24; border: 1px solid #C9C5BA">Chapista</span>
+          <span class="chip" style="background: #F4F3EF; color: #1B1F24; border: 1px solid #C9C5BA">Alistaje</span>
+          <span class="chip" style="background: #F4F3EF; color: #1B1F24; border: 1px solid #C9C5BA">Mecánico</span>
+          <span style="color: #4A5058">Un auto puede estar disponible y estar en el chapista.</span>
+        </div>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="font-size: 24px">3. La plata: caja y patrimonio son cosas distintas</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <h3 style="font-size: 18px">Caja = solo plata líquida</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Efectivo y transferencias, en pesos o dólares. Acá entran señas y cobros, y salen pagos de autos, gastos, retiros de los socios y pagos al inversor.</p>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <h3 style="font-size: 18px">Patrimonio = todo lo que tiene el salón</h3>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4A5058">Caja + autos en stock al costo + lo que los bancos deben liquidar − lo que falta pagar. Un usado en parte de pago <b>no es caja</b>: suma al stock.</p>
+        </div>
+      </div>
+      <div class="card" style="display: flex; flex-direction: column; gap: 14px">
+        <h3 style="font-size: 16px">Ejemplo: se vende un auto en $ 10.000.000</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px">
+          <div style="padding: 14px; border-radius: 8px; background: #DCEBDF"><div class="num" style="font-size: 18px; font-weight: 500">$ 3.000.000</div><div>Efectivo → <b>entra a caja</b></div></div>
+          <div style="padding: 14px; border-radius: 8px; background: #DCE5FA"><div class="num" style="font-size: 18px; font-weight: 500">$ 3.000.000</div><div>Crédito del banco → <b>a cobrar</b></div></div>
+          <div style="padding: 14px; border-radius: 8px; background: #FDE7D3"><div class="num" style="font-size: 18px; font-weight: 500">$ 4.000.000</div><div>Usado en parte de pago → <b>entra al stock</b></div></div>
+        </div>
+        <p style="margin: 0; font-size: 14px; color: #4A5058">La operación está paga al 100 %, pero en la caja solo se ven $ 3.000.000. Los otros $ 7.000.000 se ven en el patrimonio.</p>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="font-size: 24px">4. Precio sugerido y reparto de la ganancia</h2>
+      <div class="card" style="display: flex; flex-wrap: wrap; gap: 32px">
+        <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 10px; font-size: 15px">
+          <div style="display: flex; justify-content: space-between; gap: 12px"><span>Valor de toma</span><span class="num">$ 10.000.000</span></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px"><span>Gastos (chapa + alistaje)</span><span class="num">$ 1.000.000</span></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px; font-weight: 600; border-top: 1px solid #DEDBD2; padding-top: 8px"><span>Costo real</span><span class="num">$ 11.000.000</span></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px"><span>Precio sugerido (costo + 15 %)</span><span class="num">$ 12.650.000</span></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px"><span>Se vendió en</span><span class="num">$ 12.900.000</span></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px; font-weight: 600"><span>Ganancia</span><span class="num">$ 1.900.000</span></div>
+        </div>
+        <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 12px">
+          <div style="padding: 14px; border-radius: 8px; background: #DCE5FA; display: flex; justify-content: space-between; gap: 12px"><span><b>Inversor</b> · 7,5 % del costo</span><span class="num">$ 825.000</span></div>
+          <div style="padding: 14px; border-radius: 8px; background: #DCEBDF; display: flex; justify-content: space-between; gap: 12px"><span><b>Salón</b> · 7,5 % del costo</span><span class="num">$ 825.000</span></div>
+          <div style="padding: 14px; border-radius: 8px; background: #DCEBDF; display: flex; justify-content: space-between; gap: 12px"><span><b>Salón</b> · sobreprecio (por encima del 15 %)</span><span class="num">$ 250.000</span></div>
+          <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #4A5058">Si se vende con menos del 15 % de ganancia, se reparte mitad y mitad. El sistema también muestra el resultado en dólares (dólar al ingreso contra dólar a la venta) para ver si el tipo de cambio comió el margen.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="font-size: 24px">5. Alertas automáticas</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; font-size: 14px">
+        <div class="card" style="padding: 16px"><b>Días en stock</b><br>Aviso a los 30 días y alerta a los 60.</div>
+        <div class="card" style="padding: 16px"><b>Margen en dólares ≤ 10 %</b><br>Si sube el dólar y el auto deja de rendir.</div>
+        <div class="card" style="padding: 16px"><b>Vencimientos</b><br>VTV, verificación policial y otros papeles con fecha.</div>
+        <div class="card" style="padding: 16px"><b>Papeles faltantes</b><br>Autos que siguen "por ingresar".</div>
+        <div class="card" style="padding: 16px"><b>Seña por vencer</b><br>Reservas que hay que resolver.</div>
+        <div class="card" style="padding: 16px"><b>Agenda</b><br>A quién llamar hoy y mañana.</div>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="font-size: 24px">6. Para confirmar con ustedes</h2>
+      <ol class="card" style="margin: 0; padding: 20px 20px 20px 40px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.5">
+        <li>Si un auto se vende con pérdida, ¿cómo se reparte?</li>
+        <li>La diferencia por el dólar, ¿cambia el reparto o es solo informativa?</li>
+        <li>En una consignación, ¿cuál es la ganancia y participa el inversor?</li>
+        <li>¿La seña siempre se devuelve, o a veces queda para el salón?</li>
+        <li>¿Qué dólar se usa (oficial, blue o el pactado) y quién lo carga?</li>
+      </ol>
+    </section>
+  </main>
+</div>
+</body>
+</html>

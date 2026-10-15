@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contactos y agenda</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F4FD1}a:hover{color:#163A9C}
+.card{background:#FFFFFF;border:1px solid #DEDBD2;border-radius:10px;padding:20px;box-sizing:border-box}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.num{font-family:'IBM Plex Mono',monospace}
+.nav a{display:block;padding:12px 14px;border-radius:8px;color:#D6D9DE;text-decoration:none;font-size:15px}
+.nav a:hover{background:#2A3038;color:#FFFFFF}
+.nav a.on{background:#1F4FD1;color:#FFFFFF}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0}
+.lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#5B6169;font-weight:600}
+.col{flex:1 1 260px;background:#ECEAE4;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
+.lead{background:#FFFFFF;border:1px solid #DEDBD2;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:#3D4249}
+.field input,.field select{min-height:44px;border:1px solid #C9C5BA;border-radius:8px;padding:0 12px;font:inherit;font-weight:400;font-size:14px;background:#FFFFFF;color:#1B1F24}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:600;color:#5B6169;font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid #DEDBD2;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid #ECEAE4;white-space:nowrap}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #F4F3EF; font-family: 'IBM Plex Sans', sans-serif; color: #1B1F24">
+  <nav class="nav" aria-label="Menú principal" style="flex: 1 1 220px; background: #1B1F24; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+    <div style="color: #FFFFFF; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 20px; padding: 0 14px 20px">Salón <span style="color: #8FA9F0">· gestión</span></div>
+    <a href="dashboard.html">Inicio</a>
+    <a class="on" href="contactos.html">Contactos y agenda</a>
+    <a href="stock.html">Stock</a>
+    <a href="venta.html">Ventas</a>
+    <a href="caja.html">Caja y patrimonio</a>
+    <a href="index.html">Cómo funciona</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h1 style="font-size: 30px">Contactos</h1>
+        <span style="color: #4A5058; font-size: 15px">Todo el que consulta se carga como dato. Después pasa a preventa y a cliente.</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <a href="contactos.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #1F4FD1; color: #1F4FD1; font-weight: 600; text-decoration: none">Importar Excel</a>
+        <a href="contactos.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 8px; background: #1F4FD1; color: #FFFFFF; font-weight: 600; text-decoration: none">+ Nuevo dato</a>
+      </div>
+    </header>
+
+    <section class="card" aria-label="Carga rápida de un dato" style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="font-size: 18px">Carga rápida</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px">
+        <label class="field">Nombre<input type="text" value="Nicolás Blanco"></label>
+        <label class="field">Teléfono<input type="tel" value="291 555-0187"></label>
+        <label class="field">De dónde vino<select><option>Marketplace</option><option>WhatsApp</option><option>Facebook</option><option>Instagram</option><option>Referido</option><option>Salón</option></select></label>
+        <label class="field">Qué busca<input type="text" value="Pick-up 4x4, hasta 2020"></label>
+        <label class="field">Usado a entregar<input type="text" value="Chevrolet Corsa 2012"></label>
+        <label class="field">Calificación crediticia<input type="text" value="$ 6.000.000 · Bco. Patagonia"></label>
+        <label class="field">Próximo contacto<input type="date" value="2026-10-19"></label>
+      </div>
+    </section>
+
+    <section aria-label="Embudo comercial" style="display: flex; flex-direction: column; gap: 12px">
+      <h2 style="font-size: 18px">Embudo</h2>
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+        <div class="col">
+          <div style="display: flex; justify-content: space-between"><b>Datos</b><span class="num">148</span></div>
+          <div class="lead"><b>Laura Gómez</b><span>SUV hasta $ 25 M · crédito $ 12 M aprobado</span><div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip" style="background: #DCE5FA; color: #163A9C">Marketplace</span><span class="chip" style="background: #FDE7D3; color: #8A3A08">Llamar hoy</span></div></div>
+          <div class="lead"><b>Nicolás Blanco</b><span>Pick-up 4x4 · entrega Corsa 2012</span><div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip" style="background: #DCEBDF; color: #1B5E35">WhatsApp</span><span class="chip" style="background: #E6E3DA; color: #3D4249">19/10</span></div></div>
+          <div class="lead"><b>Ana Ruiz</b><span>Primer auto, hasta $ 9 M</span><div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip" style="background: #E6E3DA; color: #3D4249">Instagram</span></div></div>
+        </div>
+        <div class="col">
+          <div style="display: flex; justify-content: space-between"><b>Preventa</b><span class="num">5</span></div>
+          <div class="lead"><b>Marcos Pérez</b><span>Hilux SRV 2020 · seña $ 300.000 · entrega Fiesta 2015</span><div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip" style="background: #DCE5FA; color: #163A9C">Señada</span></div><a href="venta.html" style="font-weight: 600">Abrir operación →</a></div>
+          <div class="lead"><b>Carla Méndez</b><span>Gol Trend 2017 · espera crédito</span><div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip" style="background: #E6E3DA; color: #3D4249">Preventa</span></div></div>
+        </div>
+        <div class="col">
+          <div style="display: flex; justify-content: space-between"><b>Clientes</b><span class="num">212</span></div>
+          <div class="lead"><b>Diego Ferreyra</b><span>Compró Hilux 2018 · sept.</span></div>
+          <div class="lead"><b>Sofía Lanz</b><span>Compró 208 2020 · agosto</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Pedidos de clientes" style="display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline">
+        <h2 style="font-size: 18px">Lo que piden los clientes</h2>
+        <span style="font-size: 13px; color: #5B6169">Sirve para decidir qué autos tomar.</span>
+      </div>
+      <div style="overflow-x: auto">
+        <table>
+          <thead><tr><th>Busca</th><th>Años</th><th>Hasta</th><th>Pedidos</th><th>En stock que coinciden</th></tr></thead>
+          <tbody>
+            <tr><td>Pick-up 4x4 (Amarok, Hilux, Ranger)</td><td>2017–2021</td><td class="num">$ 30 M</td><td class="num">9</td><td>2 · <a href="stock.html">ver</a></td></tr>
+            <tr><td>SUV compacto</td><td>2019–2022</td><td class="num">$ 25 M</td><td class="num">6</td><td>1 · <a href="stock.html">ver</a></td></tr>
+            <tr><td>Primer auto (Gol, Corsa, Fiesta)</td><td>2012–2016</td><td class="num">$ 9 M</td><td class="num">11</td><td>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

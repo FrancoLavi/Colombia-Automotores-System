@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock de autos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F4FD1}a:hover{color:#163A9C}
+.card{background:#FFFFFF;border:1px solid #DEDBD2;border-radius:10px;padding:20px;box-sizing:border-box}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.num{font-family:'IBM Plex Mono',monospace}
+.nav a{display:block;padding:12px 14px;border-radius:8px;color:#D6D9DE;text-decoration:none;font-size:15px}
+.nav a:hover{background:#2A3038;color:#FFFFFF}
+.nav a.on{background:#1F4FD1;color:#FFFFFF}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:#3D4249}
+.field input,.field select{min-height:44px;border:1px solid #C9C5BA;border-radius:8px;padding:0 12px;font:inherit;font-weight:400;font-size:14px;background:#FFFFFF;color:#1B1F24}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:600;color:#5B6169;font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid #DEDBD2;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid #ECEAE4;white-space:nowrap}
+.r{text-align:right}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #F4F3EF; font-family: 'IBM Plex Sans', sans-serif; color: #1B1F24">
+  <nav class="nav" aria-label="Menú principal" style="flex: 1 1 220px; background: #1B1F24; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+    <div style="color: #FFFFFF; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 20px; padding: 0 14px 20px">Salón <span style="color: #8FA9F0">· gestión</span></div>
+    <a href="dashboard.html">Inicio</a>
+    <a href="contactos.html">Contactos y agenda</a>
+    <a class="on" href="stock.html">Stock</a>
+    <a href="venta.html">Ventas</a>
+    <a href="caja.html">Caja y patrimonio</a>
+    <a href="index.html">Cómo funciona</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+    <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h1 style="font-size: 30px">Stock</h1>
+        <span style="color: #4A5058; font-size: 15px">24 autos · invertido $ 368 M (USD 241.000 al dólar de ingreso)</span>
+      </div>
+      <a href="ficha.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 8px; background: #1F4FD1; color: #FFFFFF; font-weight: 600; text-decoration: none">+ Ingresar auto</a>
+    </header>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 10px">
+      <span class="chip" style="background: #FDE7D3; color: #8A3A08; font-size: 13px; padding: 8px 14px">Por ingresar · 3</span>
+      <span class="chip" style="background: #DCEBDF; color: #1B5E35; font-size: 13px; padding: 8px 14px">Disponibles · 17</span>
+      <span class="chip" style="background: #DCE5FA; color: #163A9C; font-size: 13px; padding: 8px 14px">Reservados · 2</span>
+      <span class="chip" style="background: #E6E3DA; color: #3D4249; font-size: 13px; padding: 8px 14px">Vendidos sin entregar · 2</span>
+    </div>
+
+    <section class="card" aria-label="Filtros" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; padding: 16px">
+      <label class="field">Buscar<input type="search" placeholder="Patente, marca o modelo"></label>
+      <label class="field">Marca<select><option>Todas</option><option>Volkswagen</option><option>Toyota</option><option>Ford</option><option>Peugeot</option><option>Fiat</option></select></label>
+      <label class="field">Estado<select><option>Activos</option><option>Por ingresar</option><option>Disponible</option><option>Reservado</option><option>Vendido</option></select></label>
+      <label class="field">Ubicación<select><option>Todas</option><option>Salón</option><option>Chapista</option><option>Alistaje</option><option>Mecánico</option></select></label>
+      <label class="field">Precio hasta<input type="text" placeholder="$"></label>
+      <label class="field">Más de N días<input type="number" value="30"></label>
+    </section>
+
+    <section class="card" aria-label="Listado de autos" style="padding: 0; overflow-x: auto">
+      <table>
+        <thead><tr><th>Patente</th><th>Auto</th><th>Año</th><th class="r">Km</th><th>Estado</th><th>Ubicación</th><th class="r">Días</th><th class="r">Costo</th><th class="r">Precio</th><th class="r">Margen USD</th><th>Alertas</th></tr></thead>
+        <tbody>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">AD456KL</a></td><td>VW Amarok Highline 2.0 AT</td><td>2019</td><td class="num r">98.000</td><td><span class="chip" style="background: #DCEBDF; color: #1B5E35">DISPONIBLE</span></td><td>Salón</td><td class="num r">38</td><td class="num r">$ 28,4 M</td><td class="num r">$ 32,9 M</td><td class="num r" style="color: #8A3A08; font-weight: 600">9,9 %</td><td><span class="chip" style="background: #8A3A08; color: #FFFFFF">Margen</span></td></tr>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">AB112CD</a></td><td>Peugeot 208 Allure 1.6</td><td>2017</td><td class="num r">71.500</td><td><span class="chip" style="background: #DCEBDF; color: #1B5E35">DISPONIBLE</span></td><td>Salón</td><td class="num r" style="color: #8A3A08; font-weight: 600">64</td><td class="num r">$ 13,1 M</td><td class="num r">$ 15,1 M</td><td class="num r">12,4 %</td><td><span class="chip" style="background: #8A3A08; color: #FFFFFF">+60 días</span></td></tr>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">AA731QP</a></td><td>VW Gol Trend Trendline 1.6</td><td>2016</td><td class="num r">104.000</td><td><span class="chip" style="background: #DCEBDF; color: #1B5E35">DISPONIBLE</span></td><td>Alistaje</td><td class="num r">12</td><td class="num r">$ 9,2 M</td><td class="num r">$ 10,6 M</td><td class="num r">14,1 %</td><td><span class="chip" style="background: #FDE7D3; color: #8A3A08">VTV 5 días</span></td></tr>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">OPQ214</a></td><td>Ford Fiesta Kinetic 1.6</td><td>2015</td><td class="num r">120.000</td><td><span class="chip" style="background: #FDE7D3; color: #8A3A08">POR INGRESAR</span></td><td>Salón</td><td class="num r">1</td><td class="num r">$ 4,0 M</td><td class="num r">—</td><td class="num r">—</td><td><span class="chip" style="background: #FDE7D3; color: #8A3A08">Falta 08</span></td></tr>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">AE908RT</a></td><td>Toyota Hilux SRV 2.8 4x4</td><td>2020</td><td class="num r">86.000</td><td><span class="chip" style="background: #DCE5FA; color: #163A9C">RESERVADO</span></td><td>Chapista</td><td class="num r">9</td><td class="num r">$ 38,7 M</td><td class="num r">$ 44,9 M</td><td class="num r">14,8 %</td><td><span class="chip" style="background: #DCE5FA; color: #163A9C">Seña vence mañana</span></td></tr>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">AF203KL</a></td><td>VW Amarok Comfortline V6</td><td>2021</td><td class="num r">54.000</td><td><span class="chip" style="background: #E6E3DA; color: #3D4249">VENDIDO</span></td><td>Salón</td><td class="num r">21</td><td class="num r">$ 41,0 M</td><td class="num r">$ 47,2 M</td><td class="num r">15,0 %</td><td>Entrega hoy 16:00</td></tr>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">AC377MN</a></td><td>Fiat Cronos Drive 1.3</td><td>2019</td><td class="num r">63.000</td><td><span class="chip" style="background: #DCEBDF; color: #1B5E35">DISPONIBLE</span></td><td>Salón</td><td class="num r">33</td><td class="num r">$ 12,6 M</td><td class="num r">$ 14,5 M</td><td class="num r">11,8 %</td><td><span class="chip" style="background: #FDE7D3; color: #8A3A08">+30 días</span></td></tr>
+          <tr><td><a href="ficha.html" class="num" style="font-weight: 500">AD019FG</a></td><td>Ford Ranger XLT 3.2 4x4</td><td>2018</td><td class="num r">132.000</td><td><span class="chip" style="background: #DCEBDF; color: #1B5E35">DISPONIBLE</span></td><td>Mecánico</td><td class="num r">6</td><td class="num r">$ 27,9 M</td><td class="num r">$ 32,1 M</td><td class="num r">15,0 %</td><td></td></tr>
+        </tbody>
+      </table>
+    </section>
+    <p style="margin: 0; font-size: 13px; color: #5B6169">Margen USD = cuánto rinde el auto en dólares con el dólar de hoy contra lo invertido al dólar de ingreso. Cuando baja al 10 % salta la alerta.</p>
+  </main>
+</div>
+</body>
+</html>

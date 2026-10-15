@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inicio · Dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F4FD1}a:hover{color:#163A9C}
+.card{background:#FFFFFF;border:1px solid #DEDBD2;border-radius:10px;padding:20px;box-sizing:border-box}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.num{font-family:'IBM Plex Mono',monospace}
+.nav a{display:block;padding:12px 14px;border-radius:8px;color:#D6D9DE;text-decoration:none;font-size:15px}
+.nav a:hover{background:#2A3038;color:#FFFFFF}
+.nav a.on{background:#1F4FD1;color:#FFFFFF}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0}
+.lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#5B6169;font-weight:600}
+.bar{flex:1 1 0;background:#1F4FD1;border-radius:4px 4px 0 0}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #F4F3EF; font-family: 'IBM Plex Sans', sans-serif; color: #1B1F24">
+  <nav class="nav" aria-label="Menú principal" style="flex: 1 1 220px; background: #1B1F24; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+    <div style="color: #FFFFFF; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 20px; padding: 0 14px 20px">Salón <span style="color: #8FA9F0">· gestión</span></div>
+    <a class="on" href="dashboard.html">Inicio</a>
+    <a href="contactos.html">Contactos y agenda</a>
+    <a href="stock.html">Stock</a>
+    <a href="venta.html">Ventas</a>
+    <a href="caja.html">Caja y patrimonio</a>
+    <a href="index.html">Cómo funciona</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span class="chip" style="background: #E6E3DA; color: #3D4249; align-self: flex-start">Datos de ejemplo</span>
+        <h1 style="font-size: 30px">Hola, Bruno · octubre</h1>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center; font-size: 14px">
+        <span>Dólar hoy</span><span class="num" style="font-size: 18px; font-weight: 500">$ 1.540</span>
+        <span class="chip" style="background: #FDE7D3; color: #8A3A08">+2,7 % desde el ingreso promedio</span>
+      </div>
+    </header>
+
+    <section aria-label="Objetivos del mes" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+      <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl">Autos vendidos</span>
+        <div><span class="num" style="font-size: 32px; font-weight: 500">7</span><span style="color: #5B6169"> / 12 objetivo</span></div>
+        <div style="height: 10px; background: #ECEAE4; border-radius: 99px"><div style="width: 58%; height: 10px; background: #1F4FD1; border-radius: 99px"></div></div>
+        <span style="font-size: 13px; color: #5B6169">Meta: vender la mitad del stock (24 autos)</span>
+      </div>
+      <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl">Ganancia del mes</span>
+        <div><span class="num" style="font-size: 32px; font-weight: 500">$ 11,2 M</span><span style="color: #5B6169"> / $ 18 M</span></div>
+        <div style="height: 10px; background: #ECEAE4; border-radius: 99px"><div style="width: 62%; height: 10px; background: #1E7A46; border-radius: 99px"></div></div>
+        <span style="font-size: 13px; color: #5B6169">Salón $ 6,9 M · Inversor $ 4,3 M</span>
+      </div>
+      <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl">Caja disponible</span>
+        <div class="num" style="font-size: 32px; font-weight: 500">$ 18,3 M</div>
+        <span style="font-size: 13px; color: #5B6169">+ USD 12.000 · a cobrar de bancos $ 9 M</span>
+        <a href="caja.html" style="font-size: 14px; font-weight: 600">Ver caja →</a>
+      </div>
+      <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl">Patrimonio</span>
+        <div class="num" style="font-size: 32px; font-weight: 500">$ 412 M</div>
+        <span style="font-size: 13px; color: #5B6169">24 autos en stock al costo · rotación 29 %</span>
+        <a href="caja.html" style="font-size: 14px; font-weight: 600">Ver detalle →</a>
+      </div>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+      <section class="card" aria-label="Alertas" style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px">
+          <h2 style="font-size: 18px">Alertas</h2>
+          <span class="chip" style="background: #FBE1D0; color: #8A3A08">6 activas</span>
+        </div>
+        <a href="ficha.html" style="display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #ECEAE4; color: #1B1F24; text-decoration: none">
+          <span class="chip" style="background: #8A3A08; color: #FFFFFF">CRÍTICA</span>
+          <span style="flex: 1">Margen en USD bajó a <b>9,9 %</b> · Amarok Highline AD456KL</span>
+        </a>
+        <a href="stock.html" style="display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #ECEAE4; color: #1B1F24; text-decoration: none">
+          <span class="chip" style="background: #8A3A08; color: #FFFFFF">CRÍTICA</span>
+          <span style="flex: 1"><b>64 días</b> en stock · Peugeot 208 AB112CD</span>
+        </a>
+        <a href="ficha.html" style="display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #ECEAE4; color: #1B1F24; text-decoration: none">
+          <span class="chip" style="background: #FDE7D3; color: #8A3A08">AVISO</span>
+          <span style="flex: 1">VTV vence en <b>5 días</b> · Gol Trend AA731QP</span>
+        </a>
+        <a href="ficha.html" style="display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #ECEAE4; color: #1B1F24; text-decoration: none">
+          <span class="chip" style="background: #FDE7D3; color: #8A3A08">AVISO</span>
+          <span style="flex: 1">Falta <b>formulario 08</b> · Fiesta 2015 (permuta) por ingresar</span>
+        </a>
+        <a href="venta.html" style="display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #ECEAE4; color: #1B1F24; text-decoration: none">
+          <span class="chip" style="background: #DCE5FA; color: #163A9C">SEÑA</span>
+          <span style="flex: 1">Seña de <b>Pérez, Marcos</b> vence mañana · operación V-0042</span>
+        </a>
+        <a href="stock.html" style="display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #ECEAE4; color: #1B1F24; text-decoration: none">
+          <span class="chip" style="background: #E6E3DA; color: #3D4249">INFO</span>
+          <span style="flex: 1">El dólar subió <b>5 %</b> en el mes: revisá precios</span>
+        </a>
+      </section>
+
+      <section class="card" aria-label="Agenda de hoy" style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px">
+          <h2 style="font-size: 18px">Agenda de hoy</h2>
+          <a href="contactos.html" style="font-size: 14px; font-weight: 600">Ver todo</a>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid #ECEAE4; font-size: 14px"><span class="num" style="color: #5B6169">10:00</span><span>Llamar a <b>Laura Gómez</b>: busca SUV hasta $ 25 M, tiene crédito aprobado</span></div>
+        <div style="display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid #ECEAE4; font-size: 14px"><span class="num" style="color: #5B6169">12:30</span><span>Peritaje del <b>Fiesta 2015</b> (permuta de V-0042)</span></div>
+        <div style="display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid #ECEAE4; font-size: 14px"><span class="num" style="color: #5B6169">16:00</span><span>Entrega <b>Amarok AF203KL</b> a Sosa, Julián</span></div>
+        <div style="display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid #ECEAE4; font-size: 14px"><span class="num" style="color: #5B6169">18:00</span><span>Confirmar visita de <b>Marcos Pérez</b> (viene de Pedro Luro el martes)</span></div>
+      </section>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch">
+      <section class="card" aria-label="Ventas de los últimos 12 meses" style="flex: 2 1 480px; display: flex; flex-direction: column; gap: 16px">
+        <h2 style="font-size: 18px">Ventas de los últimos 12 meses</h2>
+        <div role="img" aria-label="Gráfico de barras: entre 6 y 13 autos vendidos por mes" style="display: flex; align-items: flex-end; gap: 8px; height: 180px; border-bottom: 1px solid #DEDBD2">
+          <div class="bar" style="height: 55%"></div><div class="bar" style="height: 62%"></div><div class="bar" style="height: 70%"></div><div class="bar" style="height: 48%"></div><div class="bar" style="height: 77%"></div><div class="bar" style="height: 85%"></div><div class="bar" style="height: 92%"></div><div class="bar" style="height: 100%"></div><div class="bar" style="height: 69%"></div><div class="bar" style="height: 77%"></div><div class="bar" style="height: 62%"></div><div class="bar" style="height: 54%; background: #8FA9F0"></div>
+        </div>
+        <div style="display: flex; gap: 8px; font-size: 12px; color: #5B6169">
+          <span style="flex: 1 1 0; text-align: center">Nov</span><span style="flex: 1 1 0; text-align: center">Dic</span><span style="flex: 1 1 0; text-align: center">Ene</span><span style="flex: 1 1 0; text-align: center">Feb</span><span style="flex: 1 1 0; text-align: center">Mar</span><span style="flex: 1 1 0; text-align: center">Abr</span><span style="flex: 1 1 0; text-align: center">May</span><span style="flex: 1 1 0; text-align: center">Jun</span><span style="flex: 1 1 0; text-align: center">Jul</span><span style="flex: 1 1 0; text-align: center">Ago</span><span style="flex: 1 1 0; text-align: center">Sep</span><span style="flex: 1 1 0; text-align: center">Oct</span>
+        </div>
+      </section>
+      <section class="card" aria-label="Rotación por modelo" style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 18px">Qué se vende más rápido</h2>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-top: 1px solid #ECEAE4"><span>VW Amarok</span><span class="num">12 días prom.</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-top: 1px solid #ECEAE4"><span>Toyota Hilux</span><span class="num">15 días prom.</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-top: 1px solid #ECEAE4"><span>VW Gol Trend</span><span class="num">21 días prom.</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-top: 1px solid #ECEAE4"><span>Peugeot 208</span><span class="num" style="color: #8A3A08">48 días prom.</span></div>
+        <span style="font-size: 13px; color: #5B6169">Sirve para decidir a cuánto tomar cada modelo.</span>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>
