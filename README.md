@@ -20,5 +20,37 @@ Pantallas estáticas en HTML, sin dependencias. Los datos que muestran son de ej
 
 Para verlo, descargá el repositorio y abrí `docs/mockup/index.html` en el navegador. Las pantallas están enlazadas por el menú lateral.
 
-## Stack previsto
-Next.js · PostgreSQL (Supabase) · Vercel.
+## Especificación
+- [docs/MVP.md](docs/MVP.md): reglas de negocio, módulos e historias de usuario del MVP.
+
+## Stack
+Next.js 15 (App Router) · TypeScript · Tailwind 4 · Drizzle ORM · PostgreSQL. En desarrollo se usa PGlite (Postgres embebido, sin instalar nada); en producción, Supabase y Vercel.
+
+## Desarrollo local
+```bash
+npm install
+cp .env.example .env.local   # completar SESSION_SECRET, SEED_ADMIN_EMAIL y SEED_ADMIN_PASSWORD
+npm run db:migrate           # crea la base local en ./.data/pglite
+npm run db:seed              # datos base + usuario inicial
+npm run dev                  # http://localhost:3000
+```
+
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo |
+| `npm test` | Tests de las reglas de negocio (`src/domain`) |
+| `npm run db:generate` | Genera una migración a partir de `src/db/schema.ts` |
+| `npm run db:migrate` | Aplica las migraciones (PGlite local o `DATABASE_URL`) |
+| `npm run db:seed` | Carga datos base y el usuario inicial |
+
+## Estructura
+```
+src/
+  app/            pantallas (App Router); (app)/ = rutas con sesión
+  db/             esquema y conexión
+  domain/         reglas de negocio puras + tests
+  lib/            sesión, auditoría, formatos
+scripts/          migrate y seed
+drizzle/          migraciones SQL
+docs/             especificación y mockup
+```

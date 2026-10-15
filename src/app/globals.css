@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
+  --font-display: var(--font-archivo), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --color-fondo: #f4f3ef;
+  --color-tinta: #1b1f24;
+  --color-suave: #4a5058;
+  --color-apagado: #5b6169;
+  --color-borde: #dedbd2;
+  --color-linea: #eceae4;
+  --color-acento: #1f4fd1;
+  --color-acento-osc: #163a9c;
+  --color-ok: #1e7a46;
+  --color-ok-fondo: #dcebdf;
+  --color-ok-texto: #1b5e35;
+  --color-aviso-fondo: #fde7d3;
+  --color-aviso-texto: #8a3a08;
+  --color-info-fondo: #dce5fa;
+  --color-info-texto: #163a9c;
+  --color-neutro-fondo: #e6e3da;
+  --color-neutro-texto: #3d4249;
+}
+
+body {
+  background: var(--color-fondo);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-50;
+}
+
+@layer components {
+  .tarjeta {
+    @apply rounded-[10px] border border-borde bg-white p-5;
+  }
+  .chip {
+    @apply inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide;
+  }
+  .btn-primario {
+    @apply btn bg-acento text-white hover:bg-acento-osc;
+  }
+  .btn-secundario {
+    @apply btn border border-acento text-acento hover:bg-info-fondo;
+  }
+  .campo {
+    @apply flex flex-col gap-1.5 text-[13px] font-semibold text-neutro-texto;
+  }
+  .campo input, .campo select, .campo textarea {
+    @apply min-h-11 rounded-lg border border-[#c9c5ba] bg-white px-3 text-sm font-normal text-tinta outline-none focus:border-acento focus:ring-2 focus:ring-info-fondo;
+  }
+  .campo textarea {
+    @apply py-2;
+  }
+  .tabla {
+    @apply w-full border-collapse text-sm;
+  }
+  .tabla th {
+    @apply whitespace-nowrap border-b border-borde px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-apagado;
+  }
+  .tabla td {
+    @apply whitespace-nowrap border-b border-linea px-3 py-3;
+  }
+  .num {
+    @apply font-mono;
+  }
+}
