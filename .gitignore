@@ -43,3 +43,6 @@ next-env.d.ts
 # base local (PGlite)
 /.data
 !.env.example
+
+# configuración personal de Claude Code
+.claude/settings.local.json
