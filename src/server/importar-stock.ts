@@ -32,7 +32,7 @@ export interface FilaImportacion {
 const norm = (v: unknown) =>
   String(v ?? "")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toUpperCase();
 

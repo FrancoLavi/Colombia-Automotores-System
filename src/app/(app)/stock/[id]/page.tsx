@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { datosFormulario, fichaVehiculo } from "@/server/vehiculos";
+import { interesadosEnAuto } from "@/server/contactos";
+import { Telefono } from "../../contactos/chips";
 import { fecha, numero, pesos, porcentaje, usd } from "@/lib/formato";
 import { ChipAlerta, ChipEstado } from "@/components/ui";
 import { eliminarGastoAccion, quitarArchivoAccion } from "../actions";
@@ -35,6 +37,8 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
   const f = await fichaVehiculo(id);
   if (!f) notFound();
   const { categorias } = await datosFormulario();
+  const enStock = ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"].includes(f.v.estado);
+  const interesados = enStock ? await interesadosEnAuto({ ...f.v, precio: f.precio }) : [];
   const v = f.v;
   const vendido = v.estado === "VENDIDO" || v.estado === "ENTREGADO";
   const fotos = f.archivos.filter((x) => x.tipo === "FOTO_PERITAJE");
@@ -147,6 +151,22 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           <FormPrecio id={id} ajuste={v.ajustePrecio} publicado={v.precioPublicado} sugerido={f.sugerido} />
         </section>
       </div>
+
+      {interesados.length > 0 && (
+        <section className="tarjeta flex flex-col gap-2 border-ok/40 bg-ok-fondo/40">
+          <h2 className="text-lg font-semibold">Clientes que buscan algo así · {interesados.length}</h2>
+          <div className="flex flex-col">
+            {interesados.map((i) => (
+              <div key={i.pedidoId} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-linea py-2 text-sm">
+                <Link href={`/contactos/${i.contacto.id}`} className="font-semibold">
+                  {i.contacto.nombre} {i.contacto.apellido}
+                </Link>
+                <Telefono telefono={i.contacto.telefono} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="tarjeta flex flex-col">

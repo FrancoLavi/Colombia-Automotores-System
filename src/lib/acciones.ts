@@ -1,5 +1,5 @@
 import "server-only";
-import { ErrorNegocio } from "@/server/vehiculos";
+import { ErrorNegocio } from "@/server/errores";
 import { ErrorValidacion, type Resultado } from "./form";
 
 /** Ejecuta una acción y convierte los errores esperables en un mensaje para el formulario. */

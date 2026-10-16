@@ -14,7 +14,8 @@ import {
   type Ubicacion,
 } from "@/domain/stock";
 
-export class ErrorNegocio extends Error {}
+import { ErrorNegocio } from "./errores";
+export { ErrorNegocio };
 
 type Vehiculo = typeof s.vehiculos.$inferSelect;
 const ENTIDAD = "vehiculo";
