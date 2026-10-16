@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import type { Resultado } from "@/lib/form";
 import { ETIQUETA_ESTADO, type EstadoVehiculo, type Severidad } from "@/domain/stock";
@@ -50,5 +51,31 @@ export function BotonEnviar({ children, className = "btn-primario", pendiente = 
     <button className={className} disabled={pending}>
       {pending ? pendiente : children}
     </button>
+  );
+}
+
+export function BotonQuitar({ etiqueta, accion }: { etiqueta: string; accion: () => Promise<Resultado> }) {
+  const [pendiente, iniciar] = useTransition();
+  const [error, setError] = useState("");
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button
+        type="button"
+        aria-label={etiqueta}
+        title={etiqueta}
+        disabled={pendiente}
+        className="min-h-11 min-w-11 rounded-lg text-apagado hover:bg-aviso-fondo hover:text-aviso-texto"
+        onClick={() => {
+          if (!confirm(`¿${etiqueta}?`)) return;
+          iniciar(async () => {
+            const r = await accion();
+            setError(r.error ?? "");
+          });
+        }}
+      >
+        ✕
+      </button>
+      {error && <span className="text-xs text-aviso-texto">{error}</span>}
+    </span>
   );
 }

@@ -30,7 +30,8 @@ export async function auditar(
   },
 ) {
   const cambios = diferencias(p.antes ?? null, p.despues ?? null);
-  if (p.accion === "MODIFICAR" && Object.keys(cambios).length === 0) return;
+  // Se omite solo una edición que compara versiones y no cambió nada; un evento descripto siempre se registra.
+  if (p.accion === "MODIFICAR" && (p.antes || p.despues) && Object.keys(cambios).length === 0) return;
   await tx.insert(schema.auditoria).values({
     usuarioId: p.usuarioId,
     entidad: p.entidad,

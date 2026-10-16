@@ -249,32 +249,6 @@ export function FormGasto({ id, categorias, vendido }: { id: number; categorias:
   );
 }
 
-export function BotonQuitar({ etiqueta, accion }: { etiqueta: string; accion: () => Promise<Resultado> }) {
-  const [pendiente, iniciar] = useTransition();
-  const [error, setError] = useState("");
-  return (
-    <span className="inline-flex items-center gap-2">
-      <button
-        type="button"
-        aria-label={etiqueta}
-        title={etiqueta}
-        disabled={pendiente}
-        className="min-h-11 min-w-11 rounded-lg text-apagado hover:bg-aviso-fondo hover:text-aviso-texto"
-        onClick={() => {
-          if (!confirm(`¿${etiqueta}?`)) return;
-          iniciar(async () => {
-            const r = await accion();
-            setError(r.error ?? "");
-          });
-        }}
-      >
-        ✕
-      </button>
-      {error && <span className="text-xs text-aviso-texto">{error}</span>}
-    </span>
-  );
-}
-
 /** Reduce la foto en el navegador (lado mayor 1600 px, JPEG 0,8) antes de subirla. */
 async function comprimir(f: File): Promise<File> {
   if (!f.type.startsWith("image/")) return f;

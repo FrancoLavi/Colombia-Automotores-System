@@ -3,14 +3,14 @@ import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { datosFormulario, fichaVehiculo } from "@/server/vehiculos";
 import { interesadosEnAuto } from "@/server/contactos";
+import { operacionAbiertaDeVehiculo } from "@/server/ventas";
 import { Telefono } from "../../contactos/chips";
 import { fecha, numero, pesos, porcentaje, usd } from "@/lib/formato";
-import { ChipAlerta, ChipEstado } from "@/components/ui";
+import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
 import { eliminarGastoAccion, quitarArchivoAccion } from "../actions";
 import {
   AccionesEstado,
   BotonHabilitar,
-  BotonQuitar,
   FilaDocumento,
   FormGasto,
   FormPeritaje,
@@ -39,6 +39,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
   const { categorias } = await datosFormulario();
   const enStock = ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"].includes(f.v.estado);
   const interesados = enStock ? await interesadosEnAuto({ ...f.v, precio: f.precio }) : [];
+  const operacion = await operacionAbiertaDeVehiculo(id);
   const v = f.v;
   const vendido = v.estado === "VENDIDO" || v.estado === "ENTREGADO";
   const fotos = f.archivos.filter((x) => x.tipo === "FOTO_PERITAJE");
@@ -82,6 +83,17 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           <Link href={`/stock/${id}/editar`} className="btn-secundario">
             Editar datos
           </Link>
+          {operacion ? (
+            <Link href={`/ventas/${operacion.id}`} className="btn-primario">
+              Ver venta {operacion.numero}
+            </Link>
+          ) : (
+            v.estado === "DISPONIBLE" && (
+              <Link href={`/ventas/nueva?vehiculo=${id}`} className="btn-primario">
+                Vender
+              </Link>
+            )
+          )}
         </div>
       </header>
 

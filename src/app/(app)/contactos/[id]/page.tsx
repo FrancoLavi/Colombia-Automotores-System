@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { fichaContacto } from "@/server/contactos";
 import { marcasUsadas } from "@/server/vehiculos";
+import { operacionesDeContacto } from "@/server/ventas";
+import { ChipOperacion } from "../../ventas/chip";
 import { fecha, pesos } from "@/lib/formato";
 import { describirPedido, ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { ChipEstado } from "@/components/ui";
@@ -16,7 +18,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
   const id = Number((await params).id);
   const f = await fichaContacto(id);
   if (!f) notFound();
-  const marcas = await marcasUsadas();
+  const [marcas, operaciones] = await Promise.all([marcasUsadas(), operacionesDeContacto(id)]);
   const c = f.c;
   const pendientes = f.actividades.filter((x) => !x.a.realizadaEn);
   const hechas = f.actividades.filter((x) => x.a.realizadaEn);
@@ -49,8 +51,31 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
           </div>
           {c.proximoContacto && <p className="text-sm">Próximo contacto: <b>{fecha(c.proximoContacto)}</b></p>}
         </div>
-        <AccionesEtapa id={id} opciones={f.etapasManuales as ("DATO" | "DESCARTADO")[]} />
+        <div className="flex flex-wrap items-center gap-2">
+          <AccionesEtapa id={id} opciones={f.etapasManuales as ("DATO" | "DESCARTADO")[]} />
+          {c.etapa !== "DESCARTADO" && (
+            <Link href={`/ventas/nueva?contacto=${id}`} className="btn-primario">
+              Nueva venta
+            </Link>
+          )}
+        </div>
       </header>
+
+      {operaciones.length > 0 && (
+        <section className="tarjeta flex flex-col">
+          <h2 className="pb-2 text-lg font-semibold">Operaciones</h2>
+          {operaciones.map((o) => (
+            <Link key={o.op.id} href={`/ventas/${o.op.id}`} className="flex flex-wrap items-center gap-3 border-t border-linea py-2 text-sm text-tinta">
+              <span className="num">{o.numero}</span>
+              <span>
+                {o.auto.marca} {o.auto.modelo} {o.auto.anio}
+              </span>
+              <span className="num">{pesos(o.op.precioVenta)}</span>
+              <ChipOperacion estado={o.op.estado} />
+            </Link>
+          ))}
+        </section>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="tarjeta flex flex-col gap-3">
