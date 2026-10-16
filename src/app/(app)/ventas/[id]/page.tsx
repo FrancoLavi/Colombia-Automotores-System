@@ -218,7 +218,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             <Fila etiqueta="Precio de venta" valor={pesos(l.precio)} />
             <Fila etiqueta="Costo real del auto" valor={`− ${pesos(l.costo)}`} />
             <Fila etiqueta="Ganancia" valor={pesos(l.ganancia)} fuerte />
-            <Fila etiqueta="Ganancia base (15 % del costo)" valor={pesos(l.gananciaBase)} />
+            <Fila etiqueta={`Ganancia base (${porcentaje(l.costo ? l.gananciaBase / l.costo : 0)} del costo)`} valor={pesos(l.gananciaBase)} />
             <Fila etiqueta="Sobreprecio" valor={pesos(l.sobreprecio)} />
           </div>
           <div className="flex min-w-72 flex-1 flex-col gap-2.5">
@@ -226,14 +226,14 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             {l.regla !== "SALON_TOTAL" && (
               <div className="flex justify-between gap-3 rounded-lg bg-info-fondo p-3.5">
                 <span>
-                  <b>{f.financista?.nombre}</b> · {l.regla === "INVERSOR_BASE" ? "7,5 % del costo" : "mitad"}
+                  <b>{f.financista?.nombre}</b> · {l.regla === "INVERSOR_BASE" ? `${porcentaje(l.costo ? l.gananciaBase / l.costo / 2 : 0)} del costo` : "mitad"}
                 </span>
                 <span className="num">{pesos(l.parteInversor)}</span>
               </div>
             )}
             <div className="flex justify-between gap-3 rounded-lg bg-ok-fondo p-3.5">
               <span>
-                <b>Salón</b> · {l.regla === "SALON_TOTAL" ? (v.tipoIngreso === "CONSIGNACION" ? "100 % (consignación)" : "100 % (fondos propios)") : l.regla === "INVERSOR_BASE" ? "7,5 % + sobreprecio" : "mitad"}
+                <b>Salón</b> · {l.regla === "SALON_TOTAL" ? (v.tipoIngreso === "CONSIGNACION" ? "100 % (consignación)" : "100 % (fondos propios)") : l.regla === "INVERSOR_BASE" ? `${porcentaje(l.costo ? l.gananciaBase / l.costo / 2 : 0)} + sobreprecio` : "mitad"}
               </span>
               <span className="num">{pesos(l.parteSalon)}</span>
             </div>

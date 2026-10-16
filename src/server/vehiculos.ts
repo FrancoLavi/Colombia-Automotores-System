@@ -15,6 +15,7 @@ import {
 } from "@/domain/stock";
 
 import { ErrorNegocio } from "./errores";
+import { obtenerParametros } from "./parametros";
 export { ErrorNegocio };
 
 type Vehiculo = typeof s.vehiculos.$inferSelect;
@@ -87,10 +88,11 @@ export async function listarStock(f: FiltrosStock) {
     : [];
   const docs = await documentosDe(ids);
   const tc = await tcHoy();
+  const p = await obtenerParametros();
 
   const resultado = filas.map(({ v, financista }) => {
     const costo = costoTotal(v.valorCompraArs, gastos.filter((g) => g.vehiculoId === v.id));
-    const precio = v.precioPublicado ?? precioSugerido(costo, v.ajustePrecio);
+    const precio = v.precioPublicado ?? precioSugerido(costo, v.ajustePrecio, p.margenBase);
     const d = docs.filter((x) => x.vehiculoId === v.id);
     return {
       ...v,
@@ -99,7 +101,7 @@ export async function listarStock(f: FiltrosStock) {
       precio,
       dias: diasEnStock(v.fechaIngreso, v.fechaDisponible),
       margen: tc && costo > 0 ? margenUsd(precio, costo, v.tcIngreso, tc.valor).margen : null,
-      alertas: alertasVehiculo({ ...v, costo, precio }, d, tc?.valor ?? null),
+      alertas: alertasVehiculo({ ...v, costo, precio }, d, tc?.valor ?? null, p),
     };
   });
 
@@ -120,12 +122,13 @@ export async function listarStock(f: FiltrosStock) {
 export async function fichaVehiculo(id: number) {
   const v = await db.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, id) });
   if (!v) return null;
-  const [financista, contactoOrigen, peritaje, docs, tc] = await Promise.all([
+  const [financista, contactoOrigen, peritaje, docs, tc, p] = await Promise.all([
     db.query.participes.findFirst({ where: eq(s.participes.id, v.participeId) }),
     v.contactoOrigenId ? db.query.contactos.findFirst({ where: eq(s.contactos.id, v.contactoOrigenId) }) : null,
     db.query.peritajes.findFirst({ where: eq(s.peritajes.vehiculoId, id) }),
     documentosDe([id]),
     tcHoy(),
+    obtenerParametros(),
   ]);
   const gastos = await db
     .select({ g: s.gastos, categoria: s.categoriasGasto.nombre })
@@ -143,7 +146,7 @@ export async function fichaVehiculo(id: number) {
     .limit(50);
 
   const costo = costoTotal(v.valorCompraArs, gastos.map((x) => x.g));
-  const sugerido = precioSugerido(costo, v.ajustePrecio);
+  const sugerido = precioSugerido(costo, v.ajustePrecio, p.margenBase);
   const precio = v.precioPublicado ?? sugerido;
   return {
     v,
@@ -159,11 +162,12 @@ export async function fichaVehiculo(id: number) {
     costoUsd: v.tcIngreso > 0 ? costo / v.tcIngreso : 0,
     sugerido,
     precio,
-    margen: tc && costo > 0 ? margenUsd(precio, costo, v.tcIngreso, tc.valor) : null,
+    margen: tc && costo > 0 ? margenUsd(precio, costo, v.tcIngreso, tc.valor, p.umbralMargenUsd) : null,
+    margenBase: p.margenBase,
     dias: diasEnStock(v.fechaIngreso, v.fechaDisponible),
     faltantes: faltantesParaHabilitar(v.estado, docs, peritaje ?? null),
     transiciones: transicionesManuales(v.estado),
-    alertas: alertasVehiculo({ ...v, costo, precio }, docs, tc?.valor ?? null),
+    alertas: alertasVehiculo({ ...v, costo, precio }, docs, tc?.valor ?? null, p),
   };
 }
 

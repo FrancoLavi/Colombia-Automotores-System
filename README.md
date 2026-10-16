@@ -3,7 +3,19 @@
 Sistema web para la gestión de un salón de compra-venta de autos: contactos y agenda, stock, operaciones de venta, caja, patrimonio y reparto de ganancias.
 
 ## Estado
-Etapa de diseño. Este repositorio contiene por ahora el **mockup navegable** de la primera versión (MVP).
+MVP completo en desarrollo local, listo para publicar (falta conectar Supabase y Vercel).
+
+| Módulo | Qué hace |
+|---|---|
+| Inicio | Objetivos del mes, ganancia, caja, patrimonio, alertas, agenda, ventas de 12 meses y rotación por modelo |
+| Contactos | Embudo dato → preventa → cliente, agenda, pedidos cruzados con el stock, importación |
+| Stock | Ingreso (compra, permuta, consignación), papeles, peritaje con fotos, gastos, precio sugerido, alertas, importación |
+| Ventas | Preventa, seña, formas de pago, permuta, cierre con liquidación y reparto, entrega, operación caída |
+| Caja | Movimientos, patrimonio, ganancias por pagar, cuentas pendientes, subcaja por inversor |
+| Configuración | Objetivos, margen y umbrales, inversores, usuarios, papeles y categorías |
+| Historial | Quién cambió qué y cuándo, en todo el sistema |
+
+**Roles:** administrador (acceso total) e inversor (solo consulta de sus autos y ganancias, en `/mi-inversion`).
 
 ## Mockup
 Pantallas estáticas en HTML, sin dependencias. Los datos que muestran son de ejemplo.

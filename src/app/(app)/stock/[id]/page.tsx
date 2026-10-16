@@ -146,7 +146,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
 
         <section className="tarjeta flex flex-col">
           <h2 className="pb-2 text-lg font-semibold">Precio</h2>
-          <Fila etiqueta="Sugerido (costo + 15 %)" valor={pesos(f.sugerido - v.ajustePrecio)} />
+          <Fila etiqueta={`Sugerido (costo + ${porcentaje(f.margenBase)})`} valor={pesos(f.sugerido - v.ajustePrecio)} />
           {v.ajustePrecio !== 0 && <Fila etiqueta="Ajuste comercial" valor={`${v.ajustePrecio > 0 ? "+ " : ""}${pesos(v.ajustePrecio)}`} />}
           <Fila etiqueta="Precio publicado" valor={pesos(f.precio)} fuerte />
           {f.margen ? (
@@ -154,7 +154,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
               <b>Margen en dólares: {porcentaje(f.margen.margen)}</b>
               <span>
                 Con el blue a $ {f.tc!.valor.toLocaleString("es-AR")} ({fecha(f.tc!.fecha)}), el precio rinde {usd(f.margen.ventaUsd)} contra {usd(f.margen.costoUsd)}{" "}
-                invertidos.{f.margen.alerta && " Bajó del 10 %: conviene revisar el precio o priorizar la venta."}
+                invertidos.{f.margen.alerta && " Bajó del umbral de alerta: conviene revisar el precio o priorizar la venta."}
               </span>
             </div>
           ) : (

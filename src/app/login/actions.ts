@@ -21,7 +21,7 @@ export async function ingresar(_prev: { error: string }, form: FormData) {
     maxAge: DURACION_SESION_S,
     path: "/",
   });
-  redirect("/");
+  redirect(u.rol === "INVERSOR" ? "/mi-inversion" : "/");
 }
 
 export async function salir() {

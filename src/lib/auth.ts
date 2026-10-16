@@ -12,10 +12,13 @@ export async function usuarioActual() {
   return u && u.activo ? u : null;
 }
 
-/** Exige sesión válida (y opcionalmente rol ADMIN). Usar en páginas y server actions. */
-export async function requerirUsuario(opts: { admin?: boolean } = {}) {
+/**
+ * Exige sesión válida. Por defecto exige además rol ADMIN (T2): un usuario INVERSOR
+ * solo entra a su pantalla de consulta (/mi-inversion) y no puede ejecutar acciones.
+ */
+export async function requerirUsuario(opts: { permitirInversor?: boolean } = {}) {
   const u = await usuarioActual();
   if (!u) redirect("/login");
-  if (opts.admin && u.rol !== "ADMIN") redirect("/");
+  if (u.rol === "INVERSOR" && !opts.permitirInversor) redirect("/mi-inversion");
   return u;
 }

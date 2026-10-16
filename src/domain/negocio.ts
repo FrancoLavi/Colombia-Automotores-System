@@ -76,11 +76,11 @@ export function liquidar(input: {
  * R5: margen en dólares (informativo). El costo en USD usa el TC fijado al ingreso (V7);
  * el precio se convierte con el blue de hoy (o el de la venta).
  */
-export function margenUsd(precio: number, costo: number, tcIngreso: number, tcActual: number) {
+export function margenUsd(precio: number, costo: number, tcIngreso: number, tcActual: number, umbral = UMBRAL_MARGEN_USD) {
   const costoUsd = r2(costo / tcIngreso);
   const ventaUsd = r2(precio / tcActual);
   const margen = costoUsd > 0 ? (ventaUsd - costoUsd) / costoUsd : 0;
-  return { costoUsd, ventaUsd, gananciaUsd: r2(ventaUsd - costoUsd), margen, alerta: margen <= UMBRAL_MARGEN_USD };
+  return { costoUsd, ventaUsd, gananciaUsd: r2(ventaUsd - costoUsd), margen, alerta: margen <= umbral };
 }
 
 export interface PagoCobertura {

@@ -6,6 +6,7 @@ import { hoyIso } from "@/lib/formato";
 import { cobertura, costoTotal, liquidar, margenUsd, precioSugerido, r2 } from "@/domain/negocio";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { ErrorNegocio } from "./errores";
+import { obtenerParametros } from "./parametros";
 import { crearVehiculo, tcHoy, type DatosVehiculo } from "./vehiculos";
 
 const ENTIDAD = "operacion";
@@ -124,9 +125,10 @@ export async function fichaOperacion(id: number) {
 
   // Liquidación prevista (antes del cierre) con el costo actual del auto.
   const costo = liq?.costo ?? (await costoVehiculo(db, v.id, v.valorCompraArs));
-  const prevista = liquidar({ costo, precio: op.precioVenta, financista: financista?.tipo ?? "SALON", tipoIngreso: v.tipoIngreso });
+  const p = await obtenerParametros();
+  const prevista = liquidar({ costo, precio: op.precioVenta, financista: financista?.tipo ?? "SALON", tipoIngreso: v.tipoIngreso, margen: p.margenBase });
   const tcRef = op.tcVenta ?? tc?.valor ?? null;
-  const usd = tcRef ? margenUsd(op.precioVenta, costo, v.tcIngreso, tcRef) : null;
+  const usd = tcRef ? margenUsd(op.precioVenta, costo, v.tcIngreso, tcRef, p.umbralMargenUsd) : null;
 
   return {
     op,
@@ -155,11 +157,12 @@ export async function datosNuevaVenta() {
       .orderBy(asc(s.contactos.nombre)),
     db.select().from(s.vehiculos).where(eq(s.vehiculos.estado, "DISPONIBLE")).orderBy(asc(s.vehiculos.marca), asc(s.vehiculos.modelo)),
   ]);
+  const p = await obtenerParametros();
   const conPrecio = await Promise.all(
     vehiculos.map(async (v) => ({
       id: v.id,
       etiqueta: `${v.marca} ${v.modelo} ${v.version ?? ""} ${v.anio}${v.dominio ? ` · ${v.dominio}` : ""}`.replace(/\s+/g, " "),
-      precio: v.precioPublicado ?? precioSugerido(await costoVehiculo(db, v.id, v.valorCompraArs), v.ajustePrecio),
+      precio: v.precioPublicado ?? precioSugerido(await costoVehiculo(db, v.id, v.valorCompraArs), v.ajustePrecio, p.margenBase),
       participeId: v.participeId,
     })),
   );
@@ -318,6 +321,8 @@ export async function quitarPago(usuarioId: number, id: number, pagoId: number) 
 
 /** S5: cierra la venta, congela la liquidación y genera reparto, cuentas a cobrar y a pagar. */
 export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: number | null) {
+  // Se leen antes de la transacción: con PGlite no se puede consultar por fuera de una transacción abierta.
+  const { margenBase } = await obtenerParametros();
   await db.transaction(async (t) => {
     const op = await cargarOperacion(t, id);
     const v = (await t.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, op.vehiculoId) }))!;
@@ -328,7 +333,7 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
 
     const financista = (await t.query.participes.findFirst({ where: eq(s.participes.id, v.participeId) }))!;
     const costo = await costoVehiculo(t, v.id, v.valorCompraArs);
-    const l = liquidar({ costo, precio: op.precioVenta, financista: financista.tipo, tipoIngreso: v.tipoIngreso });
+    const l = liquidar({ costo, precio: op.precioVenta, financista: financista.tipo, tipoIngreso: v.tipoIngreso, margen: margenBase });
     const [liq] = await t
       .insert(s.liquidaciones)
       .values({

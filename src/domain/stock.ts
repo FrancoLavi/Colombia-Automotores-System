@@ -74,9 +74,10 @@ export interface ParametrosAlertas {
   diasAviso: number;
   diasCritico: number;
   diasAvisoVencimiento: number;
+  umbralMargenUsd: number;
 }
 
-export const PARAMETROS_ALERTAS_DEFECTO: ParametrosAlertas = { diasAviso: 30, diasCritico: 60, diasAvisoVencimiento: 15 };
+export const PARAMETROS_ALERTAS_DEFECTO: ParametrosAlertas = { diasAviso: 30, diasCritico: 60, diasAvisoVencimiento: 15, umbralMargenUsd: 0.1 };
 
 /** HU-6.1: alertas de un auto en stock. */
 export function alertasVehiculo(
@@ -123,7 +124,7 @@ export function alertasVehiculo(
   if (v.costo <= 0) alertas.push({ tipo: "DATOS_INCOMPLETOS", severidad: "AVISO", texto: "Costo sin cargar" });
 
   if (tcHoy && v.precio && v.costo > 0) {
-    const m = margenUsd(v.precio, v.costo, v.tcIngreso, tcHoy);
+    const m = margenUsd(v.precio, v.costo, v.tcIngreso, tcHoy, p.umbralMargenUsd);
     if (m.alerta) alertas.push({ tipo: "MARGEN_USD", severidad: "CRITICA", texto: `Margen USD ${(m.margen * 100).toFixed(1).replace(".", ",")} %` });
   }
   return alertas;

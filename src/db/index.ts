@@ -11,6 +11,8 @@ function crear() {
     const postgres = require("postgres");
     return drizzlePostgres(postgres(url, { prepare: false }), { schema });
   }
+  // Durante `next build` varios procesos importan este módulo a la vez: nunca deben abrir la base local en disco.
+  if (process.env.NEXT_PHASE === "phase-production-build") return drizzlePglite("memory://", { schema });
   return drizzlePglite(process.env.PGLITE_DIR ?? "./.data/pglite", { schema });
 }
 
