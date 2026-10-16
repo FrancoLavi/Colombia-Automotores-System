@@ -2,37 +2,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { prepararBase } from "@/test/db";
+import { autoDisponible, baseAuto as base, baseContacto as contacto, INVERSOR, saldoCaja, SALON, U } from "@/test/fabricas";
 import * as veh from "./vehiculos";
 import * as con from "./contactos";
 import * as ven from "./ventas";
-
-const U = 1; // usuario de prueba
-const SALON = 1;
-const INVERSOR = 2;
-const base = {
-  chasis: null, version: "Highline", km: 50_000, color: "Gris", combustible: null, transmision: null,
-  ingresadoPor: null, contactoOrigenId: null, fechaIngreso: "2026-10-01", ubicacion: "SALON" as const, observaciones: null,
-};
-const contacto = {
-  apellido: "Pérez", dniCuit: null, email: null, localidad: null, origen: "WHATSAPP" as const, calificacionMonto: null,
-  calificacionBanco: null, productoInteres: null, usadoAEntregar: null, observaciones: null, proximoContacto: null,
-};
-
-async function autoDisponible(dominio: string, d: Partial<veh.DatosVehiculo> = {}) {
-  const id = await veh.crearVehiculo(
-    U,
-    { ...base, dominio, marca: "Volkswagen", modelo: "Amarok", anio: 2019, tipoIngreso: "COMPRA", participeId: INVERSOR, monedaCompra: "ARS", valorCompra: 10_000_000, tcIngreso: 1_500, ...d },
-    { modo: "PAGADO", medio: "BANCO" },
-  );
-  const docs = await db.select().from(s.documentosVehiculo).where(eq(s.documentosVehiculo.vehiculoId, id));
-  for (const doc of docs) await veh.registrarDocumento(U, id, doc.id, "RECIBIDO", null);
-  await veh.guardarPeritaje(U, id, { fecha: "2026-10-02", perito: null, resultado: "APTO", reparacionEstimada: null, observaciones: null });
-  await veh.habilitarVenta(U, id);
-  return id;
-}
-
-const saldoCaja = async () =>
-  (await db.select().from(s.movimientosCaja)).filter((m) => !m.anulado).reduce((a, m) => a + (m.sentido === "INGRESO" ? m.importe : -m.importe), 0);
 
 beforeAll(prepararBase);
 
