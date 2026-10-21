@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { vistaMoneda } from "@/lib/moneda";
 import { subcajas } from "@/server/caja";
-import { pesos, usd } from "@/lib/formato";
+import { usd } from "@/lib/formato";
 import { ChipEstado } from "@/components/ui";
-import { NavCaja } from "../nav";
+import { NavPatrimonio } from "../../caja/nav";
 
 export const metadata = { title: "Inversores · Colombia Automotores" };
 
 export default async function InversoresPage() {
   await requerirUsuario();
-  const filas = await subcajas();
+  const [{ m }, filas] = await Promise.all([vistaMoneda(), subcajas()]);
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-3">
         <h1 className="text-3xl font-bold">Inversores</h1>
-        <NavCaja actual="/caja/inversores" />
+        <NavPatrimonio actual="/patrimonio/inversores" />
         <p className="text-suave">Lo que cada uno tiene invertido en autos hoy y cuánto ganó. El salón aparece con los autos comprados con fondos propios.</p>
       </header>
       <div className="grid gap-5 lg:grid-cols-2">
@@ -27,16 +28,16 @@ export default async function InversoresPage() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Invertido en autos</div>
-                <div className="num text-xl">{pesos(f.capital)}</div>
-                <div className="num text-xs text-apagado">{usd(f.capitalUsd)}</div>
+                <div className="num text-xl">{m(f.capital)}</div>
+                <div className="num text-xs text-apagado">{usd(f.capitalUsd)} al dólar de compra</div>
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Ganancia por cobrar</div>
-                <div className={`num text-xl ${f.pendiente ? "text-aviso-texto" : ""}`}>{pesos(f.pendiente)}</div>
+                <div className={`num text-xl ${f.pendiente ? "text-aviso-texto" : ""}`}>{m(f.pendiente)}</div>
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Ganancia cobrada</div>
-                <div className="num text-xl text-ok-texto">{pesos(f.cobrado)}</div>
+                <div className="num text-xl text-ok-texto">{m(f.cobrado)}</div>
               </div>
             </div>
             <div className="flex flex-col">
@@ -48,16 +49,15 @@ export default async function InversoresPage() {
                   </span>
                   <span className="flex items-center gap-2">
                     <ChipEstado estado={a.estado} />
-                    <span className="num">{pesos(a.costo)}</span>
+                    <span className="num">{m(a.costo)}</span>
                   </span>
                 </Link>
               ))}
             </div>
-            {f.pendiente !== 0 && (
-              <Link href="/caja" className="text-sm font-semibold">
-                Pagar ganancias pendientes →
-              </Link>
-            )}
+            <div className="flex flex-wrap gap-4 text-sm font-semibold">
+              {f.pendiente !== 0 && <Link href="/caja">Pagar ganancias pendientes →</Link>}
+              <Link href="/reportes">Ganancias pagadas por mes →</Link>
+            </div>
           </section>
         ))}
       </div>

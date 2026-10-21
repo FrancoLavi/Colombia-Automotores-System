@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { vistaMoneda } from "@/lib/moneda";
 import { listarCuentas } from "@/server/caja";
-import { fecha, hoyIso, pesos } from "@/lib/formato";
+import { fecha, hoyIso } from "@/lib/formato";
 import { NavCaja } from "../nav";
 import { FormCuenta, FormPagoCuenta } from "../formularios";
 
@@ -17,6 +18,7 @@ const ORIGEN: Record<string, string> = {
 
 export default async function CuentasPage() {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const [aCobrar, aPagar] = await Promise.all([listarCuentas({ tipo: "A_COBRAR" }), listarCuentas({ tipo: "A_PAGAR" })]);
   const hoy = hoyIso();
   const total = (xs: typeof aCobrar) => xs.reduce((a, x) => a + x.c.saldo, 0);
@@ -52,8 +54,8 @@ export default async function CuentasPage() {
                 </td>
                 <td className={`num ${c.vencimiento && c.vencimiento < hoy ? "font-semibold text-aviso-texto" : ""}`}>{fecha(c.vencimiento)}</td>
                 <td className="num text-right">
-                  {pesos(c.saldo)}
-                  {c.saldo !== c.importe && <span className="block text-xs text-apagado">de {pesos(c.importe)}</span>}
+                  {m(c.saldo)}
+                  {c.saldo !== c.importe && <span className="block text-xs text-apagado">de {m(c.importe)}</span>}
                 </td>
                 <td>
                   <FormPagoCuenta id={c.id} saldo={c.saldo} tipo={c.tipo} deVenta={c.origen === "CREDITO_BANCARIO" || (c.origen === "MANUAL" && c.operacionId != null)} />
@@ -76,7 +78,7 @@ export default async function CuentasPage() {
       <section className="tarjeta p-0">
         <div className="flex flex-wrap items-baseline justify-between gap-2 p-4 pb-2">
           <h2 className="text-lg font-semibold">A cobrar</h2>
-          <span className="num font-semibold text-ok-texto">{pesos(total(aCobrar))}</span>
+          <span className="num font-semibold text-ok-texto">{m(total(aCobrar))}</span>
         </div>
         <Tabla filas={aCobrar} tipo="A_COBRAR" />
       </section>
@@ -84,7 +86,7 @@ export default async function CuentasPage() {
       <section className="tarjeta p-0">
         <div className="flex flex-wrap items-baseline justify-between gap-2 p-4 pb-2">
           <h2 className="text-lg font-semibold">A pagar</h2>
-          <span className="num font-semibold text-aviso-texto">{pesos(total(aPagar))}</span>
+          <span className="num font-semibold text-aviso-texto">{m(total(aPagar))}</span>
         </div>
         <Tabla filas={aPagar} tipo="A_PAGAR" />
       </section>

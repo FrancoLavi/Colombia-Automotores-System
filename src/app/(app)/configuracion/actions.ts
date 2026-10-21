@@ -138,3 +138,24 @@ export async function activoCategoriaAccion(id: number, activo: boolean): Promis
   revalidar();
   return r;
 }
+
+export async function personaAccion(_: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await cfg.crearPersona(u.id, requerido(fd, "nombre", "Nombre"), opcion(fd, "rol", ["SOCIO", "EMPLEADO"] as const, "EMPLEADO"));
+    return "Persona agregada.";
+  });
+  revalidar();
+  revalidatePath("/caja");
+  return r;
+}
+
+export async function editarPersonaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await cfg.editarPersona(u.id, id, requerido(fd, "nombre", "Nombre"), opcion(fd, "rol", ["SOCIO", "EMPLEADO"] as const), fd.get("activo") === "on");
+    return "Guardado.";
+  });
+  revalidar();
+  return r;
+}

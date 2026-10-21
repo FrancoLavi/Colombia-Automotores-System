@@ -7,8 +7,34 @@ import { ErrorNegocio } from "./errores";
 
 const ENTIDAD = "configuracion";
 
+export async function listarPersonas(soloActivas = false) {
+  return db
+    .select()
+    .from(s.personas)
+    .where(soloActivas ? eq(s.personas.activo, true) : undefined)
+    .orderBy(asc(s.personas.rol), asc(s.personas.nombre));
+}
+
+export async function crearPersona(usuarioId: number, nombre: string, rol: "SOCIO" | "EMPLEADO") {
+  if (!nombre.trim()) throw new ErrorNegocio("Completá el nombre");
+  await db.transaction(async (t) => {
+    const [p] = await t.insert(s.personas).values({ nombre: nombre.trim(), rol }).returning();
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: p.id, accion: "CREAR", descripcion: `${rol === "SOCIO" ? "Socio" : "Empleado"} agregado: ${p.nombre}` });
+  });
+}
+
+export async function editarPersona(usuarioId: number, id: number, nombre: string, rol: "SOCIO" | "EMPLEADO", activo: boolean) {
+  if (!nombre.trim()) throw new ErrorNegocio("Completá el nombre");
+  await db.transaction(async (t) => {
+    const p = await t.query.personas.findFirst({ where: eq(s.personas.id, id) });
+    if (!p) throw new ErrorNegocio("No existe");
+    await t.update(s.personas).set({ nombre: nombre.trim(), rol, activo }).where(eq(s.personas.id, id));
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes: { nombre: p.nombre, rol: p.rol, activo: p.activo }, despues: { nombre, rol, activo }, descripcion: `Persona ${p.nombre}` });
+  });
+}
+
 export async function datosConfiguracion() {
-  const [participes, usuarios, objetivos, documentos, categorias, autosPorParticipe] = await Promise.all([
+  const [participes, usuarios, objetivos, documentos, categorias, autosPorParticipe, personas] = await Promise.all([
     db.select().from(s.participes).orderBy(asc(s.participes.id)),
     db
       .select({ id: s.usuarios.id, nombre: s.usuarios.nombre, email: s.usuarios.email, rol: s.usuarios.rol, activo: s.usuarios.activo, participeId: s.usuarios.participeId })
@@ -22,8 +48,10 @@ export async function datosConfiguracion() {
       .from(s.vehiculos)
       .where(sql`${s.vehiculos.estado} in ('POR_INGRESAR','DISPONIBLE','RESERVADO')`)
       .groupBy(s.vehiculos.participeId),
+    listarPersonas(),
   ]);
   return {
+    personas,
     participes: participes.map((p) => ({ ...p, autos: autosPorParticipe.find((a) => a.participeId === p.id)?.n ?? 0 })),
     usuarios,
     objetivos,

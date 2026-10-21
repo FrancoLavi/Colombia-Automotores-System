@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
+import { vistaMoneda } from "@/lib/moneda";
 import { fichaContacto } from "@/server/contactos";
 import { marcasUsadas } from "@/server/vehiculos";
 import { operacionesDeContacto } from "@/server/ventas";
 import { ChipOperacion } from "../../ventas/chip";
-import { fecha, pesos } from "@/lib/formato";
+import { fecha } from "@/lib/formato";
 import { describirPedido, ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { ChipEstado } from "@/components/ui";
 import { ChipEtapa, ChipOrigen, Telefono } from "../chips";
@@ -15,6 +16,7 @@ const fechaHora = (d: Date) => d.toLocaleString("es-AR", { day: "2-digit", month
 
 export default async function FichaContactoPage({ params }: { params: Promise<{ id: string }> }) {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const id = Number((await params).id);
   const f = await fichaContacto(id);
   if (!f) notFound();
@@ -44,7 +46,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
             {c.localidad && <span>{c.localidad}</span>}
             {c.calificacionMonto && (
               <span>
-                Califica {pesos(c.calificacionMonto)}
+                Califica {m(c.calificacionMonto)}
                 {c.calificacionBanco && ` · ${c.calificacionBanco}`}
               </span>
             )}
@@ -70,7 +72,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
               <span>
                 {o.auto.marca} {o.auto.modelo} {o.auto.anio}
               </span>
-              <span className="num">{pesos(o.op.precioVenta)}</span>
+              <span className="num">{m(o.op.precioVenta)}</span>
               <ChipOperacion estado={o.op.estado} />
             </Link>
           ))}
@@ -128,7 +130,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
                     <span className="text-ok-texto">En stock:</span>
                     {p.coincidencias.map((v) => (
                       <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-white text-tinta">
-                        {v.marca} {v.modelo} {v.anio} · {pesos(v.precio)}
+                        {v.marca} {v.modelo} {v.anio} · {m(v.precio)}
                       </Link>
                     ))}
                   </div>

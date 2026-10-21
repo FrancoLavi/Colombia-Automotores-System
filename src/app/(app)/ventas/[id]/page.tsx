@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
+import { vistaMoneda } from "@/lib/moneda";
 import { fichaOperacion } from "@/server/ventas";
 import { datosFormulario } from "@/server/vehiculos";
-import { fecha, pesos, porcentaje, usd } from "@/lib/formato";
+import { fecha, porcentaje, usd } from "@/lib/formato";
 import { ETIQUETA_PAGO, ABIERTAS } from "@/domain/ventas";
 import { BotonQuitar, ChipEstado } from "@/components/ui";
 import { Telefono } from "../../contactos/chips";
@@ -37,6 +38,7 @@ function Fila({ etiqueta, valor, fuerte }: { etiqueta: React.ReactNode; valor: R
 
 export default async function OperacionPage({ params }: { params: Promise<{ id: string }> }) {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const id = Number((await params).id);
   const f = await fichaOperacion(id);
   if (!f) notFound();
@@ -96,14 +98,14 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <h2 className="pb-2 text-lg font-semibold">Cliente</h2>
           <Fila etiqueta="Nombre" valor={<Link href={`/contactos/${c.id}`}>{`${c.nombre} ${c.apellido ?? ""}`}</Link>} />
           <Fila etiqueta="Teléfono" valor={<Telefono telefono={c.telefono} />} />
-          {c.calificacionMonto && <Fila etiqueta="Calificación" valor={`${pesos(c.calificacionMonto)}${c.calificacionBanco ? ` · ${c.calificacionBanco}` : ""}`} />}
+          {c.calificacionMonto && <Fila etiqueta="Calificación" valor={`${m(c.calificacionMonto)}${c.calificacionBanco ? ` · ${c.calificacionBanco}` : ""}`} />}
         </section>
         <section className="tarjeta flex flex-col">
           <h2 className="pb-2 text-lg font-semibold">Auto que compra</h2>
           <Fila etiqueta="Auto" valor={<Link href={`/stock/${v.id}`}>{`${v.marca} ${v.modelo} ${v.anio} ${v.dominio ?? ""}`}</Link>} />
           <Fila etiqueta="Estado" valor={<ChipEstado estado={v.estado} />} />
           <Fila etiqueta="Financia" valor={f.financista?.nombre} />
-          <Fila etiqueta="Precio de venta" valor={pesos(op.precioVenta)} fuerte />
+          <Fila etiqueta="Precio de venta" valor={m(op.precioVenta)} fuerte />
           {abierta && (
             <details className="mt-2">
               <summary className="cursor-pointer text-sm font-semibold text-acento">Cambiar precio u observaciones</summary>
@@ -151,7 +153,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
                         </>
                       )}
                     </td>
-                    <td className="num text-right">{pesos(p.importe)}</td>
+                    <td className="num text-right">{m(p.importe)}</td>
                     <td>{IMPACTO[p.tipo]}</td>
                     <td>
                       <span className={`chip ${ESTADO_PAGO[p.estado].clase}`}>{p.tipo === "PERMUTA" ? (p.estado === "COBRADO" ? "En stock" : p.estado === "PENDIENTE" ? "Se recibe al cerrar" : ESTADO_PAGO[p.estado].texto) : ESTADO_PAGO[p.estado].texto}</span>
@@ -170,8 +172,8 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <div className="flex justify-between text-sm">
             <b>Cubierto</b>
             <span className="num">
-              {pesos(f.cobertura.cubierto)} de {pesos(op.precioVenta)}
-              {f.cobertura.faltante > 0 && <span className="text-aviso-texto"> · faltan {pesos(f.cobertura.faltante)}</span>}
+              {m(f.cobertura.cubierto)} de {m(op.precioVenta)}
+              {f.cobertura.faltante > 0 && <span className="text-aviso-texto"> · faltan {m(f.cobertura.faltante)}</span>}
             </span>
           </div>
           <div className="flex h-3 overflow-hidden rounded-full bg-linea" role="img" aria-label={`Cubierto ${Math.round(pctCaja + pctCobrar + pctPermuta)} %`}>
@@ -182,14 +184,14 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <div className="flex flex-wrap gap-4 text-xs text-neutro-texto">
             <span>
               <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-ok" />
-              Caja {pesos(f.cobertura.caja)}
+              Caja {m(f.cobertura.caja)}
             </span>
             <span>
-              <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-acento" />A cobrar {pesos(f.cobertura.aCobrar)}
+              <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-acento" />A cobrar {m(f.cobertura.aCobrar)}
             </span>
             <span>
               <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[#c2410c]" />
-              Usado {pesos(f.cobertura.permuta)}
+              Usado {m(f.cobertura.permuta)}
             </span>
           </div>
         </div>
@@ -215,11 +217,11 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
         <section className="tarjeta flex flex-wrap gap-8">
           <div className="flex min-w-72 flex-1 flex-col">
             <h2 className="pb-2 text-lg font-semibold">{f.liquidacion ? "Liquidación" : "Liquidación prevista al cerrar"}</h2>
-            <Fila etiqueta="Precio de venta" valor={pesos(l.precio)} />
-            <Fila etiqueta="Costo real del auto" valor={`− ${pesos(l.costo)}`} />
-            <Fila etiqueta="Ganancia" valor={pesos(l.ganancia)} fuerte />
-            <Fila etiqueta={`Ganancia base (${porcentaje(l.costo ? l.gananciaBase / l.costo : 0)} del costo)`} valor={pesos(l.gananciaBase)} />
-            <Fila etiqueta="Sobreprecio" valor={pesos(l.sobreprecio)} />
+            <Fila etiqueta="Precio de venta" valor={m(l.precio)} />
+            <Fila etiqueta="Costo real del auto" valor={`− ${m(l.costo)}`} />
+            <Fila etiqueta="Ganancia" valor={m(l.ganancia)} fuerte />
+            <Fila etiqueta={`Ganancia base (${porcentaje(l.costo ? l.gananciaBase / l.costo : 0)} del costo)`} valor={m(l.gananciaBase)} />
+            <Fila etiqueta="Sobreprecio" valor={m(l.sobreprecio)} />
           </div>
           <div className="flex min-w-72 flex-1 flex-col gap-2.5">
             <h2 className="text-lg font-semibold">Reparto</h2>
@@ -228,14 +230,14 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
                 <span>
                   <b>{f.financista?.nombre}</b> · {l.regla === "INVERSOR_BASE" ? `${porcentaje(l.costo ? l.gananciaBase / l.costo / 2 : 0)} del costo` : "mitad"}
                 </span>
-                <span className="num">{pesos(l.parteInversor)}</span>
+                <span className="num">{m(l.parteInversor)}</span>
               </div>
             )}
             <div className="flex justify-between gap-3 rounded-lg bg-ok-fondo p-3.5">
               <span>
                 <b>Salón</b> · {l.regla === "SALON_TOTAL" ? (v.tipoIngreso === "CONSIGNACION" ? "100 % (consignación)" : "100 % (fondos propios)") : l.regla === "INVERSOR_BASE" ? `${porcentaje(l.costo ? l.gananciaBase / l.costo / 2 : 0)} + sobreprecio` : "mitad"}
               </span>
-              <span className="num">{pesos(l.parteSalon)}</span>
+              <span className="num">{m(l.parteSalon)}</span>
             </div>
             {f.distribuciones.length > 0 && (
               <p className="text-xs text-apagado">
@@ -248,7 +250,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
                 {usd(f.usd.ventaUsd)} (dólar $ {f.tcRef?.toLocaleString("es-AR")}) · resultado <b>{usd(f.usd.gananciaUsd)} ({porcentaje(f.usd.margen)})</b>. Solo informativo.
               </div>
             )}
-            {v.tipoIngreso === "CONSIGNACION" && <p className="text-sm text-suave">Al cerrar queda a pagar al dueño el monto pactado: {pesos(v.valorCompraArs)}.</p>}
+            {v.tipoIngreso === "CONSIGNACION" && <p className="text-sm text-suave">Al cerrar queda a pagar al dueño el monto pactado: {m(v.valorCompraArs)}.</p>}
           </div>
         </section>
       )}

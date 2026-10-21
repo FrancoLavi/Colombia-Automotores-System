@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { vistaMoneda } from "@/lib/moneda";
 import { contarAgenda, listarContactos, pedidosAbiertos } from "@/server/contactos";
-import { fecha, hoyIso, pesos } from "@/lib/formato";
+import { fecha, hoyIso } from "@/lib/formato";
 import { ETIQUETA_ETAPA, ETIQUETA_ORIGEN, type Etapa, type Origen } from "@/domain/contactos";
 import { FormContacto } from "./formularios";
 import { ChipEtapa, ChipOrigen, Telefono } from "./chips";
@@ -12,6 +13,7 @@ type Busqueda = { q?: string; etapa?: string; origen?: string };
 
 export default async function ContactosPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const sp = await searchParams;
   const hoy = hoyIso();
   const [{ contactos, conteo }, enAgenda, pedidos] = await Promise.all([listarContactos(sp), contarAgenda(hoy), pedidosAbiertos()]);
@@ -103,7 +105,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                 {c.calificacionMonto && (
                   <span>
                     {" "}
-                    · califica {pesos(c.calificacionMonto)}
+                    · califica {m(c.calificacionMonto)}
                     {c.calificacionBanco && ` (${c.calificacionBanco})`}
                   </span>
                 )}

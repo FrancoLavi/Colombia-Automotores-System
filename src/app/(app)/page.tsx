@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { vistaMoneda } from "@/lib/moneda";
 import { tablero } from "@/server/dashboard";
-import { fecha, pesos, porcentaje } from "@/lib/formato";
+import { fecha, porcentaje } from "@/lib/formato";
 import { avance, nombreMes } from "@/domain/dashboard";
 import { ChipAlerta } from "@/components/ui";
 import { Telefono } from "./contactos/chips";
 import { FormDolar } from "./stock/form-dolar";
+import { IlustracionAuto } from "@/components/ilustraciones";
 
 export const metadata = { title: "Inicio · Colombia Automotores" };
 
@@ -19,6 +21,7 @@ function Barra({ valor, color }: { valor: number; color: string }) {
 
 export default async function InicioPage() {
   const u = await requerirUsuario();
+  const { m } = await vistaMoneda();
   const t = await tablero();
   const maxVentas = Math.max(1, ...t.ventas12.map((m) => m.ventas));
   const agendaItems = [
@@ -33,12 +36,15 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <header className="flex flex-wrap items-end justify-between gap-4 overflow-hidden rounded-2xl bg-[#eef2fc] px-6 py-5">
+        <div className="flex items-center gap-5">
+          <IlustracionAuto className="hidden h-20 w-auto sm:block" />
+          <div>
           <p className="text-sm text-apagado">{nombreMes(t.periodo).replace(/ \d+$/, "")} · stock al inicio del mes: {t.stockInicio}</p>
           <h1 className="text-3xl font-bold">Hola, {u.nombre}</h1>
+          </div>
         </div>
-        <FormDolar actual={t.tc ? { fecha: fecha(t.tc.fecha), valor: t.tc.valor } : null} />
+        <FormDolar actual={t.tc ? { fecha: fecha(t.tc.fecha), valor: t.tc.valor, fuente: t.tc.fuente } : null} />
       </header>
 
       <section aria-label="Objetivos del mes" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -56,20 +62,20 @@ export default async function InicioPage() {
         <div className="tarjeta flex flex-col gap-2.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Ganancia del mes</span>
           <div>
-            <span className="num text-3xl">{pesos(t.ganancia)}</span>
-            {t.objetivo.ganancia ? <span className="text-apagado"> / {pesos(t.objetivo.ganancia)}</span> : null}
+            <span className="num text-3xl">{m(t.ganancia)}</span>
+            {t.objetivo.ganancia ? <span className="text-apagado"> / {m(t.objetivo.ganancia)}</span> : null}
           </div>
           {t.objetivo.ganancia ? <Barra valor={avance(t.ganancia, t.objetivo.ganancia)} color="#1e7a46" /> : null}
           <span className="text-[13px] text-apagado">
-            Salón {pesos(t.gananciaSalon)} · Inversores {pesos(t.gananciaInversores)}
+            Salón {m(t.gananciaSalon)} · Inversores {m(t.gananciaInversores)}
           </span>
         </div>
         <div className="tarjeta flex flex-col gap-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Caja disponible</span>
-          <span className={`num text-3xl ${t.patrimonio.caja.total < 0 ? "text-aviso-texto" : ""}`}>{pesos(t.patrimonio.caja.total)}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Caja (líquido)</span>
+          <span className={`num text-3xl ${t.patrimonio.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(t.patrimonio.caja.total)}</span>
           <span className="text-[13px] text-apagado">
-            Efectivo {pesos(t.patrimonio.caja.efectivo)} · Banco {pesos(t.patrimonio.caja.banco)}
-            {t.patrimonio.aCobrar > 0 && ` · a cobrar ${pesos(t.patrimonio.aCobrar)}`}
+            Efectivo {m(t.patrimonio.caja.efectivo)} · Banco {m(t.patrimonio.caja.banco)}
+            {t.patrimonio.aCobrar > 0 && ` · a cobrar ${m(t.patrimonio.aCobrar)}`}
           </span>
           <Link href="/caja" className="text-sm font-semibold">
             Ver caja →
@@ -77,12 +83,12 @@ export default async function InicioPage() {
         </div>
         <div className="tarjeta flex flex-col gap-2.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Patrimonio</span>
-          <span className="num text-3xl">{pesos(t.patrimonio.total)}</span>
+          <span className="num text-3xl">{m(t.patrimonio.total)}</span>
           <span className="text-[13px] text-apagado">
             {t.stock.total} {t.stock.total === 1 ? "auto" : "autos"} en stock · {t.stock.diasPromedio} días promedio
           </span>
-          <Link href="/caja" className="text-sm font-semibold">
-            Ver detalle →
+          <Link href="/patrimonio" className="text-sm font-semibold">
+            Ver patrimonio →
           </Link>
         </div>
       </section>

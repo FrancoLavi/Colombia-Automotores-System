@@ -9,6 +9,7 @@ import type { Severidad } from "@/domain/stock";
 import { patrimonio } from "./caja";
 import { agenda } from "./contactos";
 import { listarStock } from "./vehiculos";
+import { dolarDeHoy } from "./dolar";
 
 export interface AlertaTablero {
   severidad: Severidad;
@@ -40,7 +41,7 @@ export async function tablero(hoy: Date = new Date()) {
     patrimonio(),
     agenda(hoyStr),
     db.query.objetivos.findFirst({ where: eq(s.objetivos.periodo, periodo) }),
-    db.select().from(s.tiposCambio).orderBy(desc(s.tiposCambio.fecha)).limit(40),
+    dolarDeHoy().then(() => db.select().from(s.tiposCambio).orderBy(desc(s.tiposCambio.fecha)).limit(40)),
     db
       .select({ opId: s.operaciones.id, vence: s.pagosOperacion.vence, nombre: s.contactos.nombre, apellido: s.contactos.apellido })
       .from(s.pagosOperacion)

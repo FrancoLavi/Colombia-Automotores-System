@@ -7,6 +7,16 @@ export const usd = (n: number | null | undefined) => (n == null ? "—" : `USD $
 export const numero = (n: number | null | undefined) => (n == null ? "—" : numFmt.format(n));
 export const porcentaje = (n: number) => `${(n * 100).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %`;
 
+/**
+ * Formateador de importes según la vista elegida: en pesos o convertidos a dólares
+ * con el blue de hoy. Solo cambia cómo se muestra; los valores guardados siguen en pesos
+ * y el dólar fijado en cada compra no se modifica.
+ */
+export function formateadorMoneda(enDolares: boolean, tc: number | null) {
+  if (!enDolares || !tc) return pesos;
+  return (n: number | null | undefined) => (n == null ? "—" : `${n < 0 ? "−" : ""}USD ${usdFmt.format(Math.abs(n) / tc)}`);
+}
+
 /** "2026-10-14" → "14/10/2026" */
 export function fecha(iso: string | Date | null | undefined) {
   if (!iso) return "—";

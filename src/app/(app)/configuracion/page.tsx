@@ -7,12 +7,14 @@ import {
   FilaCategoria,
   FilaDocumento,
   FilaParticipe,
+  FilaPersona,
   FormCategoria,
   FormDocumento,
   FormInversor,
   FormMiPassword,
   FormObjetivo,
   FormParametros,
+  FormPersona,
   FormUsuario,
 } from "./formularios";
 
@@ -53,6 +55,15 @@ export default async function ConfiguracionPage() {
       <section className="tarjeta flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Reglas del negocio</h2>
         <FormParametros p={p} />
+      </section>
+
+      <section className="tarjeta flex flex-col">
+        <h2 className="pb-1 text-lg font-semibold">Personas (socios y empleados)</h2>
+        <p className="pb-2 text-sm text-apagado">A quién se atribuyen los sueldos y retiros que se cargan en Caja. No necesitan usuario en el sistema.</p>
+        {d.personas.map((x) => (
+          <FilaPersona key={x.id} p={x} />
+        ))}
+        <FormPersona />
       </section>
 
       <div className="grid gap-5 lg:grid-cols-2">

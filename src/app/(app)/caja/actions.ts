@@ -11,7 +11,7 @@ import * as svc from "@/server/caja";
 const MEDIOS = ["EFECTIVO", "BANCO"] as const;
 
 function revalidar() {
-  for (const p of ["/caja", "/caja/cuentas", "/caja/inversores", "/", "/ventas"]) revalidatePath(p);
+  for (const p of ["/caja", "/caja/cuentas", "/patrimonio", "/patrimonio/inversores", "/reportes", "/", "/ventas"]) revalidatePath(p);
 }
 
 /** Fecha del formulario con la hora actual (para ordenar bien los movimientos del día). */
@@ -38,6 +38,7 @@ export async function movimientoAccion(_: Resultado, fd: FormData): Promise<Resu
       concepto: requerido(fd, "concepto", "Concepto"),
       fecha: fechaConHora(fd),
       participeId: texto(fd, "participeId") ? Number(texto(fd, "participeId")) : null,
+      personaId: texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null,
     });
     return "Movimiento registrado.";
   });
@@ -55,7 +56,7 @@ export async function anularAccion(id: number, _: Resultado, fd: FormData): Prom
 export async function pagarGananciaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
+    await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"), texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null);
     return "Pagado.";
   });
   revalidar();

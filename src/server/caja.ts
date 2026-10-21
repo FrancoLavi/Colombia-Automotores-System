@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { r2 } from "@/domain/negocio";
-import { cuentaEnPatrimonio, esManual, saldos, ETIQUETA_CATEGORIA, MANUALES, type CategoriaManual, type Medio, type Sentido } from "@/domain/caja";
+import { cuentaEnPatrimonio, esManual, exigePersona, saldos, ETIQUETA_CATEGORIA, MANUALES, PIDEN_PERSONA, type CategoriaManual, type Medio, type Sentido } from "@/domain/caja";
 import { numeroOperacion } from "@/domain/ventas";
 import { ErrorNegocio } from "./errores";
 import { cobrarPagoPendiente } from "./ventas";
@@ -47,15 +47,17 @@ export async function movimientos(f: FiltrosMovimientos) {
 
 export async function crearMovimiento(
   usuarioId: number,
-  d: { categoria: CategoriaManual; sentido: Sentido | null; medio: Medio; importe: number; concepto: string; fecha: Date; participeId: number | null },
+  d: { categoria: CategoriaManual; sentido: Sentido | null; medio: Medio; importe: number; concepto: string; fecha: Date; participeId: number | null; personaId?: number | null },
 ) {
   if (!(d.importe > 0)) throw new ErrorNegocio("El importe debe ser mayor a cero");
+  if (exigePersona(d.categoria) && !d.personaId) throw new ErrorNegocio("Indicá a quién corresponde el sueldo");
+  const personaId = (PIDEN_PERSONA as readonly string[]).includes(d.categoria) ? (d.personaId ?? null) : null;
   const sentido = MANUALES[d.categoria] ?? d.sentido;
   if (!sentido) throw new ErrorNegocio("Indicá si el ajuste es ingreso o egreso");
   await db.transaction(async (t) => {
     const [m] = await t
       .insert(s.movimientosCaja)
-      .values({ fecha: d.fecha, sentido, medio: d.medio, categoria: d.categoria, importe: d.importe, concepto: d.concepto, participeId: d.participeId, usuarioId })
+      .values({ fecha: d.fecha, sentido, medio: d.medio, categoria: d.categoria, importe: d.importe, concepto: d.concepto, participeId: d.participeId, personaId, usuarioId })
       .returning();
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: m.id, accion: "CREAR", despues: m, descripcion: `${ETIQUETA_CATEGORIA[d.categoria]}: ${d.concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
   });
@@ -116,7 +118,7 @@ export async function gananciasPendientes() {
 }
 
 /** K5: paga (o retira) la parte de una venta. Si la parte es negativa (venta con pérdida), el participe la reintegra. */
-export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio) {
+export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio, personaId: number | null = null) {
   await db.transaction(async (t) => {
     const d = await t.query.distribuciones.findFirst({ where: eq(s.distribuciones.id, id) });
     if (!d) throw new ErrorNegocio("No existe");
@@ -136,6 +138,8 @@ export async function pagarDistribucion(usuarioId: number, id: number, medio: Me
         operacionId: op.id,
         vehiculoId: op.vehiculoId,
         participeId: p.id,
+        // Si es la parte del salón, quién de los socios la retira.
+        personaId: p.tipo === "SALON" ? personaId : null,
         usuarioId,
       })
       .returning();

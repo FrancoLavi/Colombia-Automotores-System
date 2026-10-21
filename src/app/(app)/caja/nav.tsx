@@ -1,14 +1,26 @@
 import Link from "next/link";
 
-const PESTANAS = [
-  { href: "/caja", texto: "Caja y patrimonio" },
+const PESTANAS_CAJA = [
+  { href: "/caja", texto: "Caja (plata líquida)" },
   { href: "/caja/cuentas", texto: "Cuentas pendientes" },
-  { href: "/caja/inversores", texto: "Inversores" },
+];
+const PESTANAS_PATRIMONIO = [
+  { href: "/patrimonio", texto: "Patrimonio" },
+  { href: "/patrimonio/inversores", texto: "Inversores" },
 ];
 
 export function NavCaja({ actual }: { actual: string }) {
+  return <Pestanas actual={actual} pestanas={PESTANAS_CAJA} etiqueta="Secciones de caja" />;
+}
+
+export function NavPatrimonio({ actual }: { actual: string }) {
+  return <Pestanas actual={actual} pestanas={PESTANAS_PATRIMONIO} etiqueta="Secciones de patrimonio" />;
+}
+
+function Pestanas({ actual, pestanas, etiqueta }: { actual: string; pestanas: { href: string; texto: string }[]; etiqueta: string }) {
+  const PESTANAS = pestanas;
   return (
-    <nav aria-label="Secciones de caja" className="flex flex-wrap gap-2.5">
+    <nav aria-label={etiqueta} className="flex flex-wrap gap-2.5">
       {PESTANAS.map((p) => (
         <Link
           key={p.href}

@@ -23,6 +23,7 @@ const creadoEn = () => timestamp("creado_en", { withTimezone: true }).notNull().
 export const rolEnum = pgEnum("rol", ["ADMIN", "INVERSOR"]);
 export const accionAuditoriaEnum = pgEnum("accion_auditoria", ["CREAR", "MODIFICAR", "ELIMINAR", "CAMBIO_ESTADO"]);
 export const tipoParticipeEnum = pgEnum("tipo_participe", ["SALON", "INVERSOR"]);
+export const rolPersonaEnum = pgEnum("rol_persona", ["SOCIO", "EMPLEADO"]);
 
 export const origenContactoEnum = pgEnum("origen_contacto", [
   "WHATSAPP", "FACEBOOK", "MARKETPLACE", "INSTAGRAM", "REFERIDO", "SALON", "OTRO",
@@ -53,7 +54,7 @@ export const categoriaMovimientoEnum = pgEnum("categoria_movimiento", [
   "COBRO_VENTA", "SENIA", "DEVOLUCION_SENIA", "COBRO_CREDITO",
   "PAGO_COMPRA", "PAGO_CONSIGNANTE", "GASTO_VEHICULO", "GASTO_SALON", "GASTO_EXTRAORDINARIO",
   "RETIRO_SOCIO", "PAGO_INVERSOR", "APORTE", "INGRESO_EXTRAORDINARIO", "PAGO_CUENTA", "COBRO_CUENTA",
-  "TRANSFERENCIA_INTERNA", "AJUSTE",
+  "TRANSFERENCIA_INTERNA", "AJUSTE", "SUELDO",
 ]);
 export const tipoCuentaEnum = pgEnum("tipo_cuenta", ["A_COBRAR", "A_PAGAR"]);
 export const origenCuentaEnum = pgEnum("origen_cuenta", ["CREDITO_BANCARIO", "SALDO_COMPRA", "CONSIGNANTE", "GASTO", "MANUAL"]);
@@ -64,6 +65,15 @@ export const participes = pgTable("participes", {
   id: serial("id").primaryKey(),
   nombre: text("nombre").notNull(),
   tipo: tipoParticipeEnum("tipo").notNull(),
+  activo: boolean("activo").notNull().default(true),
+  creadoEn: creadoEn(),
+});
+
+/** Socios y empleados a quienes se atribuyen sueldos y retiros (no necesitan usuario en el sistema). */
+export const personas = pgTable("personas", {
+  id: serial("id").primaryKey(),
+  nombre: text("nombre").notNull(),
+  rol: rolPersonaEnum("rol").notNull(),
   activo: boolean("activo").notNull().default(true),
   creadoEn: creadoEn(),
 });
@@ -358,6 +368,8 @@ export const movimientosCaja = pgTable(
     operacionId: integer("operacion_id").references(() => operaciones.id),
     vehiculoId: integer("vehiculo_id").references(() => vehiculos.id),
     participeId: integer("participe_id").references(() => participes.id),
+    // Socio o empleado al que se atribuye un sueldo o retiro.
+    personaId: integer("persona_id").references(() => personas.id),
     cuentaPendienteId: integer("cuenta_pendiente_id").references(() => cuentasPendientes.id),
     usuarioId: integer("usuario_id").references(() => usuarios.id),
     anulado: boolean("anulado").notNull().default(false),
@@ -370,6 +382,8 @@ export const movimientosCaja = pgTable(
 export const tiposCambio = pgTable("tipos_cambio", {
   fecha: date("fecha").primaryKey(),
   valor: tc("valor").notNull(),
+  // "MANUAL" o "API" (dolarapi.com, blue venta).
+  fuente: text("fuente").notNull().default("MANUAL"),
   usuarioId: integer("usuario_id").references(() => usuarios.id),
 });
 

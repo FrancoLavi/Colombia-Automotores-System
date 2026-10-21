@@ -2,19 +2,38 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { cambiarVista } from "./vista-actions";
 
 const ITEMS = [
   { href: "/", label: "Inicio" },
   { href: "/contactos", label: "Contactos y agenda" },
   { href: "/stock", label: "Stock" },
   { href: "/ventas", label: "Ventas" },
-  { href: "/caja", label: "Caja y patrimonio" },
+  { href: "/caja", label: "Caja" },
+  { href: "/patrimonio", label: "Patrimonio" },
+  { href: "/reportes", label: "Reportes" },
   { href: "/auditoria", label: "Historial de cambios" },
   { href: "/configuracion", label: "Configuración" },
 ];
 
-export function Nav({ nombre, salir }: { nombre: string; salir: () => Promise<void> }) {
+/** Botón "Ver en USD / Ver en $": cambia cómo se muestran los importes en todas las pantallas. */
+export function BotonMoneda({ enDolares, hayDolar }: { enDolares: boolean; hayDolar: boolean }) {
+  const [pendiente, iniciar] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pendiente || (!hayDolar && !enDolares)}
+      onClick={() => iniciar(() => cambiarVista(!enDolares))}
+      className={`btn w-full border text-sm ${enDolares ? "border-[#8fa9f0] bg-[#8fa9f0] text-tinta" : "border-[#3a414b] text-white hover:bg-[#2a3038]"}`}
+      aria-pressed={enDolares}
+    >
+      {pendiente ? "Cambiando…" : enDolares ? "Ver en pesos" : "Ver en USD"}
+    </button>
+  );
+}
+
+export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; salir: () => Promise<void>; enDolares: boolean; hayDolar: boolean }) {
   const path = usePathname();
   const [abierto, setAbierto] = useState(false);
   const activo = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
@@ -25,13 +44,7 @@ export function Nav({ nombre, salir }: { nombre: string; salir: () => Promise<vo
         <div className="font-display text-xl font-bold text-white">
           Colombia <span className="text-[#8fa9f0]">· gestión</span>
         </div>
-        <button
-          type="button"
-          className="btn text-white md:hidden"
-          aria-expanded={abierto}
-          aria-controls="menu-items"
-          onClick={() => setAbierto(!abierto)}
-        >
+        <button type="button" className="btn text-white md:hidden" aria-expanded={abierto} aria-controls="menu-items" onClick={() => setAbierto(!abierto)}>
           Menú
         </button>
       </div>
@@ -46,6 +59,9 @@ export function Nav({ nombre, salir }: { nombre: string; salir: () => Promise<vo
             {i.label}
           </Link>
         ))}
+        <div className="mt-4 px-1">
+          <BotonMoneda enDolares={enDolares} hayDolar={hayDolar} />
+        </div>
         <div className="mt-6 border-t border-[#2a3038] px-3.5 pt-4 text-sm">
           <div className="text-white">{nombre}</div>
           <form action={salir}>

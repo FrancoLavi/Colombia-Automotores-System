@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { Vacio } from "@/components/ilustraciones";
+import { vistaMoneda } from "@/lib/moneda";
 import { listarOperaciones } from "@/server/ventas";
-import { fecha, hoyIso, pesos } from "@/lib/formato";
+import { fecha, hoyIso } from "@/lib/formato";
 import { ChipOperacion } from "./chip";
 
 export const metadata = { title: "Ventas · Colombia Automotores" };
@@ -15,6 +17,7 @@ const PESTANAS = [
 
 export default async function VentasPage({ searchParams }: { searchParams: Promise<{ ver?: string }> }) {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const { ver: pedido } = await searchParams;
   const ver = (PESTANAS.find((p) => p.clave === pedido)?.clave ?? "ABIERTAS") as (typeof PESTANAS)[number]["clave"];
   const { operaciones, conteo } = await listarOperaciones(ver);
@@ -46,9 +49,9 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
 
       <section className="tarjeta overflow-x-auto p-0">
         {operaciones.length === 0 ? (
-          <p className="p-6 text-suave">
+          <Vacio>
             No hay operaciones acá. <Link href="/ventas/nueva">Armá una nueva venta</Link>.
-          </p>
+          </Vacio>
         ) : (
           <table className="tabla">
             <thead>
@@ -82,7 +85,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                     <td>
                       {o.auto.marca} {o.auto.modelo} {o.auto.anio} <span className="num text-apagado">{o.auto.dominio}</span>
                     </td>
-                    <td className="num text-right">{pesos(o.op.precioVenta)}</td>
+                    <td className="num text-right">{m(o.op.precioVenta)}</td>
                     <td>
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-20 rounded-full bg-linea" aria-hidden="true">
@@ -97,7 +100,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                     <td className="text-xs">
                       {o.venceSena && o.op.estado === "SENIADA" && o.venceSena <= hoy && <span className="chip bg-aviso-texto text-white">Seña vencida</span>}
                       {o.aCobrar > 0 && (o.op.estado === "CERRADA" || o.op.estado === "ENTREGADA") && (
-                        <span className="chip bg-aviso-fondo text-aviso-texto">A cobrar {pesos(o.aCobrar)}</span>
+                        <span className="chip bg-aviso-fondo text-aviso-texto">A cobrar {m(o.aCobrar)}</span>
                       )}
                       {o.op.estado === "CAIDA" && o.op.motivoCaida}
                     </td>

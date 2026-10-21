@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { Vacio } from "@/components/ilustraciones";
+import { vistaMoneda } from "@/lib/moneda";
 import { pedidosAbiertos } from "@/server/contactos";
-import { fecha, pesos } from "@/lib/formato";
+import { fecha } from "@/lib/formato";
 import { describirPedido } from "@/domain/contactos";
 import { Telefono } from "../chips";
 
@@ -9,6 +11,7 @@ export const metadata = { title: "Pedidos · Colombia Automotores" };
 
 export default async function PedidosPage() {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const pedidos = await pedidosAbiertos();
   const conStock = pedidos.filter((p) => p.coincidencias.length);
 
@@ -25,7 +28,7 @@ export default async function PedidosPage() {
       </div>
       <section className="tarjeta overflow-x-auto p-0">
         {pedidos.length === 0 ? (
-          <p className="p-6 text-suave">No hay pedidos abiertos. Se registran desde la ficha de cada contacto.</p>
+          <Vacio>No hay pedidos abiertos. Se registran desde la ficha de cada contacto.</Vacio>
         ) : (
           <table className="tabla">
             <thead>
@@ -58,7 +61,7 @@ export default async function PedidosPage() {
                       <div className="flex flex-wrap gap-1.5">
                         {p.coincidencias.map((v) => (
                           <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-white text-tinta">
-                            {v.marca} {v.modelo} {v.anio} · {pesos(v.precio)}
+                            {v.marca} {v.modelo} {v.anio} · {m(v.precio)}
                           </Link>
                         ))}
                       </div>

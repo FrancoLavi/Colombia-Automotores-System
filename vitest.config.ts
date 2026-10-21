@@ -10,7 +10,7 @@ export default defineConfig({
   },
   test: {
     // Los tests de integración usan una base PGlite en memoria por archivo.
-    env: { PGLITE_DIR: "memory://", SESSION_SECRET: "x".repeat(32) },
+    env: { PGLITE_DIR: "memory://", SESSION_SECRET: "x".repeat(32), DOLAR_API: "off" },
     testTimeout: 30_000,
     hookTimeout: 60_000,
   },

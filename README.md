@@ -11,9 +11,13 @@ MVP completo en desarrollo local, listo para publicar (falta conectar Supabase y
 | Contactos | Embudo dato → preventa → cliente, agenda, pedidos cruzados con el stock, importación |
 | Stock | Ingreso (compra, permuta, consignación), papeles, peritaje con fotos, gastos, precio sugerido, alertas, importación |
 | Ventas | Preventa, seña, formas de pago, permuta, cierre con liquidación y reparto, entrega, operación caída |
-| Caja | Movimientos, patrimonio, ganancias por pagar, cuentas pendientes, subcaja por inversor |
+| Caja | Plata líquida (efectivo y banco), movimientos, sueldos y retiros por persona, ganancias por pagar, cuentas pendientes |
+| Patrimonio | Plata invertida en autos (por financista, en $ y al dólar de compra), cuentas, inversores |
+| Reportes | Ganancias pagadas por mes, sueldos y retiros por persona, históricos de ventas, autos e ingresos/egresos |
 | Configuración | Objetivos, margen y umbrales, inversores, usuarios, papeles y categorías |
 | Historial | Quién cambió qué y cuándo, en todo el sistema |
+
+**Vista en dólares:** botón "Ver en USD" que convierte todos los importes al blue del día (se trae solo de dolarapi.com). El dólar fijado en cada compra no cambia.
 
 **Roles:** administrador (acceso total) e inversor (solo consulta de sus autos y ganancias, en `/mi-inversion`).
 

@@ -44,3 +44,21 @@ describe("categorías manuales", () => {
     expect(esManual("PAGO_INVERSOR")).toBe(false);
   });
 });
+
+import { formateadorMoneda } from "@/lib/formato";
+import { exigePersona } from "./caja";
+
+describe("vista en dólares", () => {
+  it("convierte con el blue de hoy solo para mostrar", () => {
+    const usd = formateadorMoneda(true, 1_500);
+    expect(usd(15_000_000)).toBe("USD 10.000");
+    expect(usd(-3_000)).toBe("−USD 2");
+    expect(usd(null)).toBe("—");
+    expect(formateadorMoneda(false, 1_500)(15_000_000)).toMatch(/15\.000\.000/);
+    expect(formateadorMoneda(true, null)(15_000_000)).toMatch(/15\.000\.000/); // sin dólar cargado queda en pesos
+  });
+  it("el sueldo exige persona", () => {
+    expect(exigePersona("SUELDO")).toBe(true);
+    expect(exigePersona("RETIRO_SOCIO")).toBe(false);
+  });
+});

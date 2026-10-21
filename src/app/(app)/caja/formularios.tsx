@@ -18,6 +18,7 @@ function useReset(accion: (r: Resultado, fd: FormData) => Promise<Resultado>) {
 
 const TIPOS = [
   { valor: "GASTO_SALON", texto: "Gasto del salón (alquiler, publicidad, mecánico…)" },
+  { valor: "SUELDO", texto: "Sueldo de un empleado o socio" },
   { valor: "RETIRO_SOCIO", texto: "Retiro de un socio" },
   { valor: "INGRESO_EXTRAORDINARIO", texto: "Ingreso extraordinario (ej. saldo inicial)" },
   { valor: "APORTE", texto: "Aporte de capital (inversor o socio)" },
@@ -26,7 +27,26 @@ const TIPOS = [
   { valor: "AJUSTE", texto: "Ajuste (diferencia de caja)" },
 ];
 
-export function FormMovimiento({ participes }: { participes: { id: number; nombre: string }[] }) {
+type Persona = { id: number; nombre: string; rol: "SOCIO" | "EMPLEADO" };
+
+function SelectorPersona({ personas, requerido, etiqueta = "Persona" }: { personas: Persona[]; requerido?: boolean; etiqueta?: string }) {
+  return (
+    <label className="campo">
+      {etiqueta}
+      {requerido ? " *" : ""}
+      <select name="personaId" defaultValue="" required={requerido}>
+        <option value="">{requerido ? "Elegí…" : "—"}</option>
+        {personas.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.nombre} ({p.rol === "SOCIO" ? "socio" : "empleado"})
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export function FormMovimiento({ participes, personas }: { participes: { id: number; nombre: string }[]; personas: Persona[] }) {
   const { form, r, enviar } = useReset(a.movimientoAccion);
   const [tipo, setTipo] = useState("GASTO_SALON");
   const pase = tipo === "TRANSFERENCIA_INTERNA";
@@ -71,9 +91,12 @@ export function FormMovimiento({ participes }: { participes: { id: number; nombr
           Concepto {pase ? "" : "*"}
           <input name="concepto" required={!pase} placeholder={pase ? "Depósito en banco" : "Ej: alquiler octubre"} />
         </label>
-        {(tipo === "APORTE" || tipo === "RETIRO_SOCIO") && (
+        {(tipo === "SUELDO" || tipo === "RETIRO_SOCIO" || tipo === "APORTE") && (
+          <SelectorPersona personas={personas} requerido={tipo === "SUELDO"} etiqueta={tipo === "SUELDO" ? "A quién" : "Socio o empleado"} />
+        )}
+        {tipo === "APORTE" && (
           <label className="campo">
-            Quién
+            Inversor (si aporta un inversor)
             <select name="participeId" defaultValue="">
               <option value="">—</option>
               {participes.map((p) => (
@@ -116,11 +139,21 @@ export function FormAnular({ id }: { id: number }) {
   );
 }
 
-export function FormPagarGanancia({ id, importe, etiqueta }: { id: number; importe: number; etiqueta: string }) {
+export function FormPagarGanancia({ id, importe, etiqueta, socios }: { id: number; importe: number; etiqueta: string; socios?: Persona[] }) {
   const [r, enviar] = useActionState(a.pagarGananciaAccion.bind(null, id), INICIAL);
   if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Pagado</span>;
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
+      {socios && socios.length > 0 && importe > 0 && (
+        <select name="personaId" aria-label="Socio que retira" defaultValue="" className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+          <option value="">Queda en el salón (sin retirar a nombre de nadie)</option>
+          {socios.map((p) => (
+            <option key={p.id} value={p.id}>
+              Lo retira {p.nombre}
+            </option>
+          ))}
+        </select>
+      )}
       <select name="medio" aria-label="Medio" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>

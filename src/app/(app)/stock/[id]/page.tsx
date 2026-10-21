@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
+import { vistaMoneda } from "@/lib/moneda";
 import { datosFormulario, fichaVehiculo } from "@/server/vehiculos";
 import { interesadosEnAuto } from "@/server/contactos";
 import { operacionAbiertaDeVehiculo } from "@/server/ventas";
 import { Telefono } from "../../contactos/chips";
-import { fecha, numero, pesos, porcentaje, usd } from "@/lib/formato";
+import { fecha, numero, porcentaje, usd } from "@/lib/formato";
 import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
 import { eliminarGastoAccion, quitarArchivoAccion } from "../actions";
 import {
@@ -33,6 +34,7 @@ function Fila({ etiqueta, valor, fuerte }: { etiqueta: React.ReactNode; valor: R
 
 export default async function FichaPage({ params }: { params: Promise<{ id: string }> }) {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const id = Number((await params).id);
   const f = await fichaVehiculo(id);
   if (!f) notFound();
@@ -117,7 +119,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
                 </span>
               </>
             }
-            valor={pesos(v.valorCompraArs)}
+            valor={m(v.valorCompraArs)}
           />
           {f.gastos.map(({ g, categoria }) => (
             <div key={g.id} className="flex items-center justify-between gap-3 border-t border-linea py-1 text-sm">
@@ -129,12 +131,12 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
                 {g.extraordinario && <span className="chip ml-2 bg-neutro-fondo text-neutro-texto">Extraordinario</span>}
               </span>
               <span className="flex items-center gap-1">
-                <span className={`num ${g.extraordinario ? "text-apagado line-through" : ""}`}>{pesos(g.importe)}</span>
+                <span className={`num ${g.extraordinario ? "text-apagado line-through" : ""}`}>{m(g.importe)}</span>
                 <BotonQuitar etiqueta="Eliminar gasto" accion={eliminarGastoAccion.bind(null, id, g.id)} />
               </span>
             </div>
           ))}
-          <Fila etiqueta="Costo total" valor={pesos(f.costo)} fuerte />
+          <Fila etiqueta="Costo total" valor={m(f.costo)} fuerte />
           <Fila etiqueta={<span className="text-apagado">Invertido en dólares (al dólar fijado)</span>} valor={usd(f.costoUsd)} />
           <details className="mt-3">
             <summary className="btn-secundario cursor-pointer list-none">+ Cargar gasto</summary>
@@ -146,9 +148,9 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
 
         <section className="tarjeta flex flex-col">
           <h2 className="pb-2 text-lg font-semibold">Precio</h2>
-          <Fila etiqueta={`Sugerido (costo + ${porcentaje(f.margenBase)})`} valor={pesos(f.sugerido - v.ajustePrecio)} />
-          {v.ajustePrecio !== 0 && <Fila etiqueta="Ajuste comercial" valor={`${v.ajustePrecio > 0 ? "+ " : ""}${pesos(v.ajustePrecio)}`} />}
-          <Fila etiqueta="Precio publicado" valor={pesos(f.precio)} fuerte />
+          <Fila etiqueta={`Sugerido (costo + ${porcentaje(f.margenBase)})`} valor={m(f.sugerido - v.ajustePrecio)} />
+          {v.ajustePrecio !== 0 && <Fila etiqueta="Ajuste comercial" valor={`${v.ajustePrecio > 0 ? "+ " : ""}${m(v.ajustePrecio)}`} />}
+          <Fila etiqueta="Precio publicado" valor={m(f.precio)} fuerte />
           {f.margen ? (
             <div className={`my-3 flex flex-col gap-1 rounded-lg p-3.5 text-sm ${f.margen.alerta ? "bg-aviso-fondo text-aviso-texto" : "bg-ok-fondo text-ok-texto"}`}>
               <b>Margen en dólares: {porcentaje(f.margen.margen)}</b>

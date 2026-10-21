@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { Vacio } from "@/components/ilustraciones";
+import { vistaMoneda } from "@/lib/moneda";
 import { listarStock } from "@/server/vehiculos";
-import { fecha, numero, pesos, porcentaje } from "@/lib/formato";
+import { fecha, numero, porcentaje } from "@/lib/formato";
 import { ETIQUETA_ESTADO, ETIQUETA_UBICACION, type EstadoVehiculo, type Ubicacion } from "@/domain/stock";
 import { ChipAlerta, ChipEstado } from "@/components/ui";
 import { FormDolar } from "./form-dolar";
@@ -12,6 +14,7 @@ type Busqueda = { q?: string; estado?: string; ubicacion?: string; marca?: strin
 
 export default async function StockPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
+  const { m } = await vistaMoneda();
   const sp = await searchParams;
   const { vehiculos, conteo, marcas, tc } = await listarStock({
     q: sp.q,
@@ -36,7 +39,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         <div>
           <h1 className="text-3xl font-bold">Stock</h1>
           <p className="mt-1 text-suave">
-            {enStock.length} {enStock.length === 1 ? "auto" : "autos"} en stock · invertido {pesos(invertido)}
+            {enStock.length} {enStock.length === 1 ? "auto" : "autos"} en stock · invertido {m(invertido)}
           </p>
         </div>
         <div className="flex flex-wrap gap-2.5">
@@ -56,7 +59,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
           </Link>
         ))}
         <div className="ml-auto">
-          <FormDolar actual={tc ? { fecha: fecha(tc.fecha), valor: tc.valor } : null} />
+          <FormDolar actual={tc ? { fecha: fecha(tc.fecha), valor: tc.valor, fuente: tc.fuente } : null} />
         </div>
       </div>
 
@@ -108,9 +111,9 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
 
       <section className="tarjeta overflow-x-auto p-0">
         {vehiculos.length === 0 ? (
-          <p className="p-6 text-suave">
+          <Vacio>
             No hay autos con estos filtros. <Link href="/stock/nuevo">Ingresá el primero</Link> o <Link href="/stock/importar">importá la planilla</Link>.
-          </p>
+          </Vacio>
         ) : (
           <table className="tabla">
             <thead>
@@ -148,8 +151,8 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                   </td>
                   <td>{ETIQUETA_UBICACION[v.ubicacion]}</td>
                   <td className="num text-right">{v.estado === "POR_INGRESAR" ? "—" : v.dias}</td>
-                  <td className="num text-right">{v.costo > 0 ? pesos(v.costo) : "—"}</td>
-                  <td className="num text-right">{pesos(v.precio)}</td>
+                  <td className="num text-right">{v.costo > 0 ? m(v.costo) : "—"}</td>
+                  <td className="num text-right">{m(v.precio)}</td>
                   <td className={`num text-right ${v.margen != null && v.margen <= 0.1 ? "font-semibold text-aviso-texto" : ""}`}>
                     {v.margen != null ? porcentaje(v.margen) : "—"}
                   </td>

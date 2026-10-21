@@ -16,6 +16,7 @@ import {
 
 import { ErrorNegocio } from "./errores";
 import { obtenerParametros } from "./parametros";
+import { dolarDeHoy } from "./dolar";
 export { ErrorNegocio };
 
 type Vehiculo = typeof s.vehiculos.$inferSelect;
@@ -23,9 +24,9 @@ const ENTIDAD = "vehiculo";
 
 // ---------- Consultas ----------
 
+/** Dólar blue de hoy (lo trae de internet si todavía no está cargado; si no hay conexión, el último conocido). */
 export async function tcHoy() {
-  const [ultimo] = await db.select().from(s.tiposCambio).orderBy(desc(s.tiposCambio.fecha)).limit(1);
-  return ultimo ?? null;
+  return dolarDeHoy();
 }
 
 async function documentosDe(ids: number[], ex: Tx | typeof db = db) {
@@ -531,6 +532,6 @@ export async function guardarTipoCambio(usuarioId: number, fecha: string, valor:
   if (valor <= 0) throw new ErrorNegocio("El dólar debe ser mayor a cero");
   await db
     .insert(s.tiposCambio)
-    .values({ fecha, valor, usuarioId })
-    .onConflictDoUpdate({ target: s.tiposCambio.fecha, set: { valor, usuarioId } });
+    .values({ fecha, valor, usuarioId, fuente: "MANUAL" })
+    .onConflictDoUpdate({ target: s.tiposCambio.fecha, set: { valor, usuarioId, fuente: "MANUAL" } });
 }

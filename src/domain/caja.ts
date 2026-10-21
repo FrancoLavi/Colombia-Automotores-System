@@ -22,10 +22,12 @@ export const ETIQUETA_CATEGORIA: Record<string, string> = {
   COBRO_CUENTA: "Cobro de cuenta",
   TRANSFERENCIA_INTERNA: "Pase entre efectivo y banco",
   AJUSTE: "Ajuste",
+  SUELDO: "Sueldo",
 };
 
 /** Movimientos que se cargan a mano desde Caja (el resto los generan stock, ventas y cuentas). */
 export const MANUALES = {
+  SUELDO: "EGRESO",
   GASTO_SALON: "EGRESO",
   GASTO_EXTRAORDINARIO: "EGRESO",
   RETIRO_SOCIO: "EGRESO",
@@ -36,6 +38,10 @@ export const MANUALES = {
 export type CategoriaManual = keyof typeof MANUALES;
 
 export const esManual = (categoria: string) => categoria in MANUALES || categoria === "TRANSFERENCIA_INTERNA";
+
+/** Movimientos que se atribuyen a un socio o empleado: el sueldo la exige; retiros y aportes la admiten. */
+export const PIDEN_PERSONA = ["SUELDO", "RETIRO_SOCIO", "APORTE"] as const;
+export const exigePersona = (categoria: string) => categoria === "SUELDO";
 
 export interface MovimientoSaldo {
   sentido: Sentido;

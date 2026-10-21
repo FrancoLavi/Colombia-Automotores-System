@@ -300,3 +300,45 @@ export function FormCategoria() {
     </form>
   );
 }
+
+export function FormPersona() {
+  const { form, r, enviar } = useReset(a.personaAccion);
+  return (
+    <form action={enviar} ref={form} className="flex flex-wrap items-end gap-2 pt-2">
+      <label className="campo min-w-40 flex-1">
+        Nombre
+        <input name="nombre" required />
+      </label>
+      <label className="campo">
+        Es
+        <select name="rol" defaultValue="EMPLEADO">
+          <option value="EMPLEADO">Empleado</option>
+          <option value="SOCIO">Socio</option>
+        </select>
+      </label>
+      <BotonEnviar className="btn-secundario">Agregar</BotonEnviar>
+      <Mensaje r={r} />
+    </form>
+  );
+}
+
+export function FilaPersona({ p }: { p: { id: number; nombre: string; rol: "SOCIO" | "EMPLEADO"; activo: boolean } }) {
+  const [r, enviar] = useActionState(a.editarPersonaAccion.bind(null, p.id), INICIAL);
+  return (
+    <form action={enviar} className={`flex flex-wrap items-center gap-3 border-t border-linea py-2.5 ${p.activo ? "" : "opacity-60"}`}>
+      <label className="sr-only" htmlFor={`per-${p.id}`}>
+        Nombre
+      </label>
+      <input id={`per-${p.id}`} name="nombre" defaultValue={p.nombre} className="min-h-11 min-w-40 flex-1 rounded-lg border border-[#c9c5ba] px-3 text-sm" />
+      <select name="rol" aria-label="Rol" defaultValue={p.rol} className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+        <option value="EMPLEADO">Empleado</option>
+        <option value="SOCIO">Socio</option>
+      </select>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="activo" defaultChecked={p.activo} className="h-5 w-5" /> Activo
+      </label>
+      <BotonEnviar className="btn-secundario">Guardar</BotonEnviar>
+      {r.error && <span className="w-full text-sm text-aviso-texto">{r.error}</span>}
+    </form>
+  );
+}
