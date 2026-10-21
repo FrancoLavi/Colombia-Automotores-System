@@ -44,3 +44,53 @@ export async function guardarParametros(usuarioId: number, nuevos: Parametros) {
     await auditar(t, { usuarioId, entidad: "configuracion", entidadId: 0, accion: "MODIFICAR", antes: { ...antes }, despues: { ...nuevos }, descripcion: "Parámetros de negocio" });
   });
 }
+
+// ---------- Datos del salón (encabezado de la preventa) ----------
+
+export interface DatosSalon {
+  nombre: string;
+  direccion: string;
+  telefono: string;
+  email: string;
+  cuit: string;
+  leyenda: string;
+}
+
+const CLAVES_SALON: Record<keyof DatosSalon, string> = {
+  nombre: "salon_nombre",
+  direccion: "salon_direccion",
+  telefono: "salon_telefono",
+  email: "salon_email",
+  cuit: "salon_cuit",
+  leyenda: "salon_leyenda",
+};
+
+export const LEYENDA_DEFECTO =
+  "Esta preventa no constituye factura ni recibo. Los precios son en pesos y se mantienen por 48 horas, salvo reserva con seña. " +
+  "El vehículo usado se entrega en el estado en que se encuentra, revisado y aceptado por el comprador. " +
+  "Desde la fecha y hora de entrega, multas, patentes y responsabilidad civil corren por cuenta del comprador.";
+
+export async function obtenerDatosSalon(): Promise<DatosSalon> {
+  const filas = await db.select().from(s.parametros);
+  const leer = (k: keyof DatosSalon) => filas.find((x) => x.clave === CLAVES_SALON[k])?.valor ?? "";
+  return {
+    nombre: leer("nombre") || "Colombia Automotores",
+    direccion: leer("direccion"),
+    telefono: leer("telefono"),
+    email: leer("email"),
+    cuit: leer("cuit"),
+    leyenda: leer("leyenda") || LEYENDA_DEFECTO,
+  };
+}
+
+export async function guardarDatosSalon(usuarioId: number, d: DatosSalon) {
+  if (!d.nombre.trim()) throw new ErrorNegocio("Completá el nombre del salón");
+  const antes = await obtenerDatosSalon();
+  await db.transaction(async (t) => {
+    for (const [k, clave] of Object.entries(CLAVES_SALON) as [keyof DatosSalon, string][]) {
+      const valor = d[k].trim();
+      await t.insert(s.parametros).values({ clave, valor }).onConflictDoUpdate({ target: s.parametros.clave, set: { valor } });
+    }
+    await auditar(t, { usuarioId, entidad: "configuracion", entidadId: 0, accion: "MODIFICAR", antes: { ...antes }, despues: { ...d }, descripcion: "Datos del salón (preventa)" });
+  });
+}

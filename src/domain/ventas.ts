@@ -55,3 +55,20 @@ export function seCobraAlRegistrar(tipo: TipoPago, cobradoAhora: boolean): boole
   if (tipo === "PERMUTA" || tipo === "CREDITO") return false;
   return cobradoAhora;
 }
+
+/** Gastos que se le suman al cliente sobre el precio del auto (no cambian el costo ni la ganancia). */
+export const CONCEPTOS_GASTO_VENTA = [
+  "Transferencia (formularios 08)",
+  "Gestoría",
+  "Sellado",
+  "Informe de dominio",
+  "Verificación policial",
+  "Patentes adeudadas",
+  "Flete",
+  "Alistaje / lavado",
+] as const;
+
+/** Total de la operación = precio del auto + gastos de venta. Es lo que tiene que cubrir el cliente. */
+export function totalOperacion(precio: number, gastos: { importe: number }[]): number {
+  return r2(precio + gastos.reduce((a, g) => a + g.importe, 0));
+}

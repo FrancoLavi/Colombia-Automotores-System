@@ -148,6 +148,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                   <td className="num text-right">{numero(v.km)}</td>
                   <td>
                     <ChipEstado estado={v.estado} />
+                    {v.prendado && <span className="chip ml-1 bg-aviso-fondo text-aviso-texto">Prendado</span>}
                   </td>
                   <td>{ETIQUETA_UBICACION[v.ubicacion]}</td>
                   <td className="num text-right">{v.estado === "POR_INGRESAR" ? "—" : v.dias}</td>

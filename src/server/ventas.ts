@@ -1,10 +1,11 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { hoyIso } from "@/lib/formato";
 import { cobertura, costoTotal, liquidar, margenUsd, precioSugerido, r2 } from "@/domain/negocio";
-import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
+import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
+import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
 import { ErrorNegocio } from "./errores";
 import { obtenerParametros } from "./parametros";
 import { crearVehiculo, tcHoy, type DatosVehiculo } from "./vehiculos";
@@ -23,6 +24,16 @@ async function cargarOperacion(t: Tx, id: number) {
 async function costoVehiculo(t: Tx | typeof db, vehiculoId: number, valorCompraArs: number) {
   const gastos = await t.select({ importe: s.gastos.importe, extraordinario: s.gastos.extraordinario }).from(s.gastos).where(eq(s.gastos.vehiculoId, vehiculoId));
   return costoTotal(valorCompraArs, gastos);
+}
+
+async function gastosVentaDe(t: Tx | typeof db, ids: number[]) {
+  if (!ids.length) return [];
+  return t.select().from(s.gastosVenta).where(inArray(s.gastosVenta.operacionId, ids)).orderBy(asc(s.gastosVenta.id));
+}
+
+/** Precio del auto + gastos de venta de la operación. */
+async function totalDe(t: Tx | typeof db, op: { id: number; precioVenta: number }) {
+  return totalOperacion(op.precioVenta, await gastosVentaDe(t, [op.id]));
 }
 
 const etiquetaAuto = (v: { marca: string; modelo: string; dominio: string | null }) => `${v.marca} ${v.modelo}${v.dominio ? ` ${v.dominio}` : ""}`;
@@ -75,15 +86,18 @@ export async function listarOperaciones(filtro: "ABIERTAS" | "CERRADAS" | "ENTRE
     .orderBy(desc(s.operaciones.id));
   const ids = ops.map((o) => o.op.id);
   const pagos = ids.length ? await db.select().from(s.pagosOperacion).where(inArray(s.pagosOperacion.operacionId, ids)) : [];
+  const gastos = await gastosVentaDe(db, ids);
   const conteo = await db.select({ estado: s.operaciones.estado, n: sql<number>`count(*)::int` }).from(s.operaciones).groupBy(s.operaciones.estado);
   return {
     operaciones: ops.map((o) => {
       const p = pagos.filter((x) => x.operacionId === o.op.id);
       const sena = p.find((x) => x.tipo === "SENIA" && x.estado === "COBRADO" && x.vence);
+      const total = totalOperacion(o.op.precioVenta, gastos.filter((g) => g.operacionId === o.op.id));
       return {
         ...o,
         numero: numeroOperacion(o.op.id),
-        cobertura: cobertura(o.op.precioVenta, p),
+        total,
+        cobertura: cobertura(total, p),
         aCobrar: r2(p.filter((x) => x.estado === "PENDIENTE" && x.tipo !== "PERMUTA").reduce((a, x) => a + x.importe, 0)),
         venceSena: sena?.vence ?? null,
       };
@@ -95,7 +109,7 @@ export async function listarOperaciones(filtro: "ABIERTAS" | "CERRADAS" | "ENTRE
 export async function fichaOperacion(id: number) {
   const op = await db.query.operaciones.findFirst({ where: eq(s.operaciones.id, id) });
   if (!op) return null;
-  const [contacto, v, pagos, liq, historial, tc] = await Promise.all([
+  const [contacto, v, pagos, liq, historial, tc, gastosVenta] = await Promise.all([
     db.query.contactos.findFirst({ where: eq(s.contactos.id, op.contactoId) }),
     db.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, op.vehiculoId) }),
     db
@@ -112,6 +126,7 @@ export async function fichaOperacion(id: number) {
       .where(and(eq(s.auditoria.entidad, ENTIDAD), eq(s.auditoria.entidadId, id)))
       .orderBy(desc(s.auditoria.fecha), desc(s.auditoria.id)),
     tcHoy(),
+    gastosVentaDe(db, [id]),
   ]);
   if (!contacto || !v) return null;
   const financista = await db.query.participes.findFirst({ where: eq(s.participes.id, liq?.participeId ?? v.participeId) });
@@ -129,6 +144,7 @@ export async function fichaOperacion(id: number) {
   const prevista = liquidar({ costo, precio: op.precioVenta, financista: financista?.tipo ?? "SALON", tipoIngreso: v.tipoIngreso, margen: p.margenBase });
   const tcRef = op.tcVenta ?? tc?.valor ?? null;
   const usd = tcRef ? margenUsd(op.precioVenta, costo, v.tcIngreso, tcRef, p.umbralMargenUsd) : null;
+  const total = totalOperacion(op.precioVenta, gastosVenta);
 
   return {
     op,
@@ -137,8 +153,10 @@ export async function fichaOperacion(id: number) {
     v,
     financista,
     pagos,
-    cobertura: cobertura(op.precioVenta, pagos.map((x) => x.p)),
-    faltantes: faltantesParaCerrar(op.estado, op.precioVenta, pagos.map((x) => x.p), v.estado),
+    gastosVenta,
+    total,
+    cobertura: cobertura(total, pagos.map((x) => x.p)),
+    faltantes: faltantesParaCerrar(op.estado, total, pagos.map((x) => x.p), v.estado),
     liquidacion: liq ?? null,
     distribuciones,
     prevista,
@@ -212,7 +230,8 @@ export async function cambiarPrecio(usuarioId: number, id: number, precioVenta: 
     const op = await cargarOperacion(t, id);
     if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("Solo se puede cambiar el precio antes de cerrar");
     const pagos = await t.select().from(s.pagosOperacion).where(eq(s.pagosOperacion.operacionId, id));
-    if (cobertura(precioVenta, pagos).cubierto > precioVenta) throw new ErrorNegocio("Los pagos cargados superan el nuevo precio");
+    const total = await totalDe(t, { id, precioVenta });
+    if (cobertura(total, pagos).cubierto > total) throw new ErrorNegocio("Los pagos cargados superan el nuevo total");
     await t.update(s.operaciones).set({ precioVenta, observaciones }).where(eq(s.operaciones.id, id));
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes: { precioVenta: op.precioVenta, observaciones: op.observaciones }, despues: { precioVenta, observaciones }, descripcion: "Precio u observaciones modificados" });
   });
@@ -234,7 +253,7 @@ export async function agregarPago(usuarioId: number, id: number, p: PagoNuevo) {
     const op = await cargarOperacion(t, id);
     if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("La operación ya está cerrada o caída");
     const pagos = await t.select().from(s.pagosOperacion).where(eq(s.pagosOperacion.operacionId, id));
-    const error = validarPagoNuevo(op.precioVenta, pagos, p.importe);
+    const error = validarPagoNuevo(await totalDe(t, op), pagos, p.importe);
     if (error) throw new ErrorNegocio(error);
     if (p.tipo === "CREDITO" && !p.banco) throw new ErrorNegocio("Indicá el banco del crédito");
     const v = (await t.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, op.vehiculoId) }))!;
@@ -288,7 +307,7 @@ export async function tomarUsado(usuarioId: number, id: number, datos: Omit<Dato
     if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("La operación ya está cerrada o caída");
     const pagos = await t.select().from(s.pagosOperacion).where(eq(s.pagosOperacion.operacionId, id));
     const valorArs = datos.monedaCompra === "USD" ? r2(datos.valorCompra * datos.tcIngreso) : datos.valorCompra;
-    const error = validarPagoNuevo(op.precioVenta, pagos, valorArs);
+    const error = validarPagoNuevo(await totalDe(t, op), pagos, valorArs);
     if (error) throw new ErrorNegocio(error);
     const vehiculoId = await crearVehiculo(usuarioId, { ...datos, tipoIngreso: "PERMUTA", contactoOrigenId: op.contactoId }, { modo: "SIN_REGISTRO" }, t);
     await t.update(s.vehiculos).set({ operacionOrigenId: id }).where(eq(s.vehiculos.id, vehiculoId));
@@ -328,7 +347,8 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
     const v = (await t.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, op.vehiculoId) }))!;
     const c = (await t.query.contactos.findFirst({ where: eq(s.contactos.id, op.contactoId) }))!;
     const pagos = await t.select().from(s.pagosOperacion).where(eq(s.pagosOperacion.operacionId, id));
-    const faltan = faltantesParaCerrar(op.estado, op.precioVenta, pagos, v.estado);
+    const gastosVenta = await gastosVentaDe(t, [id]);
+    const faltan = faltantesParaCerrar(op.estado, totalOperacion(op.precioVenta, gastosVenta), pagos, v.estado);
     if (faltan.length) throw new ErrorNegocio(faltan.join(" · "));
 
     const financista = (await t.query.participes.findFirst({ where: eq(s.participes.id, v.participeId) }))!;
@@ -399,6 +419,23 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
         saldo: v.valorCompraArs,
         notas: `Consignación ${etiquetaAuto(v)} · ${numeroOperacion(id)}`,
       });
+    }
+
+    // Los gastos de venta los paga el cliente pero no son ganancia: quedan a pagar (gestoría, registro, etc.).
+    if (gastosVenta.length) {
+      await t.insert(s.cuentasPendientes).values(
+        gastosVenta.map((g) => ({
+          tipo: "A_PAGAR" as const,
+          origen: "GASTO" as const,
+          contraparte: g.concepto,
+          contactoId: c.id,
+          vehiculoId: v.id,
+          operacionId: id,
+          importe: g.importe,
+          saldo: g.importe,
+          notas: `Gasto de venta ${numeroOperacion(id)} · ${etiquetaAuto(v)}`,
+        })),
+      );
     }
 
     await t.update(s.operaciones).set({ estado: "CERRADA", fechaCierre: hoyIso(), tcVenta }).where(eq(s.operaciones.id, id));
@@ -496,5 +533,117 @@ export async function cobrarPagoPendiente(usuarioId: number, id: number, pagoId:
     await t.update(s.pagosOperacion).set({ estado: "COBRADO", movimientoId: m.id }).where(eq(s.pagosOperacion.id, pagoId));
     if (p.cuentaPendienteId) await t.update(s.cuentasPendientes).set({ saldo: 0, estado: "CANCELADA" }).where(eq(s.cuentasPendientes.id, p.cuentaPendienteId));
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", descripcion: `Cobrado: ${ETIQUETA_PAGO[p.tipo].toLowerCase()} $ ${p.importe.toLocaleString("es-AR")}` });
+  });
+}
+
+// ---------- Gastos de venta ----------
+
+/** Suma un gasto al total de la operación (transferencia, gestoría, flete…). No toca el costo del auto ni la ganancia. */
+export async function agregarGastoVenta(usuarioId: number, id: number, concepto: string, importe: number) {
+  if (!concepto.trim()) throw new ErrorNegocio("Indicá el concepto del gasto");
+  if (!(importe > 0)) throw new ErrorNegocio("El importe debe ser mayor a cero");
+  await db.transaction(async (t) => {
+    const op = await cargarOperacion(t, id);
+    if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("Los gastos de venta se cargan antes de cerrar");
+    const [g] = await t.insert(s.gastosVenta).values({ operacionId: id, concepto: concepto.trim(), importe }).returning();
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "CREAR", despues: g, descripcion: `Gasto de venta: ${g.concepto} $ ${importe.toLocaleString("es-AR")}` });
+  });
+}
+
+export async function quitarGastoVenta(usuarioId: number, id: number, gastoId: number) {
+  await db.transaction(async (t) => {
+    const op = await cargarOperacion(t, id);
+    if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("No se pueden quitar gastos de una operación cerrada");
+    const g = await t.query.gastosVenta.findFirst({ where: and(eq(s.gastosVenta.id, gastoId), eq(s.gastosVenta.operacionId, id)) });
+    if (!g) throw new ErrorNegocio("El gasto no existe");
+    await t.delete(s.gastosVenta).where(eq(s.gastosVenta.id, gastoId));
+    const pagos = await t.select().from(s.pagosOperacion).where(eq(s.pagosOperacion.operacionId, id));
+    const total = await totalDe(t, op);
+    if (cobertura(total, pagos).cubierto > total) throw new ErrorNegocio("Los pagos cargados superan el total sin ese gasto: quitá o ajustá un pago primero");
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "ELIMINAR", antes: g, descripcion: `Gasto de venta quitado: ${g.concepto}` });
+  });
+}
+
+// ---------- Entregas ----------
+
+/** Fecha, hora y lugar de entrega comprometidos con el cliente (null = sin programar). */
+export async function programarEntrega(usuarioId: number, id: number, cuando: Date | null, lugar: string | null) {
+  await db.transaction(async (t) => {
+    const op = await cargarOperacion(t, id);
+    if (op.estado === "ENTREGADA" || op.estado === "CAIDA") throw new ErrorNegocio(`La operación está ${op.estado === "CAIDA" ? "caída" : "entregada"}`);
+    await t.update(s.operaciones).set({ entregaProgramada: cuando, lugarEntrega: lugar }).where(eq(s.operaciones.id, id));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR",
+      antes: { entregaProgramada: op.entregaProgramada, lugarEntrega: op.lugarEntrega },
+      despues: { entregaProgramada: cuando, lugarEntrega: lugar },
+      descripcion: cuando
+        ? `Entrega programada para el ${cuando.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" })}${lugar ? ` en ${lugar}` : ""}`
+        : "Entrega sin programar",
+    });
+  });
+}
+
+/** Entregas programadas (o hechas) en un rango, con lo que falta terminar y la alarma de 3 días antes. Sin rango: las pendientes. */
+export async function entregasProgramadas(rango?: { desde: Date; hasta: Date }, hoy: Date = new Date()) {
+  const filtros = [
+    inArray(s.operaciones.estado, ["PREVENTA", "SENIADA", "CERRADA", "ENTREGADA"] as EstadoOperacion[]),
+    isNotNull(s.operaciones.entregaProgramada),
+  ];
+  if (rango) filtros.push(gte(s.operaciones.entregaProgramada, rango.desde), lt(s.operaciones.entregaProgramada, rango.hasta));
+  else filtros.push(ne(s.operaciones.estado, "ENTREGADA"));
+  const ops = await db
+    .select({
+      op: s.operaciones,
+      contacto: { id: s.contactos.id, nombre: s.contactos.nombre, apellido: s.contactos.apellido, telefono: s.contactos.telefono },
+      auto: { id: s.vehiculos.id, marca: s.vehiculos.marca, modelo: s.vehiculos.modelo, anio: s.vehiculos.anio, dominio: s.vehiculos.dominio, estado: s.vehiculos.estado },
+    })
+    .from(s.operaciones)
+    .innerJoin(s.contactos, eq(s.contactos.id, s.operaciones.contactoId))
+    .innerJoin(s.vehiculos, eq(s.vehiculos.id, s.operaciones.vehiculoId))
+    .where(and(...filtros))
+    .orderBy(asc(s.operaciones.entregaProgramada));
+  const ids = ops.map((o) => o.op.id);
+  const autos = ops.map((o) => o.auto.id);
+  const [pagos, gastos, cuentas, papeles] = await Promise.all([
+    ids.length ? db.select().from(s.pagosOperacion).where(inArray(s.pagosOperacion.operacionId, ids)) : [],
+    gastosVentaDe(db, ids),
+    ids.length
+      ? db
+          .select()
+          .from(s.cuentasPendientes)
+          .where(and(inArray(s.cuentasPendientes.operacionId, ids), eq(s.cuentasPendientes.tipo, "A_COBRAR"), eq(s.cuentasPendientes.estado, "ABIERTA")))
+      : [],
+    autos.length
+      ? db
+          .select({ vehiculoId: s.documentosVehiculo.vehiculoId, n: sql<number>`count(*)::int` })
+          .from(s.documentosVehiculo)
+          .innerJoin(s.tiposDocumento, eq(s.tiposDocumento.id, s.documentosVehiculo.tipoDocumentoId))
+          .where(and(inArray(s.documentosVehiculo.vehiculoId, autos), eq(s.documentosVehiculo.estado, "PENDIENTE"), eq(s.tiposDocumento.obligatorio, true)))
+          .groupBy(s.documentosVehiculo.vehiculoId)
+      : [],
+  ]);
+  return ops.map((o) => {
+    const p = pagos.filter((x) => x.operacionId === o.op.id);
+    const total = totalOperacion(o.op.precioVenta, gastos.filter((g) => g.operacionId === o.op.id));
+    const abierta = ABIERTAS.includes(o.op.estado);
+    const pendientes = {
+      estadoOperacion: o.op.estado,
+      faltaCubrir: abierta ? cobertura(total, p).faltante : 0,
+      aCobrar: r2(
+        abierta
+          ? p.filter((x) => x.estado === "PENDIENTE" && x.tipo !== "PERMUTA").reduce((a, x) => a + x.importe, 0)
+          : cuentas.filter((c) => c.operacionId === o.op.id).reduce((a, c) => a + c.saldo, 0),
+      ),
+      papelesFaltantes: papeles.find((x) => x.vehiculoId === o.auto.id)?.n ?? 0,
+      estadoAuto: o.auto.estado,
+    };
+    return {
+      ...o,
+      numero: numeroOperacion(o.op.id),
+      cuando: o.op.entregaProgramada!,
+      total,
+      falta: o.op.estado === "ENTREGADA" ? [] : pendientesParaEntregar(pendientes),
+      alarma: alarmaEntrega(o.op.entregaProgramada, pendientes, hoy),
+    };
   });
 }

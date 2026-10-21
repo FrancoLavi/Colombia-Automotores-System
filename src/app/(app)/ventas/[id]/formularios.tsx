@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { compraEnPesos } from "@/domain/negocio";
@@ -37,7 +38,7 @@ export function FormPago({ id, faltante, haySena }: { id: number; faltante: numb
         </label>
         <label className="campo">
           Importe ($)
-          <input name="importe" inputMode="decimal" placeholder={faltante > 0 ? `Falta ${pesos(faltante)}` : ""} required />
+          <InputMoneda name="importe" placeholder={faltante > 0 ? `Falta ${pesos(faltante)}` : ""} required />
         </label>
         <label className="campo">
           Fecha
@@ -114,7 +115,7 @@ export function FormPermuta({
   const { form, r, enviar } = useFormReset(a.permutaAccion.bind(null, id));
   const [moneda, setMoneda] = useState<"ARS" | "USD">("ARS");
   const [valor, setValor] = useState("");
-  const [tc, setTc] = useState(tcSugerido ? String(tcSugerido) : "");
+  const [tc, setTc] = useState(textoMoneda(tcSugerido));
   const nV = interpretarImporte(valor) ?? 0;
   const nT = interpretarImporte(tc) ?? 0;
   const conv = nV > 0 && nT > 0 ? compraEnPesos(nV, moneda, nT) : null;
@@ -143,7 +144,7 @@ export function FormPermuta({
         </label>
         <label className="campo">
           Km
-          <input name="km" inputMode="numeric" />
+          <InputMoneda name="km" />
         </label>
         <label className="campo">
           Color
@@ -168,11 +169,11 @@ export function FormPermuta({
         </label>
         <label className="campo">
           Valor de toma *
-          <input name="valorCompra" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} required />
+          <InputMoneda name="valorCompra" value={valor} onChange={setValor} required />
         </label>
         <label className="campo">
           Dólar blue fijado *
-          <input name="tcIngreso" inputMode="decimal" value={tc} onChange={(e) => setTc(e.target.value)} required />
+          <InputMoneda name="tcIngreso" value={tc} onChange={setTc} required />
         </label>
         <label className="campo">
           Observaciones
@@ -194,7 +195,7 @@ export function FormPrecio({ id, precio, observaciones }: { id: number; precio: 
     <form action={enviar} className="flex flex-wrap items-end gap-3">
       <label className="campo">
         Precio de venta ($)
-        <input name="precioVenta" inputMode="decimal" defaultValue={precio} required />
+        <InputMoneda name="precioVenta" defaultValue={precio} required />
       </label>
       <label className="campo min-w-48 flex-1">
         Observaciones
@@ -213,7 +214,7 @@ export function FormCerrar({ id, tcSugerido, faltantes }: { id: number; tcSugeri
       <div className="flex flex-wrap items-end gap-3">
         <label className="campo">
           Dólar blue de hoy (referencia)
-          <input name="tcVenta" inputMode="decimal" defaultValue={tcSugerido ?? ""} />
+          <InputMoneda name="tcVenta" defaultValue={tcSugerido} />
         </label>
         <BotonEnviar pendiente="Cerrando…">Cerrar venta</BotonEnviar>
       </div>
@@ -303,6 +304,66 @@ export function FormCobrar({ id, pagoId, tipo }: { id: number; pagoId: number; t
         {tipo === "CREDITO" ? "El banco liquidó" : "Cobrar"}
       </BotonEnviar>
       {r.error && <span className="text-xs text-aviso-texto">{r.error}</span>}
+    </form>
+  );
+}
+
+/** Grilla de gastos de venta: se suman al total que paga el cliente, no al costo del auto. */
+export function FormGastoVenta({ id, conceptos }: { id: number; conceptos: readonly string[] }) {
+  const { form, r, enviar } = useFormReset(a.gastoVentaAccion.bind(null, id));
+  return (
+    <form action={enviar} ref={form} className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="campo min-w-52 flex-1">
+          Concepto
+          <input name="concepto" list={`conceptos-${id}`} placeholder="Elegí o escribí" required />
+          <datalist id={`conceptos-${id}`}>
+            {conceptos.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </label>
+        <label className="campo w-40">
+          Importe ($)
+          <InputMoneda name="importe" required />
+        </label>
+        <BotonEnviar className="btn-secundario" pendiente="Sumando…">
+          Sumar gasto
+        </BotonEnviar>
+      </div>
+      <Mensaje r={r} />
+    </form>
+  );
+}
+
+/** Fecha, hora y lugar de entrega comprometidos. Montar con key: React 19 resetea el form. */
+export function FormProgramarEntrega({ id, fecha, hora, lugar }: { id: number; fecha: string | null; hora: string | null; lugar: string | null }) {
+  const [r, enviar] = useActionState(a.programarEntregaAccion.bind(null, id), INICIAL);
+  return (
+    <form action={enviar} className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="campo">
+          Fecha
+          <input type="date" name="fecha" defaultValue={fecha ?? ""} min={fecha ? undefined : hoyIso()} />
+        </label>
+        <label className="campo">
+          Hora
+          <input type="time" name="hora" defaultValue={hora ?? "11:00"} />
+        </label>
+        <label className="campo min-w-48 flex-1">
+          Lugar
+          <input name="lugar" defaultValue={lugar ?? ""} placeholder="Salón, domicilio del cliente…" />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <BotonEnviar className="btn-secundario">{fecha ? "Cambiar entrega" : "Programar entrega"}</BotonEnviar>
+        {fecha && (
+          <button name="quitar" value="1" className="min-h-11 px-2 text-sm text-apagado underline hover:text-aviso-texto">
+            Quitar fecha
+          </button>
+        )}
+        <Mensaje r={r} />
+      </div>
     </form>
   );
 }

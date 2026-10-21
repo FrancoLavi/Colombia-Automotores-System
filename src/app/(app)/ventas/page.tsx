@@ -30,9 +30,14 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
           <h1 className="text-3xl font-bold">Ventas</h1>
           <p className="mt-1 text-suave">Preventa → seña → cierre → entrega.</p>
         </div>
-        <Link href="/ventas/nueva" className="btn-primario">
-          + Nueva venta
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/ventas/entregas" className="btn-secundario">
+            Calendario de entregas
+          </Link>
+          <Link href="/ventas/nueva" className="btn-primario">
+            + Nueva venta
+          </Link>
+        </div>
       </header>
 
       <nav aria-label="Estados" className="flex flex-wrap gap-2.5">
@@ -68,7 +73,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
             </thead>
             <tbody>
               {operaciones.map((o) => {
-                const pct = Math.min(100, Math.round((o.cobertura.cubierto / o.op.precioVenta) * 100));
+                const pct = Math.min(100, Math.round((o.cobertura.cubierto / o.total) * 100));
                 return (
                   <tr key={o.op.id}>
                     <td>
@@ -85,7 +90,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                     <td>
                       {o.auto.marca} {o.auto.modelo} {o.auto.anio} <span className="num text-apagado">{o.auto.dominio}</span>
                     </td>
-                    <td className="num text-right">{m(o.op.precioVenta)}</td>
+                    <td className="num text-right">{m(o.total)}</td>
                     <td>
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-20 rounded-full bg-linea" aria-hidden="true">

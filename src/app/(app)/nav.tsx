@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/contactos", label: "Contactos y agenda" },
   { href: "/stock", label: "Stock" },
   { href: "/ventas", label: "Ventas" },
+  { href: "/ventas/entregas", label: "Entregas" },
   { href: "/caja", label: "Caja" },
   { href: "/patrimonio", label: "Patrimonio" },
   { href: "/reportes", label: "Reportes" },
@@ -36,7 +37,11 @@ export function BotonMoneda({ enDolares, hayDolar }: { enDolares: boolean; hayDo
 export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; salir: () => Promise<void>; enDolares: boolean; hayDolar: boolean }) {
   const path = usePathname();
   const [abierto, setAbierto] = useState(false);
-  const activo = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  // Gana el ítem más específico (ej. /ventas/entregas sobre /ventas).
+  const elegido = ITEMS.map((i) => i.href)
+    .filter((h) => (h === "/" ? path === "/" : path === h || path.startsWith(`${h}/`)))
+    .sort((a, b) => b.length - a.length)[0];
+  const activo = (href: string) => href === elegido;
 
   return (
     <nav aria-label="Menú principal" className="bg-tinta text-[#d6d9de] md:min-h-screen md:w-60 md:shrink-0">

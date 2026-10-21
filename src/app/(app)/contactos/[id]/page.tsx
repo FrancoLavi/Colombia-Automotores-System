@@ -162,7 +162,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
       <details className="tarjeta">
         <summary className="cursor-pointer text-lg font-semibold">Editar datos del contacto</summary>
         <div className="mt-4">
-          <FormContacto id={id} inicial={c} />
+          <FormContacto key={JSON.stringify(c)} id={id} inicial={c} />
         </div>
       </details>
 

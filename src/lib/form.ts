@@ -16,11 +16,17 @@ export function requerido(fd: FormData, k: string, etiqueta: string): string {
   return v;
 }
 
-/** Acepta "16.500.000", "1.234,50" o "1234.5". */
+/** Lee un número escrito como "16.500.000", "1.234,50", "1.500" (mil quinientos) o "7.5". */
+export function leerNumero(v: string): number | null {
+  // Un solo punto que no separa miles ("7.5", "1460.25") es decimal; si no, formato argentino.
+  const decimalConPunto = /^-?\d+\.\d+$/.test(v) && !/^-?\d{1,3}(\.\d{3})+$/.test(v);
+  return decimalConPunto ? Number(v) : interpretarImporte(v);
+}
+
 export function importe(fd: FormData, k: string): number | null {
   const v = texto(fd, k);
   if (!v) return null;
-  const n = /^\d+(\.\d+)?$/.test(v) ? Number(v) : interpretarImporte(v);
+  const n = leerNumero(v);
   if (n == null || !Number.isFinite(n)) throw new ErrorValidacion(`Importe inválido: ${v}`);
   return n;
 }

@@ -42,6 +42,8 @@ async function documentosDe(ids: number[], ex: Tx | typeof db = db) {
       estado: s.documentosVehiculo.estado,
       fechaRecepcion: s.documentosVehiculo.fechaRecepcion,
       fechaVencimiento: s.documentosVehiculo.fechaVencimiento,
+      archivoUrl: s.documentosVehiculo.archivoUrl,
+      soloPrendados: s.tiposDocumento.soloPrendados,
       recibidoPor: s.usuarios.nombre,
     })
     .from(s.documentosVehiculo)
@@ -209,6 +211,9 @@ export interface DatosVehiculo {
   tcIngreso: number;
   ubicacion: Ubicacion;
   observaciones: string | null;
+  /** Auto con prenda: pide además la cancelación de prenda para habilitarlo. */
+  prendado?: boolean;
+  prendaDetalle?: string | null;
 }
 
 async function verificarDominio(tx: Tx, dominio: string | null, excluirId?: number) {
@@ -248,7 +253,33 @@ function camposVehiculo(d: DatosVehiculo) {
     tcIngreso: d.tcIngreso,
     ubicacion: d.ubicacion,
     observaciones: d.observaciones,
+    prendado: d.prendado ?? false,
+    prendaDetalle: d.prendado ? (d.prendaDetalle ?? null) : null,
   };
+}
+
+/** Deja los papeles del auto acordes a si está prendado: agrega los que faltan y saca los de prenda pendientes si ya no aplica. */
+async function sincronizarPapeles(t: Tx, vehiculoId: number, prendado: boolean) {
+  const tipos = await t.select().from(s.tiposDocumento).where(eq(s.tiposDocumento.activo, true));
+  const corresponden = tipos.filter((tp) => prendado || !tp.soloPrendados);
+  if (corresponden.length) {
+    await t
+      .insert(s.documentosVehiculo)
+      .values(corresponden.map((tp) => ({ vehiculoId, tipoDocumentoId: tp.id })))
+      .onConflictDoNothing();
+  }
+  const dePrenda = tipos.filter((tp) => tp.soloPrendados).map((tp) => tp.id);
+  if (!prendado && dePrenda.length) {
+    await t
+      .delete(s.documentosVehiculo)
+      .where(
+        and(
+          eq(s.documentosVehiculo.vehiculoId, vehiculoId),
+          inArray(s.documentosVehiculo.tipoDocumentoId, dePrenda),
+          eq(s.documentosVehiculo.estado, "PENDIENTE"),
+        ),
+      );
+  }
 }
 
 export type PagoCompra =
@@ -265,10 +296,7 @@ export async function crearVehiculo(usuarioId: number, d: DatosVehiculo, pago: P
       .values({ ...camposVehiculo(d), participeId, estado: "POR_INGRESAR" })
       .returning();
 
-    const tipos = await t.select().from(s.tiposDocumento).where(eq(s.tiposDocumento.activo, true));
-    if (tipos.length) {
-      await t.insert(s.documentosVehiculo).values(tipos.map((tp) => ({ vehiculoId: v.id, tipoDocumentoId: tp.id })));
-    }
+    await sincronizarPapeles(t, v.id, v.prendado);
 
     // Pago de la compra (solo COMPRA; la permuta no pasa por caja y la consignación se paga al vender).
     if (d.tipoIngreso === "COMPRA" && v.valorCompraArs > 0) {
@@ -312,6 +340,7 @@ export async function actualizarVehiculo(usuarioId: number, id: number, d: Datos
     await verificarDominio(t, d.dominio, id);
     const participeId = await financistaValido(t, d);
     const [despues] = await t.update(s.vehiculos).set({ ...camposVehiculo(d), participeId }).where(eq(s.vehiculos.id, id)).returning();
+    if (despues.prendado !== antes.prendado) await sincronizarPapeles(t, id, despues.prendado);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes, despues, descripcion: "Datos del auto editados" });
   });
 }
@@ -413,16 +442,67 @@ export async function registrarDocumento(
   });
 }
 
+/** Foto o PDF que certifica un papel recibido (opcional). Reemplaza al anterior y devuelve la clave del que se sacó. */
+export async function adjuntarComprobante(
+  usuarioId: number,
+  vehiculoId: number,
+  documentoId: number,
+  a: { url: string; nombre: string | null } | null,
+): Promise<string | null> {
+  return db.transaction(async (t) => {
+    const doc = await t.query.documentosVehiculo.findFirst({
+      where: and(eq(s.documentosVehiculo.id, documentoId), eq(s.documentosVehiculo.vehiculoId, vehiculoId)),
+    });
+    if (!doc) throw new ErrorNegocio("El papel no existe");
+    if (a && doc.estado !== "RECIBIDO") throw new ErrorNegocio("Marcá el papel como recibido antes de adjuntar el comprobante");
+    const tipo = await t.query.tiposDocumento.findFirst({ where: eq(s.tiposDocumento.id, doc.tipoDocumentoId) });
+    let claveAnterior: string | null = null;
+    const anteriorId = Number(doc.archivoUrl?.split("/").pop());
+    if (anteriorId) {
+      const [borrado] = await t.delete(s.archivos).where(eq(s.archivos.id, anteriorId)).returning();
+      claveAnterior = borrado?.url ?? null;
+    }
+    let archivoUrl: string | null = null;
+    if (a) {
+      const [arch] = await t.insert(s.archivos).values({ tipo: "DOCUMENTO", url: a.url, nombre: a.nombre, vehiculoId, creadoPor: usuarioId }).returning();
+      archivoUrl = `/api/archivos/${arch.id}`;
+    }
+    await t.update(s.documentosVehiculo).set({ archivoUrl }).where(eq(s.documentosVehiculo.id, documentoId));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: a ? "CREAR" : "ELIMINAR",
+      antes: { archivoUrl: doc.archivoUrl }, despues: { archivoUrl },
+      descripcion: `Papel "${tipo?.nombre}": comprobante ${a ? "adjuntado" : "quitado"}`,
+    });
+    return claveAnterior;
+  });
+}
+
 export async function guardarPeritaje(
   usuarioId: number,
   vehiculoId: number,
   p: { fecha: string; perito: string | null; resultado: "APTO" | "APTO_CON_OBS" | "NO_APTO"; reparacionEstimada: number | null; observaciones: string | null },
+  /** Lo que costó el peritaje: se carga como gasto del auto (suma al costo real y al precio sugerido). */
+  costo: { importe: number | null; estado: "PAGADO" | "PENDIENTE"; medio: "EFECTIVO" | "BANCO" } = { importe: null, estado: "PAGADO", medio: "EFECTIVO" },
 ) {
+  if (costo.importe != null && costo.importe < 0) throw new ErrorNegocio("El costo del peritaje no puede ser negativo");
   await db.transaction(async (t) => {
-    await cargar(t, vehiculoId);
+    const v = await cargar(t, vehiculoId);
     const antes = await t.query.peritajes.findFirst({ where: eq(s.peritajes.vehiculoId, vehiculoId) });
-    if (antes) await t.update(s.peritajes).set(p).where(eq(s.peritajes.id, antes.id));
-    else await t.insert(s.peritajes).values({ ...p, vehiculoId, creadoPor: usuarioId });
+    const importe = costo.importe || null;
+    let gastoId = antes?.gastoId ?? null;
+    const gastoAnterior = gastoId ? await t.query.gastos.findFirst({ where: eq(s.gastos.id, gastoId) }) : null;
+    if ((gastoAnterior?.importe ?? null) !== importe) {
+      if (gastoAnterior) await borrarGasto(t, usuarioId, gastoAnterior);
+      gastoId = null;
+      if (importe) {
+        const categoriaId = await categoriaPeritaje(t);
+        const g = await insertarGasto(t, usuarioId, v, { categoriaId, fecha: p.fecha, descripcion: p.perito, importe, estado: costo.estado, medio: costo.medio });
+        gastoId = g.id;
+      }
+    }
+    const datos = { ...p, costo: importe, gastoId };
+    if (antes) await t.update(s.peritajes).set(datos).where(eq(s.peritajes.id, antes.id));
+    else await t.insert(s.peritajes).values({ ...datos, vehiculoId, creadoPor: usuarioId });
     await auditar(t, {
       usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: antes ? "MODIFICAR" : "CREAR",
       antes: antes ? { resultado: antes.resultado, observaciones: antes.observaciones } : null,
@@ -441,64 +521,89 @@ export async function agregarGasto(
 ) {
   if (g.importe <= 0) throw new ErrorNegocio("El importe debe ser mayor a cero");
   await db.transaction(async (t) => {
-    const v = await cargar(t, vehiculoId);
-    const categoria = await t.query.categoriasGasto.findFirst({ where: eq(s.categoriasGasto.id, g.categoriaId) });
-    if (!categoria) throw new ErrorNegocio("Categoría inválida");
-    // R6: un gasto que aparece con el auto ya vendido lo asume el salón y no suma al costo.
-    const extraordinario = v.estado === "VENDIDO" || v.estado === "ENTREGADO";
-    const etiqueta = `${categoria.nombre} · ${v.marca} ${v.modelo}${v.dominio ? ` ${v.dominio}` : ""}`;
-
-    let movimientoId: number | null = null;
-    let cuentaPendienteId: number | null = null;
-    if (g.estado === "PAGADO") {
-      const [m] = await t
-        .insert(s.movimientosCaja)
-        .values({
-          sentido: "EGRESO",
-          medio: g.medio,
-          categoria: extraordinario ? "GASTO_EXTRAORDINARIO" : "GASTO_VEHICULO",
-          importe: g.importe,
-          concepto: g.descripcion ? `${etiqueta} (${g.descripcion})` : etiqueta,
-          vehiculoId,
-          usuarioId,
-        })
-        .returning();
-      movimientoId = m.id;
-    } else {
-      const [c] = await t
-        .insert(s.cuentasPendientes)
-        .values({ tipo: "A_PAGAR", origen: "GASTO", contraparte: g.descripcion || categoria.nombre, vehiculoId, importe: g.importe, saldo: g.importe, notas: etiqueta })
-        .returning();
-      cuentaPendienteId = c.id;
-    }
-    const [gasto] = await t
-      .insert(s.gastos)
-      .values({ ...g, vehiculoId, extraordinario, movimientoId, cuentaPendienteId, creadoPor: usuarioId })
-      .returning();
-    await auditar(t, {
-      usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: "CREAR", despues: gasto,
-      descripcion: `Gasto ${categoria.nombre} $ ${g.importe.toLocaleString("es-AR")}${extraordinario ? " (extraordinario del salón)" : ""}${g.estado === "PENDIENTE" ? " — a pagar" : ""}`,
-    });
+    await insertarGasto(t, usuarioId, await cargar(t, vehiculoId), g);
   });
+}
+
+async function categoriaPeritaje(t: Tx) {
+  const c = await t.query.categoriasGasto.findFirst({ where: eq(s.categoriasGasto.nombre, "Peritaje") });
+  if (c) return c.id;
+  const [nueva] = await t.insert(s.categoriasGasto).values({ nombre: "Peritaje" }).returning();
+  return nueva.id;
+}
+
+async function insertarGasto(
+  t: Tx,
+  usuarioId: number,
+  v: Vehiculo,
+  g: { categoriaId: number; fecha: string; descripcion: string | null; importe: number; estado: "PAGADO" | "PENDIENTE"; medio: "EFECTIVO" | "BANCO" },
+) {
+  const vehiculoId = v.id;
+  const categoria = await t.query.categoriasGasto.findFirst({ where: eq(s.categoriasGasto.id, g.categoriaId) });
+  if (!categoria) throw new ErrorNegocio("Categoría inválida");
+  // R6: un gasto que aparece con el auto ya vendido lo asume el salón y no suma al costo.
+  const extraordinario = v.estado === "VENDIDO" || v.estado === "ENTREGADO";
+  const etiqueta = `${categoria.nombre} · ${v.marca} ${v.modelo}${v.dominio ? ` ${v.dominio}` : ""}`;
+
+  let movimientoId: number | null = null;
+  let cuentaPendienteId: number | null = null;
+  if (g.estado === "PAGADO") {
+    const [m] = await t
+      .insert(s.movimientosCaja)
+      .values({
+        sentido: "EGRESO",
+        medio: g.medio,
+        categoria: extraordinario ? "GASTO_EXTRAORDINARIO" : "GASTO_VEHICULO",
+        importe: g.importe,
+        concepto: g.descripcion ? `${etiqueta} (${g.descripcion})` : etiqueta,
+        vehiculoId,
+        usuarioId,
+      })
+      .returning();
+    movimientoId = m.id;
+  } else {
+    const [c] = await t
+      .insert(s.cuentasPendientes)
+      .values({ tipo: "A_PAGAR", origen: "GASTO", contraparte: g.descripcion || categoria.nombre, vehiculoId, importe: g.importe, saldo: g.importe, notas: etiqueta })
+      .returning();
+    cuentaPendienteId = c.id;
+  }
+  const [gasto] = await t
+    .insert(s.gastos)
+    .values({ ...g, vehiculoId, extraordinario, movimientoId, cuentaPendienteId, creadoPor: usuarioId })
+    .returning();
+  await auditar(t, {
+    usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: "CREAR", despues: gasto,
+    descripcion: `Gasto ${categoria.nombre} $ ${g.importe.toLocaleString("es-AR")}${extraordinario ? " (extraordinario del salón)" : ""}${g.estado === "PENDIENTE" ? " — a pagar" : ""}`,
+  });
+  return gasto;
 }
 
 export async function eliminarGasto(usuarioId: number, vehiculoId: number, gastoId: number) {
   await db.transaction(async (t) => {
     const gasto = await t.query.gastos.findFirst({ where: and(eq(s.gastos.id, gastoId), eq(s.gastos.vehiculoId, vehiculoId)) });
     if (!gasto) throw new ErrorNegocio("El gasto no existe");
-    if (gasto.cuentaPendienteId) {
-      const c = await t.query.cuentasPendientes.findFirst({ where: eq(s.cuentasPendientes.id, gasto.cuentaPendienteId) });
-      if (c && c.saldo !== c.importe) throw new ErrorNegocio("El gasto ya tiene pagos parciales: anulalos desde Caja primero");
-    }
-    await t.delete(s.gastos).where(eq(s.gastos.id, gastoId));
-    if (gasto.movimientoId) {
-      await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: "Gasto eliminado" }).where(eq(s.movimientosCaja.id, gasto.movimientoId));
-    }
-    if (gasto.cuentaPendienteId) await t.delete(s.cuentasPendientes).where(eq(s.cuentasPendientes.id, gasto.cuentaPendienteId));
-    await auditar(t, {
-      usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: "ELIMINAR", antes: gasto,
-      descripcion: `Gasto eliminado: $ ${gasto.importe.toLocaleString("es-AR")}`,
-    });
+    await borrarGasto(t, usuarioId, gasto);
+    // Si era el costo del peritaje, el peritaje queda sin costo.
+    await t.update(s.peritajes).set({ costo: null, gastoId: null }).where(eq(s.peritajes.gastoId, gastoId));
+  });
+}
+
+async function borrarGasto(t: Tx, usuarioId: number, gasto: typeof s.gastos.$inferSelect) {
+  const vehiculoId = gasto.vehiculoId;
+  const gastoId = gasto.id;
+  if (gasto.cuentaPendienteId) {
+    const c = await t.query.cuentasPendientes.findFirst({ where: eq(s.cuentasPendientes.id, gasto.cuentaPendienteId) });
+    if (c && c.saldo !== c.importe) throw new ErrorNegocio("El gasto ya tiene pagos parciales: anulalos desde Caja primero");
+  }
+  await t.delete(s.gastos).where(eq(s.gastos.id, gastoId));
+  if (gasto.movimientoId) {
+    await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: "Gasto eliminado" }).where(eq(s.movimientosCaja.id, gasto.movimientoId));
+  }
+  if (gasto.cuentaPendienteId) await t.delete(s.cuentasPendientes).where(eq(s.cuentasPendientes.id, gasto.cuentaPendienteId));
+  await auditar(t, {
+    usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: "ELIMINAR", antes: gasto,
+    descripcion: `Gasto eliminado: $ ${gasto.importe.toLocaleString("es-AR")}`,
   });
 }
 

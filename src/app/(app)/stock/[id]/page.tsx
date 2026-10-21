@@ -57,6 +57,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           <div className="flex flex-wrap items-center gap-2">
             <span className="num self-start rounded-md bg-tinta px-2.5 py-1 tracking-widest text-white">{v.dominio ?? "SIN PATENTE"}</span>
             <ChipEstado estado={v.estado} />
+            {v.prendado && <span className="chip bg-aviso-fondo text-aviso-texto">Prendado</span>}
           </div>
           <h1 className="text-2xl font-bold sm:text-3xl">
             {v.marca} {v.modelo} {v.version}
@@ -70,6 +71,11 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
             {v.ingresadoPor && ` · Lo ingresó: ${v.ingresadoPor}`}
             {f.contactoOrigen && ` · ${v.tipoIngreso === "CONSIGNACION" ? "Dueño" : "Vendedor"}: ${f.contactoOrigen.nombre} ${f.contactoOrigen.apellido ?? ""}`}
           </p>
+          {v.prendado && (
+            <p className="text-sm text-aviso-texto">
+              <b>Prenda:</b> {v.prendaDetalle ?? "sin detalle"} · requiere la cancelación de prenda para venderlo.
+            </p>
+          )}
           {f.alertas.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {f.alertas.map((al, i) => (
@@ -81,7 +87,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <FormUbicacion id={id} actual={v.ubicacion} />
+          <FormUbicacion key={v.ubicacion} id={id} actual={v.ubicacion} />
           <Link href={`/stock/${id}/editar`} className="btn-secundario">
             Editar datos
           </Link>
@@ -162,7 +168,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           ) : (
             <p className="my-3 text-sm text-apagado">Cargá el dólar blue de hoy en el listado de stock para ver el margen en dólares.</p>
           )}
-          <FormPrecio id={id} ajuste={v.ajustePrecio} publicado={v.precioPublicado} sugerido={f.sugerido} />
+          <FormPrecio key={`${v.ajustePrecio}|${v.precioPublicado}`} id={id} ajuste={v.ajustePrecio} publicado={v.precioPublicado} sugerido={f.sugerido} />
         </section>
       </div>
 
@@ -193,7 +199,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
           {f.documentos.map((d) => (
-            <FilaDocumento key={d.id} vehiculoId={id} doc={d} />
+            <FilaDocumento key={`${d.id}|${d.estado}|${d.fechaVencimiento}`} vehiculoId={id} doc={d} />
           ))}
         </section>
 
@@ -206,7 +212,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
               </span>
             )}
           </div>
-          <FormPeritaje id={id} actual={f.peritaje ?? null} />
+          <FormPeritaje key={JSON.stringify(f.peritaje ?? null)} id={id} actual={f.peritaje ?? null} />
           <div className="grid grid-cols-3 gap-2 border-t border-linea pt-3">
             {fotos.map((x) => (
               <div key={x.id} className="relative">

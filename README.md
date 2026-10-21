@@ -9,12 +9,13 @@ MVP completo en desarrollo local, listo para publicar (falta conectar Supabase y
 |---|---|
 | Inicio | Objetivos del mes, ganancia, caja, patrimonio, alertas, agenda, ventas de 12 meses y rotación por modelo |
 | Contactos | Embudo dato → preventa → cliente, agenda, pedidos cruzados con el stock, importación |
-| Stock | Ingreso (compra, permuta, consignación), papeles, peritaje con fotos, gastos, precio sugerido, alertas, importación |
-| Ventas | Preventa, seña, formas de pago, permuta, cierre con liquidación y reparto, entrega, operación caída |
+| Stock | Ingreso (compra, permuta, consignación), autos prendados, papeles con comprobante, peritaje con fotos y costo, gastos, precio sugerido, alertas, importación |
+| Ventas | Preventa (con PDF para el cliente), gastos de venta, seña, formas de pago, permuta, cierre con liquidación y reparto, entrega, operación caída |
+| Entregas | Calendario de entregas comprometidas, con alarma en el inicio 3 días antes y lo que falte terminar |
 | Caja | Plata líquida (efectivo y banco), movimientos, sueldos y retiros por persona, ganancias por pagar, cuentas pendientes |
 | Patrimonio | Plata invertida en autos (por financista, en $ y al dólar de compra), cuentas, inversores |
 | Reportes | Ganancias pagadas por mes, sueldos y retiros por persona, históricos de ventas, autos e ingresos/egresos |
-| Configuración | Objetivos, margen y umbrales, inversores, usuarios, papeles y categorías |
+| Configuración | Objetivos, margen y umbrales, datos del salón para la preventa, inversores, usuarios, papeles y categorías |
 | Historial | Quién cambió qué y cuándo, en todo el sistema |
 
 **Vista en dólares:** botón "Ver en USD" que convierte todos los importes al blue del día (se trae solo de dolarapi.com). El dólar fijado en cada compra no cambia.

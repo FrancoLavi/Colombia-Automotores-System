@@ -1,6 +1,6 @@
 import { requerirUsuario } from "@/lib/auth";
 import { datosConfiguracion } from "@/server/configuracion";
-import { obtenerParametros } from "@/server/parametros";
+import { obtenerParametros, obtenerDatosSalon } from "@/server/parametros";
 import { nombreMes, periodoDe } from "@/domain/dashboard";
 import {
   AccionesUsuario,
@@ -14,6 +14,7 @@ import {
   FormMiPassword,
   FormObjetivo,
   FormParametros,
+  FormSalon,
   FormPersona,
   FormUsuario,
 } from "./formularios";
@@ -22,7 +23,7 @@ export const metadata = { title: "Configuración · Colombia Automotores" };
 
 export default async function ConfiguracionPage() {
   const u = await requerirUsuario();
-  const [d, p] = await Promise.all([datosConfiguracion(), obtenerParametros()]);
+  const [d, p, salon] = await Promise.all([datosConfiguracion(), obtenerParametros(), obtenerDatosSalon()]);
   const hoy = new Date();
   const periodos = [0, 1, 2].map((i) => {
     const v = periodoDe(new Date(hoy.getFullYear(), hoy.getMonth() + i, 1));
@@ -54,14 +55,22 @@ export default async function ConfiguracionPage() {
 
       <section className="tarjeta flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Reglas del negocio</h2>
-        <FormParametros p={p} />
+        <FormParametros key={JSON.stringify(p)} p={p} />
+      </section>
+
+      <section className="tarjeta flex flex-col gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Datos del salón</h2>
+          <p className="text-sm text-apagado">Encabezan la preventa en PDF que se le da al cliente.</p>
+        </div>
+        <FormSalon key={JSON.stringify(salon)} d={salon} />
       </section>
 
       <section className="tarjeta flex flex-col">
         <h2 className="pb-1 text-lg font-semibold">Personas (socios y empleados)</h2>
         <p className="pb-2 text-sm text-apagado">A quién se atribuyen los sueldos y retiros que se cargan en Caja. No necesitan usuario en el sistema.</p>
         {d.personas.map((x) => (
-          <FilaPersona key={x.id} p={x} />
+          <FilaPersona key={JSON.stringify(x)} p={x} />
         ))}
         <FormPersona />
       </section>
@@ -71,7 +80,7 @@ export default async function ConfiguracionPage() {
           <h2 className="pb-1 text-lg font-semibold">Inversores</h2>
           <p className="pb-2 text-sm text-apagado">Quién financia cada auto. El salón representa los fondos propios.</p>
           {d.participes.map((x) => (
-            <FilaParticipe key={x.id} p={x} />
+            <FilaParticipe key={JSON.stringify(x)} p={x} />
           ))}
           <div className="border-t border-linea pt-3">
             <FormInversor />
@@ -107,14 +116,14 @@ export default async function ConfiguracionPage() {
           <h2 className="pb-1 text-lg font-semibold">Papeles del auto</h2>
           <p className="pb-2 text-sm text-apagado">Los obligatorios tienen que estar para dejar un auto disponible. Los cambios aplican a los autos que ingresen desde ahora.</p>
           {d.documentos.map((x) => (
-            <FilaDocumento key={x.id} d={x} />
+            <FilaDocumento key={JSON.stringify(x)} d={x} />
           ))}
           <FormDocumento />
         </section>
         <section className="tarjeta flex flex-col">
           <h2 className="pb-1 text-lg font-semibold">Categorías de gasto</h2>
           {d.categorias.map((x) => (
-            <FilaCategoria key={x.id} c={x} />
+            <FilaCategoria key={JSON.stringify(x)} c={x} />
           ))}
           <FormCategoria />
         </section>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { compraEnPesos, precioSugerido } from "@/domain/negocio";
@@ -33,6 +34,8 @@ export interface InicialVehiculo {
   tcIngreso: number;
   ubicacion: Ubicacion;
   observaciones: string | null;
+  prendado: boolean;
+  prendaDetalle: string | null;
 }
 
 const MARCAS_SUGERIDAS = ["Volkswagen", "Ford", "Renault", "Peugeot", "Fiat", "Chevrolet", "Toyota", "Citroën", "Honda", "Nissan", "Chery", "Jeep"];
@@ -57,10 +60,11 @@ export function VehiculoForm({
   const [tipo, setTipo] = useState(inicial?.tipoIngreso ?? "COMPRA");
   const [moneda, setMoneda] = useState<"ARS" | "USD">(inicial?.monedaCompra ?? "USD");
   const [valor, setValor] = useState(
-    inicial ? String(inicial.monedaCompra === "USD" ? (inicial.valorCompraUsd ?? "") : inicial.valorCompraArs) : "",
+    textoMoneda(inicial ? (inicial.monedaCompra === "USD" ? inicial.valorCompraUsd : inicial.valorCompraArs) : null),
   );
-  const [tc, setTc] = useState(inicial ? String(inicial.tcIngreso) : tcSugerido ? String(tcSugerido) : "");
+  const [tc, setTc] = useState(textoMoneda(inicial ? inicial.tcIngreso : tcSugerido));
   const [pagoModo, setPagoModo] = useState("PAGADO");
+  const [prendado, setPrendado] = useState(inicial?.prendado ?? false);
   const salon = participes.find((p) => p.tipo === "SALON");
 
   const nValor = interpretarImporte(valor) ?? 0;
@@ -148,7 +152,7 @@ export function VehiculoForm({
           </label>
           <label className="campo">
             Kilómetros
-            <input name="km" inputMode="numeric" defaultValue={inicial?.km ?? ""} />
+            <InputMoneda name="km" defaultValue={inicial?.km} />
           </label>
           <label className="campo">
             Color
@@ -206,11 +210,11 @@ export function VehiculoForm({
           </label>
           <label className="campo">
             {etiquetaValor} *
-            <input name="valorCompra" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} required />
+            <InputMoneda name="valorCompra" value={valor} onChange={setValor} required />
           </label>
           <label className="campo">
             Dólar blue fijado *
-            <input name="tcIngreso" inputMode="decimal" value={tc} onChange={(e) => setTc(e.target.value)} required />
+            <InputMoneda name="tcIngreso" value={tc} onChange={setTc} required />
           </label>
         </div>
         {conversion && (
@@ -255,7 +259,22 @@ export function VehiculoForm({
         )}
       </section>
 
-      <section className="tarjeta">
+      <section className="tarjeta flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
+          <label className="flex min-h-11 items-center gap-2.5 font-semibold">
+            <input type="checkbox" name="prendado" checked={prendado} onChange={(e) => setPrendado(e.target.checked)} className="size-5" />
+            Auto prendado
+          </label>
+          {prendado && (
+            <>
+              <label className="campo">
+                Detalle de la prenda
+                <input name="prendaDetalle" defaultValue={inicial?.prendaDetalle ?? ""} placeholder="Acreedor, saldo, quién la cancela…" />
+              </label>
+              <p className="text-sm text-aviso-texto">Para habilitarlo a la venta se va a pedir el papel &quot;Cancelación de prenda&quot;.</p>
+            </>
+          )}
+        </div>
         <label className="campo">
           Observaciones
           <textarea name="observaciones" rows={3} defaultValue={inicial?.observaciones ?? ""} />

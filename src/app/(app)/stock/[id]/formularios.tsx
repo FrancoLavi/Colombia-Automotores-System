@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
+import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { ETIQUETA_ESTADO, ETIQUETA_UBICACION, type EstadoVehiculo, type Ubicacion } from "@/domain/stock";
@@ -70,11 +71,11 @@ export function FormPrecio({ id, ajuste, publicado, sugerido }: { id: number; aj
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="campo">
           Ajuste comercial ($)
-          <input name="ajustePrecio" inputMode="decimal" defaultValue={ajuste || ""} placeholder="Ej: 250000 o -500000" />
+          <InputMoneda name="ajustePrecio" negativo defaultValue={ajuste || ""} placeholder="Ej: 250.000 o -500.000" />
         </label>
         <label className="campo">
           Precio publicado ($)
-          <input name="precioPublicado" inputMode="decimal" defaultValue={publicado ?? ""} placeholder={`Vacío = sugerido (${sugerido.toLocaleString("es-AR")})`} />
+          <InputMoneda name="precioPublicado" defaultValue={publicado} placeholder={`Vacío = sugerido (${sugerido.toLocaleString("es-AR")})`} />
         </label>
       </div>
       <div className="flex items-center justify-between gap-3">
@@ -85,62 +86,121 @@ export function FormPrecio({ id, ajuste, publicado, sugerido }: { id: number; aj
   );
 }
 
-export function FilaDocumento({
-  vehiculoId,
-  doc,
-}: {
-  vehiculoId: number;
-  doc: {
-    id: number;
-    nombre: string;
-    obligatorio: boolean;
-    tieneVencimiento: boolean;
-    estado: "PENDIENTE" | "RECIBIDO" | "NO_APLICA";
-    fechaRecepcion: string | null;
-    fechaVencimiento: string | null;
-    recibidoPor: string | null;
-  };
-}) {
+type Documento = {
+  id: number;
+  nombre: string;
+  obligatorio: boolean;
+  tieneVencimiento: boolean;
+  soloPrendados: boolean;
+  estado: "PENDIENTE" | "RECIBIDO" | "NO_APLICA";
+  fechaRecepcion: string | null;
+  fechaVencimiento: string | null;
+  recibidoPor: string | null;
+  archivoUrl: string | null;
+};
+
+const ETIQUETA_DOC = { PENDIENTE: "Pendiente", RECIBIDO: "En condiciones ✓", NO_APLICA: "No aplica" } as const;
+
+/** Un papel del auto. Montarlo con key que incluya el estado: React 19 resetea el form después de la acción. */
+export function FilaDocumento({ vehiculoId, doc }: { vehiculoId: number; doc: Documento }) {
   const [r, enviar, pendiente] = useActionState(a.documentoAccion.bind(null, vehiculoId, doc.id), INICIAL);
   const form = useRef<HTMLFormElement>(null);
   const enviarYa = () => form.current?.requestSubmit();
+  const recibido = doc.estado === "RECIBIDO";
   return (
-    <form action={enviar} ref={form} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-linea py-2.5 text-sm">
-      <span className="min-w-40 flex-1">
-        {doc.nombre}
-        {!doc.obligatorio && <span className="text-apagado"> · opcional</span>}
-      </span>
-      {doc.tieneVencimiento && (
-        <label className="flex items-center gap-1.5 text-apagado">
-          Vence
-          <input
-            type="date"
-            name="fechaVencimiento"
-            defaultValue={doc.fechaVencimiento ?? ""}
-            onBlur={(e) => e.target.value !== (doc.fechaVencimiento ?? "") && enviarYa()}
-            className="min-h-11 rounded-lg border border-[#c9c5ba] px-2"
-          />
-        </label>
-      )}
-      <select
-        name="estado"
-        defaultValue={doc.estado}
-        onChange={enviarYa}
-        disabled={pendiente}
-        aria-label={`Estado de ${doc.nombre}`}
-        className={`min-h-11 rounded-lg border px-2 font-semibold ${doc.estado === "RECIBIDO" ? "border-ok bg-ok-fondo text-ok-texto" : doc.estado === "PENDIENTE" && doc.obligatorio ? "border-aviso-texto bg-aviso-fondo text-aviso-texto" : "border-[#c9c5ba] bg-white"}`}
-      >
-        <option value="PENDIENTE">Pendiente</option>
-        <option value="RECIBIDO">Recibido</option>
-        <option value="NO_APLICA">No aplica</option>
-      </select>
-      {doc.estado === "RECIBIDO" && doc.recibidoPor && (
-        <span className="w-full text-xs text-apagado sm:w-auto">
-          {doc.recibidoPor} · {doc.fechaRecepcion?.split("-").reverse().join("/")}
+    <div className="flex flex-col gap-1.5 border-t border-linea py-2.5 text-sm">
+      <form action={enviar} ref={form} className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="min-w-40 flex-1">
+          {recibido && <span className="mr-1.5 font-bold text-ok-texto" aria-hidden>✓</span>}
+          {doc.nombre}
+          {!doc.obligatorio && <span className="text-apagado"> · opcional</span>}
+          {doc.soloPrendados && <span className="text-apagado"> · por la prenda</span>}
         </span>
+        {doc.tieneVencimiento && (
+          <label className="flex items-center gap-1.5 text-apagado">
+            Vence
+            <input
+              type="date"
+              name="fechaVencimiento"
+              defaultValue={doc.fechaVencimiento ?? ""}
+              onBlur={(e) => e.target.value !== (doc.fechaVencimiento ?? "") && enviarYa()}
+              className="min-h-11 rounded-lg border border-[#c9c5ba] px-2"
+            />
+          </label>
+        )}
+        <select
+          name="estado"
+          defaultValue={doc.estado}
+          onChange={enviarYa}
+          disabled={pendiente}
+          aria-label={`Estado de ${doc.nombre}`}
+          className={`min-h-11 rounded-lg border px-2 font-semibold ${recibido ? "border-ok bg-ok-fondo text-ok-texto" : doc.estado === "PENDIENTE" && doc.obligatorio ? "border-aviso-texto bg-aviso-fondo text-aviso-texto" : "border-[#c9c5ba] bg-white"}`}
+        >
+          {(Object.keys(ETIQUETA_DOC) as (keyof typeof ETIQUETA_DOC)[]).map((e) => (
+            <option key={e} value={e}>
+              {ETIQUETA_DOC[e]}
+            </option>
+          ))}
+        </select>
+      </form>
+      {recibido && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-apagado">
+          {doc.recibidoPor && (
+            <span>
+              Recibido por {doc.recibidoPor} · {doc.fechaRecepcion?.split("-").reverse().join("/")}
+            </span>
+          )}
+          <Comprobante vehiculoId={vehiculoId} documentoId={doc.id} url={doc.archivoUrl} nombre={doc.nombre} />
+        </div>
       )}
-      {r.error && <span className="w-full text-aviso-texto">{r.error}</span>}
-    </form>
+      {r.error && <span className="text-aviso-texto">{r.error}</span>}
+    </div>
+  );
+}
+
+/** Foto o PDF que certifica el papel. Es opcional. */
+function Comprobante({ vehiculoId, documentoId, url, nombre }: { vehiculoId: number; documentoId: number; url: string | null; nombre: string }) {
+  const [r, setR] = useState<Resultado>(INICIAL);
+  const [pendiente, iniciar] = useTransition();
+  if (url) {
+    return (
+      <span className="flex items-center gap-2">
+        <a href={url} target="_blank" rel="noreferrer" className="font-semibold">
+          Ver comprobante
+        </a>
+        <button
+          type="button"
+          disabled={pendiente}
+          onClick={() => iniciar(async () => setR(await a.quitarComprobanteAccion(vehiculoId, documentoId)))}
+          className="min-h-11 px-1 text-apagado underline hover:text-aviso-texto"
+        >
+          {pendiente ? "Quitando…" : "Quitar"}
+        </button>
+        {r.error && <span className="text-aviso-texto">{r.error}</span>}
+      </span>
+    );
+  }
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-1.5 font-semibold text-acento">
+      {pendiente ? "Subiendo…" : "+ Adjuntar comprobante (opcional)"}
+      <input
+        type="file"
+        accept="image/*,application/pdf"
+        className="sr-only"
+        aria-label={`Comprobante de ${nombre}`}
+        disabled={pendiente}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          iniciar(async () => {
+            const fd = new FormData();
+            fd.set("archivo", await comprimir(f));
+            setR(await a.comprobanteAccion(vehiculoId, documentoId, fd));
+          });
+        }}
+      />
+      {r.error && <span className="font-normal text-aviso-texto">{r.error}</span>}
+    </label>
   );
 }
 
@@ -149,7 +209,7 @@ export function FormPeritaje({
   actual,
 }: {
   id: number;
-  actual: { fecha: string; perito: string | null; resultado: string; reparacionEstimada: number | null; observaciones: string | null } | null;
+  actual: { fecha: string; perito: string | null; resultado: string; reparacionEstimada: number | null; costo: number | null; observaciones: string | null } | null;
 }) {
   const [r, enviar] = useActionState(a.peritajeAccion.bind(null, id), INICIAL);
   return (
@@ -176,10 +236,25 @@ export function FormPeritaje({
         Observaciones
         <textarea name="observaciones" rows={2} defaultValue={actual?.observaciones ?? ""} />
       </label>
-      <label className="campo sm:max-w-xs">
-        Reparación estimada ($)
-        <input name="reparacionEstimada" inputMode="decimal" defaultValue={actual?.reparacionEstimada ?? ""} />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="campo">
+          Reparación estimada ($)
+          <InputMoneda name="reparacionEstimada" defaultValue={actual?.reparacionEstimada} />
+        </label>
+        <label className="campo">
+          Costo del peritaje ($)
+          <InputMoneda name="costo" defaultValue={actual?.costo} placeholder="Sin costo" />
+        </label>
+        <label className="campo">
+          Pago del peritaje
+          <select name="pagoCosto" defaultValue="EFECTIVO">
+            <option value="EFECTIVO">Pagado en efectivo</option>
+            <option value="BANCO">Pagado por banco</option>
+            <option value="PENDIENTE">Queda a pagar</option>
+          </select>
+        </label>
+      </div>
+      <p className="-mt-1 text-xs text-apagado">El costo del peritaje se suma al costo real del auto (y al precio sugerido) como gasto &quot;Peritaje&quot;.</p>
       <div className="flex items-center justify-between gap-3">
         <Mensaje r={r} />
         <BotonEnviar className="btn-secundario ml-auto">{actual ? "Actualizar peritaje" : "Guardar peritaje"}</BotonEnviar>
@@ -214,7 +289,7 @@ export function FormGasto({ id, categorias, vendido }: { id: number; categorias:
         </label>
         <label className="campo">
           Importe ($)
-          <input name="importe" inputMode="decimal" required />
+          <InputMoneda name="importe" required />
         </label>
         <label className="campo">
           Fecha

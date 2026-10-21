@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
+import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { ETIQUETA_ACTIVIDAD, ETIQUETA_ORIGEN, type Origen, type TipoActividad } from "@/domain/contactos";
@@ -69,7 +70,7 @@ export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: V
         </label>
         <label className="campo">
           Calificación crediticia ($)
-          <input name="calificacionMonto" inputMode="decimal" defaultValue={inicial?.calificacionMonto ?? ""} />
+          <InputMoneda name="calificacionMonto" defaultValue={inicial?.calificacionMonto} />
         </label>
         <label className="campo">
           Banco que lo califica
@@ -232,7 +233,7 @@ export function FormPedido({ contactoId, marcas }: { contactoId: number; marcas:
         </label>
         <label className="campo">
           Presupuesto máx. ($)
-          <input name="presupuestoMax" inputMode="decimal" />
+          <InputMoneda name="presupuestoMax" />
         </label>
         <label className="campo sm:col-span-2 lg:col-span-5">
           Notas

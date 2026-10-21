@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
+import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import * as a from "./actions";
@@ -76,7 +77,7 @@ export function FormObjetivo({ periodos, actuales }: { periodos: { valor: string
         </label>
         <label className="campo">
           Ganancia ($)
-          <input name="ganancia" inputMode="decimal" defaultValue={actual?.ganancia ?? ""} />
+          <InputMoneda name="ganancia" defaultValue={actual?.ganancia} />
         </label>
       </div>
       <div className="flex items-center justify-between gap-3">
@@ -234,13 +235,16 @@ export function FormMiPassword() {
   );
 }
 
-export function FilaDocumento({ d }: { d: { id: number; nombre: string; obligatorio: boolean; tieneVencimiento: boolean; activo: boolean } }) {
+export function FilaDocumento({ d }: { d: { id: number; nombre: string; obligatorio: boolean; tieneVencimiento: boolean; soloPrendados: boolean; activo: boolean } }) {
   const [pendiente, iniciar] = useTransition();
   const cambiar = (campo: "obligatorio" | "tieneVencimiento" | "activo", valor: boolean) =>
     iniciar(async () => void (await a.editarDocumentoAccion(d.id, campo, valor, { obligatorio: d.obligatorio, tieneVencimiento: d.tieneVencimiento, activo: d.activo })));
   return (
     <div className={`flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-linea py-2 text-sm ${d.activo ? "" : "opacity-50"}`}>
-      <span className="min-w-48 flex-1">{d.nombre}</span>
+      <span className="min-w-48 flex-1">
+        {d.nombre}
+        {d.soloPrendados && <span className="text-apagado"> · solo autos prendados</span>}
+      </span>
       {(
         [
           ["obligatorio", "Obligatorio", d.obligatorio],
@@ -339,6 +343,45 @@ export function FilaPersona({ p }: { p: { id: number; nombre: string; rol: "SOCI
       </label>
       <BotonEnviar className="btn-secundario">Guardar</BotonEnviar>
       {r.error && <span className="w-full text-sm text-aviso-texto">{r.error}</span>}
+    </form>
+  );
+}
+
+/** Datos que encabezan la preventa en PDF. Montar con key: React 19 resetea el form. */
+export function FormSalon({ d }: { d: { nombre: string; direccion: string; telefono: string; email: string; cuit: string; leyenda: string } }) {
+  const [r, enviar] = useActionState(a.salonAccion, INICIAL);
+  return (
+    <form action={enviar} className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <label className="campo">
+          Nombre del salón
+          <input name="nombre" defaultValue={d.nombre} required />
+        </label>
+        <label className="campo">
+          CUIT
+          <input name="cuit" defaultValue={d.cuit} placeholder="30-00000000-0" />
+        </label>
+        <label className="campo">
+          Teléfono
+          <input name="telefono" defaultValue={d.telefono} />
+        </label>
+        <label className="campo sm:col-span-2">
+          Dirección
+          <input name="direccion" defaultValue={d.direccion} />
+        </label>
+        <label className="campo">
+          Email
+          <input type="email" name="email" defaultValue={d.email} />
+        </label>
+      </div>
+      <label className="campo">
+        Leyenda al pie de la preventa
+        <textarea name="leyenda" rows={3} defaultValue={d.leyenda} />
+      </label>
+      <div className="flex items-center justify-between gap-3">
+        <Mensaje r={r} />
+        <BotonEnviar className="btn-primario ml-auto">Guardar datos del salón</BotonEnviar>
+      </div>
     </form>
   );
 }

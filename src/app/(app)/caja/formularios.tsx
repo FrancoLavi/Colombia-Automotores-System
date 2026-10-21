@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { hoyIso, pesos } from "@/lib/formato";
@@ -81,7 +82,7 @@ export function FormMovimiento({ participes, personas }: { participes: { id: num
         </label>
         <label className="campo">
           Importe ($)
-          <input name="importe" inputMode="decimal" required />
+          <InputMoneda name="importe" required />
         </label>
         <label className="campo">
           Fecha
@@ -184,7 +185,7 @@ export function FormCuenta() {
         </label>
         <label className="campo">
           Importe ($) *
-          <input name="importe" inputMode="decimal" required />
+          <InputMoneda name="importe" required />
         </label>
         <label className="campo">
           Vence
@@ -211,10 +212,9 @@ export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo
       <label className="sr-only" htmlFor={`imp-${id}`}>
         Importe
       </label>
-      <input
+      <InputMoneda
         id={`imp-${id}`}
         name="importe"
-        inputMode="decimal"
         defaultValue={saldo}
         readOnly={deVenta}
         title={deVenta ? "Los cobros de una venta van por el total" : undefined}

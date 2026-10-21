@@ -5,7 +5,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { ejecutar } from "@/lib/acciones";
 import { ErrorValidacion, entero, importe, importeRequerido, opcion, requerido, texto, type Resultado } from "@/lib/form";
 import * as cfg from "@/server/configuracion";
-import { guardarParametros } from "@/server/parametros";
+import { guardarDatosSalon, guardarParametros } from "@/server/parametros";
 
 function revalidar() {
   revalidatePath("/configuracion");
@@ -155,6 +155,17 @@ export async function editarPersonaAccion(id: number, _: Resultado, fd: FormData
   const r = await ejecutar(async () => {
     await cfg.editarPersona(u.id, id, requerido(fd, "nombre", "Nombre"), opcion(fd, "rol", ["SOCIO", "EMPLEADO"] as const), fd.get("activo") === "on");
     return "Guardado.";
+  });
+  revalidar();
+  return r;
+}
+
+export async function salonAccion(_: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    const t = (k: string) => texto(fd, k) ?? "";
+    await guardarDatosSalon(u.id, { nombre: t("nombre"), direccion: t("direccion"), telefono: t("telefono"), email: t("email"), cuit: t("cuit"), leyenda: t("leyenda") });
+    return "Datos del salón guardados.";
   });
   revalidar();
   return r;

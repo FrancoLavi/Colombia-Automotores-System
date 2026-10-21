@@ -10,6 +10,7 @@ import { patrimonio } from "./caja";
 import { agenda } from "./contactos";
 import { listarStock } from "./vehiculos";
 import { dolarDeHoy } from "./dolar";
+import { entregasProgramadas } from "./ventas";
 
 export interface AlertaTablero {
   severidad: Severidad;
@@ -79,6 +80,15 @@ export async function tablero(hoy: Date = new Date()) {
   const variacionDolar = tc && tcAnterior && tcAnterior.fecha !== tc.fecha ? (tc.valor - tcAnterior.valor) / tcAnterior.valor : null;
 
   const alertas: AlertaTablero[] = [];
+  // Entregas: la alarma salta 3 días antes con lo que falte terminar.
+  for (const e of await entregasProgramadas()) {
+    if (!e.alarma) continue;
+    alertas.push({
+      severidad: e.alarma.severidad,
+      texto: `${e.alarma.texto} · ${e.auto.marca} ${e.auto.modelo} a ${e.contacto.nombre} ${e.contacto.apellido ?? ""}`.replace(/\s+/g, " ").trim(),
+      href: `/ventas/${e.op.id}`,
+    });
+  }
   for (const v of enStock) {
     for (const a of v.alertas) {
       alertas.push({ severidad: a.severidad, texto: `${a.texto} · ${v.marca} ${v.modelo}${v.dominio ? ` ${v.dominio}` : ""}`, href: `/stock/${v.id}` });

@@ -7,6 +7,7 @@ import { ejecutar } from "@/lib/acciones";
 import { entero, ErrorValidacion, fechaIso, importe, importeRequerido, opcion, requerido, texto, type Resultado } from "@/lib/form";
 import { normalizarDominio } from "@/domain/importar";
 import { hoyIso } from "@/lib/formato";
+import { desdeArgentina } from "@/domain/entregas";
 import * as svc from "@/server/ventas";
 
 const MEDIOS = ["EFECTIVO", "BANCO"] as const;
@@ -16,6 +17,7 @@ function revalidar(id: number) {
   revalidatePath("/ventas");
   revalidatePath("/stock");
   revalidatePath("/caja");
+  revalidatePath("/ventas/entregas");
   revalidatePath("/");
 }
 
@@ -118,7 +120,7 @@ export async function entregarAccion(id: number, _: Resultado, fd: FormData): Pr
     const f = fechaIso(fd, "fecha") ?? hoyIso();
     const h = texto(fd, "hora") ?? "12:00";
     if (!/^\d{2}:\d{2}$/.test(h)) throw new ErrorValidacion("Hora inválida");
-    await svc.entregarOperacion(u.id, id, new Date(`${f}T${h}:00`));
+    await svc.entregarOperacion(u.id, id, desdeArgentina(f, h));
     return "Entrega registrada.";
   });
   revalidar(id);
@@ -140,6 +142,41 @@ export async function cobrarAccion(id: number, pagoId: number, _: Resultado, fd:
   const r = await ejecutar(async () => {
     await svc.cobrarPagoPendiente(u.id, id, pagoId, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
     return "Cobrado.";
+  });
+  revalidar(id);
+  return r;
+}
+
+export async function gastoVentaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await svc.agregarGastoVenta(u.id, id, requerido(fd, "concepto", "Concepto"), importeRequerido(fd, "importe", "Importe"));
+    return "Gasto sumado al total.";
+  });
+  revalidar(id);
+  return r;
+}
+
+export async function quitarGastoVentaAccion(id: number, gastoId: number): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(() => svc.quitarGastoVenta(u.id, id, gastoId));
+  revalidar(id);
+  return r;
+}
+
+export async function programarEntregaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    if (fd.get("quitar")) {
+      await svc.programarEntrega(u.id, id, null, null);
+      return "Entrega sin programar.";
+    }
+    const f = fechaIso(fd, "fecha");
+    if (!f) throw new ErrorValidacion("Completá: Fecha de entrega");
+    const h = texto(fd, "hora") ?? "12:00";
+    if (!/^\d{2}:\d{2}$/.test(h)) throw new ErrorValidacion("Hora inválida");
+    await svc.programarEntrega(u.id, id, desdeArgentina(f, h), texto(fd, "lugar"));
+    return "Entrega programada. Te avisamos en el inicio 3 días antes.";
   });
   revalidar(id);
   return r;

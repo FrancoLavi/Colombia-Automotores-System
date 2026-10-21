@@ -192,6 +192,9 @@ export const vehiculos = pgTable(
     tcIngreso: tc("tc_ingreso").notNull(),
     ajustePrecio: pesos("ajuste_precio").notNull().default(0),
     precioPublicado: pesos("precio_publicado"),
+    // Auto con prenda: exige los papeles marcados "solo prendados" (cancelación de prenda).
+    prendado: boolean("prendado").notNull().default(false),
+    prendaDetalle: text("prenda_detalle"),
     observaciones: text("observaciones"),
     creadoEn: creadoEn(),
   },
@@ -203,6 +206,8 @@ export const tiposDocumento = pgTable("tipos_documento", {
   nombre: text("nombre").notNull(),
   obligatorio: boolean("obligatorio").notNull().default(true),
   tieneVencimiento: boolean("tiene_vencimiento").notNull().default(false),
+  // Solo se pide a autos prendados.
+  soloPrendados: boolean("solo_prendados").notNull().default(false),
   orden: integer("orden").notNull().default(0),
   activo: boolean("activo").notNull().default(true),
 });
@@ -229,6 +234,9 @@ export const peritajes = pgTable("peritajes", {
   perito: text("perito"),
   resultado: resultadoPeritajeEnum("resultado").notNull(),
   reparacionEstimada: pesos("reparacion_estimada"),
+  // Lo que costó el peritaje: se carga como gasto del auto y suma al costo real.
+  costo: pesos("costo"),
+  gastoId: integer("gasto_id"),
   observaciones: text("observaciones"),
   creadoPor: integer("creado_por").references(() => usuarios.id),
   creadoEn: creadoEn(),
@@ -283,6 +291,9 @@ export const operaciones = pgTable(
     fechaPreventa: date("fecha_preventa").notNull(),
     fechaCierre: date("fecha_cierre"),
     fechaEntrega: timestamp("fecha_entrega", { withTimezone: true }),
+    // Entrega comprometida con el cliente (calendario y alarma 3 días antes).
+    entregaProgramada: timestamp("entrega_programada", { withTimezone: true }),
+    lugarEntrega: text("lugar_entrega"),
     precioVenta: pesos("precio_venta").notNull(),
     // Blue del día de la venta: solo referencia (R5).
     tcVenta: tc("tc_venta"),
@@ -307,6 +318,15 @@ export const pagosOperacion = pgTable("pagos_operacion", {
   estado: estadoPagoEnum("estado").notNull(),
   movimientoId: integer("movimiento_id"),
   cuentaPendienteId: integer("cuenta_pendiente_id"),
+  creadoEn: creadoEn(),
+});
+
+/** Gastos que se le suman al cliente en el precio final (transferencia, gestoría, formularios…). No cambian la ganancia. */
+export const gastosVenta = pgTable("gastos_venta", {
+  id: serial("id").primaryKey(),
+  operacionId: integer("operacion_id").notNull().references(() => operaciones.id),
+  concepto: text("concepto").notNull(),
+  importe: pesos("importe").notNull(),
   creadoEn: creadoEn(),
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { useActionState, useMemo, useState } from "react";
 import { INICIAL } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
@@ -26,7 +27,7 @@ export function FormNuevaVenta({
   const [contactoId, setContactoId] = useState(contactoInicial ? String(contactoInicial) : "");
   const [vehiculoId, setVehiculoId] = useState(vehiculoInicial ? String(vehiculoInicial) : "");
   const auto = vehiculos.find((v) => String(v.id) === vehiculoId);
-  const [precio, setPrecio] = useState(auto ? String(auto.precio) : "");
+  const [precio, setPrecio] = useState(textoMoneda(auto?.precio));
 
   const visibles = useMemo(() => {
     const q = filtro.trim().toLowerCase();
@@ -70,7 +71,7 @@ export function FormNuevaVenta({
           onChange={(e) => {
             setVehiculoId(e.target.value);
             const v = vehiculos.find((x) => String(x.id) === e.target.value);
-            if (v) setPrecio(String(v.precio));
+            if (v) setPrecio(textoMoneda(v.precio));
           }}
           required
         >
@@ -85,7 +86,7 @@ export function FormNuevaVenta({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="campo">
           Precio de venta ($) *
-          <input name="precioVenta" inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} required />
+          <InputMoneda name="precioVenta" value={precio} onChange={setPrecio} required />
         </label>
         <label className="campo">
           Observaciones

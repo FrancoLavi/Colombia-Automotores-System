@@ -5,12 +5,13 @@ import { vistaMoneda } from "@/lib/moneda";
 import { fichaOperacion } from "@/server/ventas";
 import { datosFormulario } from "@/server/vehiculos";
 import { fecha, porcentaje, usd } from "@/lib/formato";
-import { ETIQUETA_PAGO, ABIERTAS } from "@/domain/ventas";
-import { BotonQuitar, ChipEstado } from "@/components/ui";
+import { ETIQUETA_PAGO, ABIERTAS, CONCEPTOS_GASTO_VENTA } from "@/domain/ventas";
+import { alarmaEntrega, diaArgentina, horaArgentina } from "@/domain/entregas";
+import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
 import { Telefono } from "../../contactos/chips";
 import { ChipOperacion } from "../chip";
-import { quitarPagoAccion } from "../actions";
-import { FormCaer, FormCerrar, FormCobrar, FormEntregar, FormPago, FormPermuta, FormPrecio } from "./formularios";
+import { quitarGastoVentaAccion, quitarPagoAccion } from "../actions";
+import { FormCaer, FormCerrar, FormCobrar, FormEntregar, FormGastoVenta, FormPago, FormPermuta, FormPrecio, FormProgramarEntrega } from "./formularios";
 
 const IMPACTO: Record<string, string> = {
   SENIA: "Caja",
@@ -49,14 +50,29 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
   const pendientes = f.pagos.filter((x) => x.p.estado === "PENDIENTE" && x.p.tipo !== "PERMUTA");
   const aCobrar = pendientes.reduce((s, x) => s + x.p.importe, 0);
   const l = f.liquidacion ?? f.prevista;
-  const pctCaja = op.precioVenta ? (f.cobertura.caja / op.precioVenta) * 100 : 0;
-  const pctCobrar = op.precioVenta ? (f.cobertura.aCobrar / op.precioVenta) * 100 : 0;
-  const pctPermuta = op.precioVenta ? (f.cobertura.permuta / op.precioVenta) * 100 : 0;
+  const pctCaja = f.total ? (f.cobertura.caja / f.total) * 100 : 0;
+  const pctCobrar = f.total ? (f.cobertura.aCobrar / f.total) * 100 : 0;
+  const pctPermuta = f.total ? (f.cobertura.permuta / f.total) * 100 : 0;
+  const alarma = alarmaEntrega(op.entregaProgramada, {
+    estadoOperacion: op.estado,
+    faltaCubrir: abierta ? f.cobertura.faltante : 0,
+    aCobrar,
+    papelesFaltantes: 0,
+    estadoAuto: v.estado,
+  });
   const pasos = [
     { titulo: "Preventa", hecho: true, detalle: fecha(op.fechaPreventa) },
     { titulo: "Señada", hecho: op.estado !== "PREVENTA" && haySena, detalle: haySena ? "con seña" : "sin seña" },
-    { titulo: "Cerrada", hecho: op.estado === "CERRADA" || op.estado === "ENTREGADA", detalle: op.fechaCierre ? fecha(op.fechaCierre) : "pagos = precio" },
-    { titulo: "Entregada", hecho: op.estado === "ENTREGADA", detalle: op.fechaEntrega ? op.fechaEntrega.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "fecha y hora" },
+    { titulo: "Cerrada", hecho: op.estado === "CERRADA" || op.estado === "ENTREGADA", detalle: op.fechaCierre ? fecha(op.fechaCierre) : "pagos = total" },
+    {
+      titulo: "Entregada",
+      hecho: op.estado === "ENTREGADA",
+      detalle: op.fechaEntrega
+        ? `${fecha(diaArgentina(op.fechaEntrega))} ${horaArgentina(op.fechaEntrega)}`
+        : op.entregaProgramada
+          ? `programada ${fecha(diaArgentina(op.entregaProgramada))} ${horaArgentina(op.entregaProgramada)}`
+          : "fecha y hora",
+    },
   ];
 
   return (
@@ -74,7 +90,14 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             Venta a {c.nombre} {c.apellido}
           </h1>
         </div>
-        <ChipOperacion estado={op.estado} />
+        <div className="flex flex-wrap items-center gap-3">
+          {op.estado !== "CAIDA" && (
+            <a href={`/ventas/${id}/preventa`} target="_blank" rel="noreferrer" className="btn-secundario">
+              Preventa en PDF
+            </a>
+          )}
+          <ChipOperacion estado={op.estado} />
+        </div>
       </header>
 
       {op.estado === "CAIDA" ? (
@@ -110,13 +133,39 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             <details className="mt-2">
               <summary className="cursor-pointer text-sm font-semibold text-acento">Cambiar precio u observaciones</summary>
               <div className="mt-2">
-                <FormPrecio id={id} precio={op.precioVenta} observaciones={op.observaciones} />
+                <FormPrecio key={`${op.precioVenta}|${op.observaciones}`} id={id} precio={op.precioVenta} observaciones={op.observaciones} />
               </div>
             </details>
           )}
           {op.observaciones && <p className="mt-2 text-sm text-suave">{op.observaciones}</p>}
         </section>
       </div>
+
+      {(abierta || f.gastosVenta.length > 0) && (
+        <section className="tarjeta flex flex-col">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 pb-2">
+            <h2 className="text-lg font-semibold">Total de la operación</h2>
+            <span className="text-sm text-apagado">Los gastos se suman a lo que paga el cliente; no cambian el costo ni la ganancia del auto.</span>
+          </div>
+          <Fila etiqueta="Precio del auto" valor={m(op.precioVenta)} />
+          {f.gastosVenta.map((g) => (
+            <div key={g.id} className="flex items-center justify-between gap-3 border-t border-linea py-1 text-sm">
+              <span>{g.concepto}</span>
+              <span className="flex items-center gap-1">
+                <span className="num">{m(g.importe)}</span>
+                {abierta && <BotonQuitar etiqueta={`Quitar ${g.concepto}`} accion={quitarGastoVentaAccion.bind(null, id, g.id)} />}
+              </span>
+            </div>
+          ))}
+          <Fila etiqueta="Total que paga el cliente" valor={m(f.total)} fuerte />
+          {abierta && (
+            <div className="mt-3 rounded-lg bg-fondo p-3">
+              <FormGastoVenta id={id} conceptos={CONCEPTOS_GASTO_VENTA} />
+            </div>
+          )}
+          {!abierta && f.gastosVenta.length > 0 && <p className="mt-2 text-xs text-apagado">Al cerrar, cada gasto quedó a pagar en Caja → Cuentas pendientes.</p>}
+        </section>
+      )}
 
       <section className="tarjeta flex flex-col gap-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -172,7 +221,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <div className="flex justify-between text-sm">
             <b>Cubierto</b>
             <span className="num">
-              {m(f.cobertura.cubierto)} de {m(op.precioVenta)}
+              {m(f.cobertura.cubierto)} de {m(f.total)}
               {f.cobertura.faltante > 0 && <span className="text-aviso-texto"> · faltan {m(f.cobertura.faltante)}</span>}
             </span>
           </div>
@@ -268,10 +317,32 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {op.estado === "CERRADA" && (
-        <section className="tarjeta flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">Entrega</h2>
-          <FormEntregar id={id} aCobrar={aCobrar} />
+      {op.estado !== "CAIDA" && op.estado !== "ENTREGADA" && (
+        <section className="tarjeta flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Entrega</h2>
+            <Link href="/ventas/entregas" className="text-sm font-semibold">
+              Ver calendario de entregas →
+            </Link>
+          </div>
+          {alarma && <ChipAlerta severidad={alarma.severidad}>{alarma.texto}</ChipAlerta>}
+          <div className="flex flex-col gap-2">
+            <h3 className="font-semibold">Compromiso de entrega</h3>
+            <FormProgramarEntrega
+              key={`${op.entregaProgramada?.toISOString()}|${op.lugarEntrega}`}
+              id={id}
+              fecha={op.entregaProgramada ? diaArgentina(op.entregaProgramada) : null}
+              hora={op.entregaProgramada ? horaArgentina(op.entregaProgramada) : null}
+              lugar={op.lugarEntrega}
+            />
+            <p className="text-xs text-apagado">3 días antes aparece una alarma en el inicio con lo que falte terminar.</p>
+          </div>
+          {op.estado === "CERRADA" && (
+            <div className="flex flex-col gap-2 border-t border-linea pt-4">
+              <h3 className="font-semibold">Registrar la entrega</h3>
+              <FormEntregar id={id} aCobrar={aCobrar} />
+            </div>
+          )}
         </section>
       )}
 

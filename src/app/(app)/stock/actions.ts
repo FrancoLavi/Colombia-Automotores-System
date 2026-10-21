@@ -39,6 +39,8 @@ function datosVehiculo(fd: FormData): svc.DatosVehiculo {
     tcIngreso: importeRequerido(fd, "tcIngreso", "Dólar blue fijado"),
     ubicacion: opcion(fd, "ubicacion", UBICACIONES, "SALON"),
     observaciones: texto(fd, "observaciones"),
+    prendado: fd.get("prendado") === "on",
+    prendaDetalle: texto(fd, "prendaDetalle"),
   };
 }
 
@@ -125,6 +127,10 @@ export async function peritajeAccion(id: number, _: Resultado, fd: FormData): Pr
       resultado: opcion(fd, "resultado", ["APTO", "APTO_CON_OBS", "NO_APTO"] as const),
       reparacionEstimada: importe(fd, "reparacionEstimada"),
       observaciones: texto(fd, "observaciones"),
+    }, {
+      importe: importe(fd, "costo"),
+      estado: texto(fd, "pagoCosto") === "PENDIENTE" ? "PENDIENTE" : "PAGADO",
+      medio: texto(fd, "pagoCosto") === "BANCO" ? "BANCO" : "EFECTIVO",
     });
     return "Peritaje guardado.";
   });
@@ -157,6 +163,34 @@ export async function eliminarGastoAccion(id: number, gastoId: number): Promise<
 }
 
 const TIPOS_IMAGEN = ["image/jpeg", "image/png", "image/webp"];
+
+export async function comprobanteAccion(vehiculoId: number, documentoId: number, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    const f = fd.get("archivo");
+    if (!(f instanceof File) || !f.size) throw new svc.ErrorNegocio("Elegí la foto o el PDF del comprobante");
+    if (!TIPOS_IMAGEN.includes(f.type) && f.type !== "application/pdf") throw new svc.ErrorNegocio(`Formato no admitido: ${f.name}`);
+    if (f.size > 4 * 1024 * 1024) throw new svc.ErrorNegocio("El archivo supera los 4 MB");
+    const ext = f.type === "application/pdf" ? "pdf" : f.type.split("/")[1].replace("jpeg", "jpg");
+    const clave = `vehiculos/${vehiculoId}/papeles/${randomUUID()}.${ext}`;
+    await guardarArchivo(clave, Buffer.from(await f.arrayBuffer()), f.type);
+    const anterior = await svc.adjuntarComprobante(u.id, vehiculoId, documentoId, { url: clave, nombre: f.name });
+    if (anterior) await borrarArchivo(anterior);
+    return "Comprobante adjuntado.";
+  });
+  revalidatePath(`/stock/${vehiculoId}`);
+  return r;
+}
+
+export async function quitarComprobanteAccion(vehiculoId: number, documentoId: number): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    const anterior = await svc.adjuntarComprobante(u.id, vehiculoId, documentoId, null);
+    if (anterior) await borrarArchivo(anterior);
+  });
+  revalidatePath(`/stock/${vehiculoId}`);
+  return r;
+}
 
 export async function subirFotosAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
