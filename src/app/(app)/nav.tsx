@@ -52,7 +52,12 @@ export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; sa
   const activo = (href: string) => href === elegido;
 
   return (
-    <nav aria-label="Menú principal" className="bg-nav text-nav-texto md:min-h-screen md:w-60 md:shrink-0">
+    // En escritorio el menú queda fijo y acompaña el scroll de la página; si no entra
+    // a lo alto, scrollea por dentro. En celular sigue siendo el desplegable de arriba.
+    <nav
+      aria-label="Menú principal"
+      className="bg-nav text-nav-texto md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:self-start md:overflow-y-auto"
+    >
       <div className="flex items-center justify-between px-5 py-4 md:block md:py-6">
         <div className="font-display text-xl font-bold text-white">
           Colombia <span className="text-celeste">· gestión</span>
