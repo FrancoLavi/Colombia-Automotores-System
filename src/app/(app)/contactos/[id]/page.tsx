@@ -87,7 +87,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-apagado">Agendado</h3>
               {pendientes.map(({ a }) => (
-                <div key={a.id} className="flex flex-col gap-2 rounded-lg border border-aviso-fondo bg-[#fffaf5] p-3 text-sm">
+                <div key={a.id} className="flex flex-col gap-2 rounded-lg border border-aviso-fondo bg-aviso-suave p-3 text-sm">
                   <span>
                     <b>{fechaHora(a.fechaProgramada)}</b> · {ETIQUETA_ACTIVIDAD[a.tipo]}
                     {a.nota && ` · ${a.nota}`}
@@ -129,7 +129,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
                   <div className="flex flex-wrap gap-2 text-sm">
                     <span className="text-ok-texto">En stock:</span>
                     {p.coincidencias.map((v) => (
-                      <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-white text-tinta">
+                      <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-superficie text-tinta">
                         {v.marca} {v.modelo} {v.anio} · {m(v.precio)}
                       </Link>
                     ))}

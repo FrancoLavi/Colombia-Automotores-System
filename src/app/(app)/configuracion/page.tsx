@@ -1,9 +1,11 @@
 import { requerirUsuario } from "@/lib/auth";
+import { temaActual } from "@/lib/tema";
 import { datosConfiguracion } from "@/server/configuracion";
 import { obtenerParametros, obtenerDatosSalon } from "@/server/parametros";
 import { nombreMes, periodoDe } from "@/domain/dashboard";
 import {
   AccionesUsuario,
+  BotonTema,
   FilaCategoria,
   FilaDocumento,
   FilaParticipe,
@@ -23,7 +25,7 @@ export const metadata = { title: "Configuración · Colombia Automotores" };
 
 export default async function ConfiguracionPage() {
   const u = await requerirUsuario();
-  const [d, p, salon] = await Promise.all([datosConfiguracion(), obtenerParametros(), obtenerDatosSalon()]);
+  const [d, p, salon, tema] = await Promise.all([datosConfiguracion(), obtenerParametros(), obtenerDatosSalon(), temaActual()]);
   const hoy = new Date();
   const periodos = [0, 1, 2].map((i) => {
     const v = periodoDe(new Date(hoy.getFullYear(), hoy.getMonth() + i, 1));
@@ -49,7 +51,10 @@ export default async function ConfiguracionPage() {
           <p className="text-sm text-suave">
             {u.nombre} · {u.email}
           </p>
-          <FormMiPassword />
+          <BotonTema tema={tema} />
+          <div className="border-t border-linea pt-3">
+            <FormMiPassword />
+          </div>
         </section>
       </div>
 

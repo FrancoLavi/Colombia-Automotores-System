@@ -24,7 +24,7 @@ const IMPACTO: Record<string, string> = {
 const ESTADO_PAGO: Record<string, { texto: string; clase: string }> = {
   COBRADO: { texto: "Cobrado", clase: "bg-ok-fondo text-ok-texto" },
   PENDIENTE: { texto: "A cobrar", clase: "bg-neutro-fondo text-neutro-texto" },
-  DEVUELTA: { texto: "Devuelto", clase: "bg-[#f3d6d6] text-[#7a1f1f]" },
+  DEVUELTA: { texto: "Devuelto", clase: "bg-error-fondo text-error-texto" },
   RETENIDA: { texto: "Retenida", clase: "bg-info-fondo text-info-texto" },
 };
 
@@ -101,7 +101,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
       </header>
 
       {op.estado === "CAIDA" ? (
-        <p className="tarjeta bg-[#fbeeee]">
+        <p className="tarjeta bg-error-fondo">
           <b>Operación caída:</b> {op.motivoCaida}
         </p>
       ) : (
@@ -228,7 +228,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <div className="flex h-3 overflow-hidden rounded-full bg-linea" role="img" aria-label={`Cubierto ${Math.round(pctCaja + pctCobrar + pctPermuta)} %`}>
             <div className="bg-ok" style={{ width: `${pctCaja}%` }} />
             <div className="bg-acento" style={{ width: `${pctCobrar}%` }} />
-            <div className="bg-[#c2410c]" style={{ width: `${pctPermuta}%` }} />
+            <div className="bg-grafico-stock" style={{ width: `${pctPermuta}%` }} />
           </div>
           <div className="flex flex-wrap gap-4 text-xs text-neutro-texto">
             <span>
@@ -239,7 +239,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
               <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-acento" />A cobrar {m(f.cobertura.aCobrar)}
             </span>
             <span>
-              <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[#c2410c]" />
+              <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-grafico-stock" />
               Usado {m(f.cobertura.permuta)}
             </span>
           </div>

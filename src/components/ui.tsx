@@ -10,8 +10,8 @@ const COLOR_ESTADO: Record<EstadoVehiculo, string> = {
   DISPONIBLE: "bg-ok-fondo text-ok-texto",
   RESERVADO: "bg-info-fondo text-info-texto",
   VENDIDO: "bg-neutro-fondo text-neutro-texto",
-  ENTREGADO: "bg-tinta text-white",
-  RECHAZADO: "bg-[#f3d6d6] text-[#7a1f1f]",
+  ENTREGADO: "bg-invertido text-invertido-texto",
+  RECHAZADO: "bg-error-fondo text-error-texto",
   BAJA: "bg-neutro-fondo text-neutro-texto",
 };
 

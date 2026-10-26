@@ -109,7 +109,7 @@ export function FilaParticipe({ p }: { p: { id: number; nombre: string; tipo: st
       <label className="sr-only" htmlFor={`par-${p.id}`}>
         Nombre
       </label>
-      <input id={`par-${p.id}`} name="nombre" defaultValue={p.nombre} className="min-h-11 min-w-40 flex-1 rounded-lg border border-[#c9c5ba] px-3 text-sm" />
+      <input id={`par-${p.id}`} name="nombre" defaultValue={p.nombre} className="min-h-11 min-w-40 flex-1 rounded-lg border border-campo-borde px-3 text-sm" />
       <span className="text-sm text-apagado">
         {p.tipo === "SALON" ? "Fondos propios" : "Inversor"} · {p.autos} {p.autos === 1 ? "auto" : "autos"}
       </span>
@@ -182,7 +182,7 @@ export function AccionesUsuario({ id, activo, esYo }: { id: number; activo: bool
         <button
           type="button"
           disabled={pendiente}
-          className="btn border border-borde bg-white px-3 text-xs"
+          className="btn border border-borde bg-superficie px-3 text-xs"
           onClick={() => iniciar(async () => setError((await a.activoUsuarioAccion(id, !activo)).error ?? ""))}
         >
           {activo ? "Desactivar" : "Activar"}
@@ -194,17 +194,46 @@ export function AccionesUsuario({ id, activo, esYo }: { id: number; activo: bool
             <label className="sr-only" htmlFor={`pw-${id}`}>
               Contraseña nueva
             </label>
-            <input id={`pw-${id}`} name="password" type="text" minLength={8} required placeholder="Nueva (8+)" className="min-h-11 w-32 rounded-lg border border-[#c9c5ba] px-2 text-xs" />
-            <BotonEnviar className="btn border border-borde bg-white px-3 text-xs" pendiente="…">
+            <input id={`pw-${id}`} name="password" type="text" minLength={8} required placeholder="Nueva (8+)" className="min-h-11 w-32 rounded-lg border border-campo-borde px-2 text-xs" />
+            <BotonEnviar className="btn border border-borde bg-superficie px-3 text-xs" pendiente="…">
               Cambiar
             </BotonEnviar>
           </form>
         ) : (
-          <button type="button" className="btn border border-borde bg-white px-3 text-xs" onClick={() => setAbierto(true)}>
+          <button type="button" className="btn border border-borde bg-superficie px-3 text-xs" onClick={() => setAbierto(true)}>
             Cambiar contraseña
           </button>
         ))}
       {(error || r.error || r.mensaje) && <span className={`w-full text-right text-xs ${r.ok ? "text-ok-texto" : "text-aviso-texto"}`}>{error || r.error || r.mensaje}</span>}
+    </div>
+  );
+}
+
+/** Tema de pantalla. Es personal: cambia solo lo que ve quien lo toca, y no se audita. */
+export function BotonTema({ tema }: { tema: "claro" | "oscuro" }) {
+  const [pendiente, iniciar] = useTransition();
+  const opciones = [
+    { valor: "claro" as const, etiqueta: "Claro" },
+    { valor: "oscuro" as const, etiqueta: "Oscuro" },
+  ];
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[13px] font-semibold text-neutro-texto">Tema de pantalla</span>
+      <div role="group" aria-label="Tema de pantalla" className="flex gap-2">
+        {opciones.map((o) => (
+          <button
+            key={o.valor}
+            type="button"
+            disabled={pendiente}
+            aria-pressed={tema === o.valor}
+            onClick={() => tema !== o.valor && iniciar(() => a.temaAccion(o.valor))}
+            className={`btn border text-sm ${tema === o.valor ? "border-acento bg-acento text-acento-texto" : "border-campo-borde text-tinta hover:bg-neutro-fondo"}`}
+          >
+            {o.etiqueta}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-apagado">Queda guardado en este navegador. No afecta a los demás usuarios.</p>
     </div>
   );
 }
@@ -333,8 +362,8 @@ export function FilaPersona({ p }: { p: { id: number; nombre: string; rol: "SOCI
       <label className="sr-only" htmlFor={`per-${p.id}`}>
         Nombre
       </label>
-      <input id={`per-${p.id}`} name="nombre" defaultValue={p.nombre} className="min-h-11 min-w-40 flex-1 rounded-lg border border-[#c9c5ba] px-3 text-sm" />
-      <select name="rol" aria-label="Rol" defaultValue={p.rol} className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+      <input id={`per-${p.id}`} name="nombre" defaultValue={p.nombre} className="min-h-11 min-w-40 flex-1 rounded-lg border border-campo-borde px-3 text-sm" />
+      <select name="rol" aria-label="Rol" defaultValue={p.rol} className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
         <option value="EMPLEADO">Empleado</option>
         <option value="SOCIO">Socio</option>
       </select>

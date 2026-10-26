@@ -45,7 +45,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
           <Link
             key={p.clave}
             href={`/ventas?ver=${p.clave}`}
-            className={`chip px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-tinta text-white" : "border border-borde bg-white text-tinta"}`}
+            className={`chip px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
           >
             {p.titulo} · {p.estados.reduce((a, e) => a + (conteo[e] ?? 0), 0)}
           </Link>

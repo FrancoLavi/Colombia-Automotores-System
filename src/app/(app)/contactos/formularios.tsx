@@ -133,7 +133,7 @@ export function FormActividad({ contactoId }: { contactoId: number }) {
     <form action={enviar} ref={form} className="flex flex-col gap-3 rounded-lg bg-fondo p-3">
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Qué querés hacer">
         {(["REGISTRAR", "AGENDAR"] as const).map((m) => (
-          <label key={m} className={`btn cursor-pointer border ${modo === m ? "border-acento bg-info-fondo text-acento" : "border-borde bg-white"}`}>
+          <label key={m} className={`btn cursor-pointer border ${modo === m ? "border-acento bg-info-fondo text-acento" : "border-borde bg-superficie"}`}>
             <input type="radio" name="modo" value={m} checked={modo === m} onChange={() => setModo(m)} className="sr-only" />
             {m === "REGISTRAR" ? "Registrar contacto hecho" : "Agendar para después"}
           </label>
@@ -258,7 +258,7 @@ export function BotonesPedido({ contactoId, pedidoId, estado }: { contactoId: nu
           key={e}
           type="button"
           disabled={pendiente}
-          className="btn min-h-11 border border-borde bg-white px-3 text-xs"
+          className="btn min-h-11 border border-borde bg-superficie px-3 text-xs"
           onClick={() => iniciar(async () => void (await a.estadoPedidoAccion(contactoId, pedidoId, e)))}
         >
           {e === "CUMPLIDO" ? "Cumplido" : e === "DESCARTADO" ? "Descartar" : "Reabrir"}
@@ -274,7 +274,7 @@ export function AccionesEtapa({ id, opciones }: { id: number; opciones: ("DATO" 
   return (
     <form action={enviar} className="flex items-center gap-2">
       {opciones.map((e) => (
-        <button key={e} name="etapa" value={e} className="btn border border-borde bg-white">
+        <button key={e} name="etapa" value={e} className="btn border border-borde bg-superficie">
           {e === "DESCARTADO" ? "Descartar" : "Reactivar"}
         </button>
       ))}

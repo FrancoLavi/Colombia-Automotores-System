@@ -37,7 +37,7 @@ export function FormDolar({ actual }: { actual: { fecha: string; valor: number; 
         <label className="sr-only" htmlFor="dolar-hoy">
           Cargar el dólar de hoy a mano
         </label>
-        <InputMoneda id="dolar-hoy" name="valor" placeholder="A mano" className="min-h-11 w-24 rounded-lg border border-[#c9c5ba] bg-white px-3" />
+        <InputMoneda id="dolar-hoy" name="valor" placeholder="A mano" className="min-h-11 w-24 rounded-lg border border-campo-borde bg-superficie px-3" />
         <BotonEnviar className="btn-secundario">Guardar</BotonEnviar>
       </form>
       {(r.error || aviso) && <span className={`text-xs ${r.error ? "text-aviso-texto" : "text-apagado"}`}>{r.error || aviso}</span>}

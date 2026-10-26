@@ -55,7 +55,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
       <header className="tarjeta flex flex-wrap items-end justify-between gap-5">
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="num self-start rounded-md bg-tinta px-2.5 py-1 tracking-widest text-white">{v.dominio ?? "SIN PATENTE"}</span>
+            <span className="num self-start rounded-md bg-invertido px-2.5 py-1 tracking-widest text-white">{v.dominio ?? "SIN PATENTE"}</span>
             <ChipEstado estado={v.estado} />
             {v.prendado && <span className="chip bg-aviso-fondo text-aviso-texto">Prendado</span>}
           </div>
@@ -220,7 +220,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
                   {/* eslint-disable-next-line @next/next/no-img-element -- fotos privadas servidas por /api/archivos */}
                   <img src={`/api/archivos/${x.id}`} alt={x.nombre ?? "Foto del peritaje"} className="aspect-[4/3] w-full rounded-lg object-cover" />
                 </a>
-                <span className="absolute right-0 top-0 rounded-lg bg-white/90">
+                <span className="absolute right-0 top-0 rounded-lg bg-superficie/90">
                   <BotonQuitar etiqueta="Quitar foto" accion={quitarArchivoAccion.bind(null, id, x.id)} />
                 </span>
               </div>

@@ -60,7 +60,7 @@ export default async function PedidosPage() {
                     {p.coincidencias.length ? (
                       <div className="flex flex-wrap gap-1.5">
                         {p.coincidencias.map((v) => (
-                          <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-white text-tinta">
+                          <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-superficie text-tinta">
                             {v.marca} {v.modelo} {v.anio} · {m(v.precio)}
                           </Link>
                         ))}

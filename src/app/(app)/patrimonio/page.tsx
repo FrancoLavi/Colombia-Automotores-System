@@ -60,15 +60,15 @@ export default async function PatrimonioPage() {
       <section className="tarjeta flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Composición</h2>
         <div className="flex h-4 overflow-hidden rounded-full bg-linea" role="img" aria-label="Composición del patrimonio: autos, caja y cuentas a cobrar">
-          <div className="bg-[#c2410c]" style={{ width: pct(p.stock) }} />
+          <div className="bg-grafico-stock" style={{ width: pct(p.stock) }} />
           <div className="bg-ok" style={{ width: pct(Math.max(0, p.caja.total)) }} />
           <div className="bg-acento" style={{ width: pct(p.aCobrar) }} />
         </div>
         <div className="grid gap-x-8 sm:grid-cols-2">
           {[
-            { c: "#c2410c", t: "Autos en stock, al costo", v: p.stock },
-            { c: "#1e7a46", t: "Caja (efectivo + banco)", v: p.caja.total },
-            { c: "#1f4fd1", t: "A cobrar (créditos y saldos)", v: p.aCobrar },
+            { c: "var(--color-grafico-stock)", t: "Autos en stock, al costo", v: p.stock },
+            { c: "var(--color-grafico-caja)", t: "Caja (efectivo + banco)", v: p.caja.total },
+            { c: "var(--color-grafico-cobrar)", t: "A cobrar (créditos y saldos)", v: p.aCobrar },
             { c: "", t: "A pagar (deudas, consignantes, gastos)", v: -p.aPagar },
             { c: "", t: "Ganancias de inversores sin pagar", v: -p.aInversores },
           ].map((x) => (

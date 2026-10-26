@@ -82,7 +82,7 @@ export default async function EntregasPage({ searchParams }: { searchParams: Pro
                 dia ? (
                   <div
                     key={dia}
-                    className={`flex min-h-24 flex-col gap-1 rounded-lg border p-1.5 text-xs ${dia === hoy ? "border-acento bg-info-fondo/50" : "border-linea bg-white"}`}
+                    className={`flex min-h-24 flex-col gap-1 rounded-lg border p-1.5 text-xs ${dia === hoy ? "border-acento bg-info-fondo/50" : "border-linea bg-superficie"}`}
                   >
                     <span className={`num ${dia === hoy ? "font-bold text-acento" : "text-apagado"}`}>{Number(dia.slice(8))}</span>
                     {(porDia.get(dia) ?? []).map((e) => (

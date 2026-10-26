@@ -36,7 +36,7 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 overflow-hidden rounded-2xl bg-[#eef2fc] px-6 py-5">
+      <header className="flex flex-wrap items-end justify-between gap-4 overflow-hidden rounded-2xl bg-panel px-6 py-5">
         <div className="flex items-center gap-5">
           <IlustracionAuto className="hidden h-20 w-auto sm:block" />
           <div>
@@ -54,7 +54,7 @@ export default async function InicioPage() {
             <span className="num text-3xl">{t.vendidos}</span>
             <span className="text-apagado"> / {t.objetivo.unidades.valor} objetivo</span>
           </div>
-          <Barra valor={avance(t.vendidos, t.objetivo.unidades.valor)} color="#1f4fd1" />
+          <Barra valor={avance(t.vendidos, t.objetivo.unidades.valor)} color="var(--color-grafico-cobrar)" />
           <span className="text-[13px] text-apagado">
             {t.objetivo.unidades.automatico ? "Meta automática: la mitad del stock" : "Meta cargada en configuración"} · rotación {porcentaje(t.rotacion)}
           </span>
@@ -65,7 +65,7 @@ export default async function InicioPage() {
             <span className="num text-3xl">{m(t.ganancia)}</span>
             {t.objetivo.ganancia ? <span className="text-apagado"> / {m(t.objetivo.ganancia)}</span> : null}
           </div>
-          {t.objetivo.ganancia ? <Barra valor={avance(t.ganancia, t.objetivo.ganancia)} color="#1e7a46" /> : null}
+          {t.objetivo.ganancia ? <Barra valor={avance(t.ganancia, t.objetivo.ganancia)} color="var(--color-grafico-caja)" /> : null}
           <span className="text-[13px] text-apagado">
             Salón {m(t.gananciaSalon)} · Inversores {m(t.gananciaInversores)}
           </span>
@@ -144,7 +144,7 @@ export default async function InicioPage() {
             {t.ventas12.map((m, i) => (
               <div key={m.periodo} className="flex h-full flex-1 flex-col justify-end">
                 {m.ventas > 0 && <span className="num pb-1 text-center text-xs text-apagado">{m.ventas}</span>}
-                <div className="rounded-t" style={{ height: `${(m.ventas / maxVentas) * 85}%`, background: i === t.ventas12.length - 1 ? "#8fa9f0" : "#1f4fd1" }} />
+                <div className="rounded-t" style={{ height: `${(m.ventas / maxVentas) * 85}%`, background: i === t.ventas12.length - 1 ? "var(--color-grafico-suave)" : "var(--color-grafico-cobrar)" }} />
               </div>
             ))}
           </div>

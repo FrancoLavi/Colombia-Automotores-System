@@ -299,7 +299,7 @@ export function FormCobrar({ id, pagoId, tipo }: { id: number; pagoId: number; t
   return (
     <form action={enviar} className="flex flex-wrap items-center gap-2">
       {tipo !== "CREDITO" && tipo !== "TRANSFERENCIA" && (
-        <select name="medio" aria-label="Medio de cobro" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+        <select name="medio" aria-label="Medio de cobro" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
           <option value="EFECTIVO">Efectivo</option>
           <option value="BANCO">Banco</option>
         </select>

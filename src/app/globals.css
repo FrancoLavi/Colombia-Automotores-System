@@ -1,18 +1,25 @@
 @import "tailwindcss";
 
+/* Paleta clara. El tema oscuro redefine estas mismas variables más abajo, así que
+   las utilidades (bg-fondo, text-tinta…) sirven para los dos temas sin tocar las pantallas. */
 @theme {
   --font-sans: var(--font-plex-sans), system-ui, sans-serif;
   --font-display: var(--font-archivo), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 
   --color-fondo: #f4f3ef;
+  /* Fondo de tarjetas, inputs y tablas: antes era blanco fijo. */
+  --color-superficie: #ffffff;
   --color-tinta: #1b1f24;
   --color-suave: #4a5058;
   --color-apagado: #5b6169;
   --color-borde: #dedbd2;
   --color-linea: #eceae4;
+  --color-campo-borde: #c9c5ba;
   --color-acento: #1f4fd1;
   --color-acento-osc: #163a9c;
+  /* Texto sobre el acento: en oscuro el acento es claro, así que el blanco no se lee. */
+  --color-acento-texto: #ffffff;
   --color-ok: #1e7a46;
   --color-ok-fondo: #dcebdf;
   --color-ok-texto: #1b5e35;
@@ -22,6 +29,71 @@
   --color-info-texto: #163a9c;
   --color-neutro-fondo: #e6e3da;
   --color-neutro-texto: #3d4249;
+  --color-error-fondo: #f3d6d6;
+  --color-error-texto: #7a1f1f;
+  /* Panel celeste de encabezado (login e inicio) y fondo suave de actividades. */
+  --color-panel: #eef2fc;
+  --color-aviso-suave: #fffaf5;
+
+  /* Colores de los gráficos: barras de objetivos, patrimonio y ventas por mes. */
+  --color-grafico-stock: #c2410c;
+  --color-grafico-caja: #1e7a46;
+  --color-grafico-cobrar: #1f4fd1;
+  --color-grafico-suave: #8fa9f0;
+
+  /* Pastilla invertida: chip elegido, la patente del auto, el estado ENTREGADO.
+     Va aparte de "tinta" porque en oscuro se invierte al revés que el texto. */
+  --color-invertido: #1b1f24;
+  --color-invertido-texto: #ffffff;
+
+  /* Menú lateral: siempre más oscuro que la página, en los dos temas. */
+  --color-nav: #1b1f24;
+  --color-nav-texto: #d6d9de;
+  --color-nav-hover: #2a3038;
+  --color-nav-borde: #3a414b;
+  --color-nav-activo: #1f4fd1;
+  --color-celeste: #8fa9f0;
+}
+
+[data-tema="oscuro"] {
+  --color-fondo: #14181d;
+  --color-superficie: #1d232a;
+  --color-tinta: #e7eaee;
+  --color-suave: #aab1bb;
+  --color-apagado: #8d959f;
+  --color-borde: #333b45;
+  --color-linea: #2a313a;
+  --color-campo-borde: #434c57;
+  --color-acento: #8fa9f0;
+  --color-acento-osc: #aabef5;
+  --color-acento-texto: #14181d;
+  --color-ok: #4ec07d;
+  --color-ok-fondo: #15301f;
+  --color-ok-texto: #74d49a;
+  --color-aviso-fondo: #3b2512;
+  --color-aviso-texto: #efb080;
+  --color-info-fondo: #1b2a49;
+  --color-info-texto: #aabef5;
+  --color-neutro-fondo: #2a313a;
+  --color-neutro-texto: #c2c9d2;
+  --color-error-fondo: #3a1c1c;
+  --color-error-texto: #e8a0a0;
+  --color-panel: #1a2234;
+  --color-aviso-suave: #2a1d12;
+  --color-grafico-stock: #e4733c;
+  --color-grafico-caja: #4ec07d;
+  --color-grafico-cobrar: #6e8ee8;
+  --color-grafico-suave: #aabef5;
+  --color-invertido: #e7eaee;
+  --color-invertido-texto: #14181d;
+  --color-nav: #0f1317;
+  --color-nav-texto: #c8cdd4;
+  --color-nav-hover: #222a33;
+  --color-nav-borde: #2c343e;
+  --color-nav-activo: #2a4fb8;
+  /* Para que los desplegables, el calendario y las barras de scroll del navegador
+     también se dibujen oscuros. */
+  color-scheme: dark;
 }
 
 body {
@@ -40,13 +112,13 @@ h1, h2, h3 {
 
 @layer components {
   .tarjeta {
-    @apply rounded-[10px] border border-borde bg-white p-5;
+    @apply rounded-[10px] border border-borde bg-superficie p-5;
   }
   .chip {
     @apply inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide;
   }
   .btn-primario {
-    @apply btn bg-acento text-white hover:bg-acento-osc;
+    @apply btn bg-acento text-acento-texto hover:bg-acento-osc;
   }
   .btn-secundario {
     @apply btn border border-acento text-acento hover:bg-info-fondo;
@@ -55,7 +127,7 @@ h1, h2, h3 {
     @apply flex flex-col gap-1.5 text-[13px] font-semibold text-neutro-texto;
   }
   .campo input, .campo select, .campo textarea {
-    @apply min-h-11 w-full min-w-0 rounded-lg border border-[#c9c5ba] bg-white px-3 text-sm font-normal text-tinta outline-none focus:border-acento focus:ring-2 focus:ring-info-fondo;
+    @apply min-h-11 w-full min-w-0 rounded-lg border border-campo-borde bg-superficie px-3 text-sm font-normal text-tinta outline-none focus:border-acento focus:ring-2 focus:ring-info-fondo;
   }
   .campo textarea {
     @apply py-2;

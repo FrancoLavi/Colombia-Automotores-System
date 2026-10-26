@@ -4,7 +4,7 @@ const COLOR_ETAPA: Record<Etapa, string> = {
   DATO: "bg-neutro-fondo text-neutro-texto",
   PREVENTA: "bg-info-fondo text-info-texto",
   CLIENTE: "bg-ok-fondo text-ok-texto",
-  DESCARTADO: "bg-[#f3d6d6] text-[#7a1f1f]",
+  DESCARTADO: "bg-error-fondo text-error-texto",
 };
 
 export function ChipEtapa({ etapa }: { etapa: Etapa }) {
@@ -12,7 +12,7 @@ export function ChipEtapa({ etapa }: { etapa: Etapa }) {
 }
 
 export function ChipOrigen({ origen }: { origen: Origen }) {
-  return <span className="chip border border-borde bg-white text-neutro-texto">{ETIQUETA_ORIGEN[origen]}</span>;
+  return <span className="chip border border-borde bg-superficie text-neutro-texto">{ETIQUETA_ORIGEN[origen]}</span>;
 }
 
 /** Teléfono con acceso directo a WhatsApp. */

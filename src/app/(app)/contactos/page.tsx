@@ -47,14 +47,14 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
       </details>
 
       <nav aria-label="Etapas" className="flex flex-wrap gap-2.5">
-        <Link href="/contactos" className={`chip px-3.5 py-2 text-[13px] ${!sp.etapa ? "bg-tinta text-white" : "border border-borde bg-white text-tinta"}`}>
+        <Link href="/contactos" className={`chip px-3.5 py-2 text-[13px] ${!sp.etapa ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}>
           Todos · {Object.values(conteo).reduce((a, b) => a + (b ?? 0), 0)}
         </Link>
         {etapas.map((e) => (
           <Link
             key={e}
             href={`/contactos?etapa=${e}`}
-            className={`chip px-3.5 py-2 text-[13px] ${sp.etapa === e ? "bg-tinta text-white" : "border border-borde bg-white text-tinta"}`}
+            className={`chip px-3.5 py-2 text-[13px] ${sp.etapa === e ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
           >
             {ETIQUETA_ETAPA[e]} · {conteo[e] ?? 0}
           </Link>

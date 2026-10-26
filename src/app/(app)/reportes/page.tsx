@@ -41,7 +41,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
                 key={p.clave}
                 href={`/reportes?ver=${p.clave}&anio=${anio}`}
                 aria-current={ver === p.clave ? "page" : undefined}
-                className={`chip px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-tinta text-white" : "border border-borde bg-white text-tinta"}`}
+                className={`chip px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
               >
                 {p.texto}
               </Link>
