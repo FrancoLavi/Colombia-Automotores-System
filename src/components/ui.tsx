@@ -10,8 +10,8 @@ const COLOR_ESTADO: Record<EstadoVehiculo, string> = {
   DISPONIBLE: "bg-ok-fondo text-ok-texto",
   RESERVADO: "bg-info-fondo text-info-texto",
   VENDIDO: "bg-neutro-fondo text-neutro-texto",
-  ENTREGADO: "bg-tinta text-white",
-  RECHAZADO: "bg-[#f3d6d6] text-[#7a1f1f]",
+  ENTREGADO: "bg-invertido text-invertido-texto",
+  RECHAZADO: "bg-error-fondo text-error-texto",
   BAJA: "bg-neutro-fondo text-neutro-texto",
 };
 
@@ -54,9 +54,15 @@ export function BotonEnviar({ children, className = "btn-primario", pendiente = 
   );
 }
 
-export function BotonQuitar({ etiqueta, accion }: { etiqueta: string; accion: () => Promise<Resultado> }) {
+/**
+ * Botón para sacar algo (un pago, un gasto, una foto). Muestra el verbo al lado de la cruz:
+ * con la cruz sola nadie sabe qué hace hasta que la toca.
+ * `soloIcono` es para cuando va encima de otra cosa y no hay lugar, como en las fotos.
+ */
+export function BotonQuitar({ etiqueta, accion, soloIcono = false }: { etiqueta: string; accion: () => Promise<Resultado>; soloIcono?: boolean }) {
   const [pendiente, iniciar] = useTransition();
   const [error, setError] = useState("");
+  const verbo = etiqueta.split(" ")[0]; // "Quitar pago" → "Quitar", "Eliminar gasto" → "Eliminar"
   return (
     <span className="inline-flex items-center gap-2">
       <button
@@ -64,7 +70,7 @@ export function BotonQuitar({ etiqueta, accion }: { etiqueta: string; accion: ()
         aria-label={etiqueta}
         title={etiqueta}
         disabled={pendiente}
-        className="min-h-11 min-w-11 rounded-lg text-apagado hover:bg-aviso-fondo hover:text-aviso-texto"
+        className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg text-apagado hover:bg-aviso-fondo hover:text-aviso-texto ${soloIcono ? "min-w-11 justify-center" : "px-2.5 text-sm"}`}
         onClick={() => {
           if (!confirm(`¿${etiqueta}?`)) return;
           iniciar(async () => {
@@ -73,7 +79,8 @@ export function BotonQuitar({ etiqueta, accion }: { etiqueta: string; accion: ()
           });
         }}
       >
-        ✕
+        <span aria-hidden="true">✕</span>
+        {!soloIcono && verbo}
       </button>
       {error && <span className="text-xs text-aviso-texto">{error}</span>}
     </span>

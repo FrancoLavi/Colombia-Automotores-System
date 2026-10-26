@@ -17,6 +17,12 @@ export function formateadorMoneda(enDolares: boolean, tc: number | null) {
   return (n: number | null | undefined) => (n == null ? "—" : `${n < 0 ? "−" : ""}USD ${usdFmt.format(Math.abs(n) / tc)}`);
 }
 
+/**
+ * Nombre del contacto para mostrar en pantalla: siempre en mayúsculas, como en los
+ * formularios del registro. Se guarda tal cual lo escribieron; esto es solo presentación.
+ */
+export const nombreContacto = (c: { nombre: string; apellido?: string | null }) => `${c.nombre} ${c.apellido ?? ""}`.trim().toUpperCase();
+
 /** "2026-10-14" → "14/10/2026" */
 export function fecha(iso: string | Date | null | undefined) {
   if (!iso) return "—";

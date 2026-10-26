@@ -19,13 +19,16 @@ export interface ValoresContacto {
   calificacionMonto: number | null;
   calificacionBanco: string | null;
   productoInteres: string | null;
+  usadoMarca: string | null;
+  usadoModelo: string | null;
+  usadoAnio: number | null;
   usadoAEntregar: string | null;
   observaciones: string | null;
   proximoContacto: string | null;
 }
 
 /** Carga rápida (HU-2.1) o edición completa. */
-export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: ValoresContacto; rapido?: boolean }) {
+export function FormContacto({ id, inicial, rapido, bancos = [], marcas = [] }: { id?: number; inicial?: ValoresContacto; rapido?: boolean; bancos?: string[]; marcas?: string[] }) {
   const accion = id ? a.editarContactoAccion.bind(null, id) : a.crearContactoAccion;
   const form = useRef<HTMLFormElement>(null);
   const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
@@ -34,6 +37,10 @@ export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: V
     return res;
   }, INICIAL);
   const duplicado = r.error?.startsWith("Ya existe un contacto con ese teléfono");
+  // Un banco ya cargado que no esté en la lista (o que la hayan desactivado) no se puede perder:
+  // arranca en "Otro" con el texto a la vista.
+  const bancoInicial = inicial?.calificacionBanco ?? "";
+  const [bancoOtro, setBancoOtro] = useState(!!bancoInicial && !bancos.includes(bancoInicial));
 
   return (
     <form action={enviar} ref={form} className="flex flex-col gap-4">
@@ -60,13 +67,58 @@ export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: V
             ))}
           </select>
         </label>
+        {id ? (
+          // Al editar, lo que busca se administra con los pedidos de la ficha; acá solo
+          // queda a la vista lo que se haya escrito a mano antes de que existiera el pedido.
+          inicial?.productoInteres ? (
+            <label className="campo">
+              Qué busca (texto viejo)
+              <input name="productoInteres" defaultValue={inicial.productoInteres} />
+            </label>
+          ) : null
+        ) : (
+          <>
+            <label className="campo">
+              Qué busca · marca
+              <input name="pedidoMarca" list="marcas-contacto" placeholder="Volkswagen" />
+              <datalist id="marcas-contacto">
+                {marcas.map((x) => (
+                  <option key={x} value={x} />
+                ))}
+              </datalist>
+            </label>
+            <label className="campo">
+              Qué busca · modelo
+              <input name="pedidoModelo" placeholder="Amarok" />
+            </label>
+            <label className="campo">
+              Años (desde / hasta)
+              <span className="flex gap-2">
+                <input name="pedidoAnioDesde" inputMode="numeric" placeholder="2018" />
+                <input name="pedidoAnioHasta" inputMode="numeric" placeholder="2022" />
+              </span>
+            </label>
+            <label className="campo">
+              Presupuesto máx. ($)
+              <InputMoneda name="pedidoPresupuesto" />
+            </label>
+          </>
+        )}
         <label className="campo">
-          Qué busca
-          <input name="productoInteres" defaultValue={inicial?.productoInteres ?? ""} placeholder="Pick-up 4x4 hasta 2020" />
+          Usado · marca
+          <input name="usadoMarca" defaultValue={inicial?.usadoMarca ?? ""} placeholder="Ford" />
         </label>
         <label className="campo">
-          Usado a entregar
-          <input name="usadoAEntregar" defaultValue={inicial?.usadoAEntregar ?? ""} placeholder="Ford Fiesta 2015" />
+          Usado · modelo
+          <input name="usadoModelo" defaultValue={inicial?.usadoModelo ?? ""} placeholder="Fiesta" />
+        </label>
+        <label className="campo">
+          Usado · año
+          <input name="usadoAnio" inputMode="numeric" defaultValue={inicial?.usadoAnio ?? ""} placeholder="2015" />
+        </label>
+        <label className="campo">
+          Detalle del usado
+          <input name="usadoAEntregar" defaultValue={inicial?.usadoAEntregar ?? ""} placeholder="Con granizo, motor hecho…" />
         </label>
         <label className="campo">
           Calificación crediticia ($)
@@ -74,7 +126,22 @@ export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: V
         </label>
         <label className="campo">
           Banco que lo califica
-          <input name="calificacionBanco" defaultValue={inicial?.calificacionBanco ?? ""} placeholder="Provincia, Patagonia…" />
+          <select
+            name={bancoOtro ? "bancoElegido" : "calificacionBanco"}
+            defaultValue={bancoOtro ? "__OTRO__" : bancoInicial}
+            onChange={(e) => setBancoOtro(e.target.value === "__OTRO__")}
+          >
+            <option value="">—</option>
+            {bancos.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+            <option value="__OTRO__">Otro…</option>
+          </select>
+          {bancoOtro && (
+            <input name="calificacionBanco" defaultValue={bancoInicial} required placeholder="Nombre del banco" className="mt-1.5" />
+          )}
         </label>
         <label className="campo">
           Próximo contacto
@@ -133,7 +200,7 @@ export function FormActividad({ contactoId }: { contactoId: number }) {
     <form action={enviar} ref={form} className="flex flex-col gap-3 rounded-lg bg-fondo p-3">
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Qué querés hacer">
         {(["REGISTRAR", "AGENDAR"] as const).map((m) => (
-          <label key={m} className={`btn cursor-pointer border ${modo === m ? "border-acento bg-info-fondo text-acento" : "border-borde bg-white"}`}>
+          <label key={m} className={`btn cursor-pointer border ${modo === m ? "border-acento bg-info-fondo text-acento" : "border-borde bg-superficie"}`}>
             <input type="radio" name="modo" value={m} checked={modo === m} onChange={() => setModo(m)} className="sr-only" />
             {m === "REGISTRAR" ? "Registrar contacto hecho" : "Agendar para después"}
           </label>
@@ -168,8 +235,8 @@ export function FormActividad({ contactoId }: { contactoId: number }) {
           </label>
         )}
         <label className="campo sm:col-span-2 lg:col-span-4">
-          Nota
-          <input name="nota" placeholder={modo === "AGENDAR" ? "Ej: confirmar si viene el martes" : "Ej: le pasé fotos de la Amarok"} />
+          Nota *
+          <input name="nota" required placeholder={modo === "AGENDAR" ? "Ej: confirmar si viene el martes" : "Ej: le pasé fotos de la Amarok"} />
         </label>
       </div>
       <div className="flex items-center justify-between gap-3">
@@ -187,8 +254,9 @@ export function FormCompletar({ actividadId, contactoId }: { actividadId: number
   return (
     <form action={enviar} className="flex flex-wrap items-end gap-2">
       <label className="campo min-w-40 flex-1">
-        Resultado
-        <input name="nota" placeholder="Qué pasó" />
+        Resultado{!actividadId && " *"}
+        {/* Sin actividad agendada esto crea un seguimiento nuevo, que no puede quedar sin nota. */}
+        <input name="nota" required={!actividadId} placeholder="Qué pasó" />
       </label>
       <label className="campo">
         Volver a contactar
@@ -258,7 +326,7 @@ export function BotonesPedido({ contactoId, pedidoId, estado }: { contactoId: nu
           key={e}
           type="button"
           disabled={pendiente}
-          className="btn min-h-11 border border-borde bg-white px-3 text-xs"
+          className="btn min-h-11 border border-borde bg-superficie px-3 text-xs"
           onClick={() => iniciar(async () => void (await a.estadoPedidoAccion(contactoId, pedidoId, e)))}
         >
           {e === "CUMPLIDO" ? "Cumplido" : e === "DESCARTADO" ? "Descartar" : "Reabrir"}
@@ -274,7 +342,7 @@ export function AccionesEtapa({ id, opciones }: { id: number; opciones: ("DATO" 
   return (
     <form action={enviar} className="flex items-center gap-2">
       {opciones.map((e) => (
-        <button key={e} name="etapa" value={e} className="btn border border-borde bg-white">
+        <button key={e} name="etapa" value={e} className="btn border border-borde bg-superficie">
           {e === "DESCARTADO" ? "Descartar" : "Reactivar"}
         </button>
       ))}

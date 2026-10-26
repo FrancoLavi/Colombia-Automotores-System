@@ -74,6 +74,14 @@ export function coincidePedido(p: PedidoCriterio, a: AutoCriterio): boolean {
   return true;
 }
 
+/**
+ * Un pedido sin ningún dato no sirve: no se cruza con el stock ni le dice nada a nadie.
+ * Alcanza con que tenga uno solo de los campos.
+ */
+export function pedidoVacio(p: PedidoCriterio & { notas?: string | null }): boolean {
+  return !p.marca?.trim() && !p.modelo?.trim() && !p.anioDesde && !p.anioHasta && !p.presupuestoMax && !p.notas?.trim();
+}
+
 /** Texto corto del pedido: "Volkswagen Amarok · 2017–2021 · hasta $ 30.000.000". */
 export function describirPedido(p: PedidoCriterio): string {
   const partes = [[p.marca, p.modelo].filter(Boolean).join(" ") || "Cualquier auto"];

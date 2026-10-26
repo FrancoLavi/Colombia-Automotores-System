@@ -121,14 +121,14 @@ export function Importador({ participes, tcHoy }: { participes: Participe[]; tcH
                     aria-label="Patente"
                     value={f.dominio ?? ""}
                     onChange={(e) => cambiar(i, { dominio: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") || null })}
-                    className="min-h-11 w-28 rounded-lg border border-[#c9c5ba] px-2 font-mono"
+                    className="min-h-11 w-28 rounded-lg border border-campo-borde px-2 font-mono"
                   />
                 </td>
                 <td>
-                  <input aria-label="Marca" value={f.marca} onChange={(e) => cambiar(i, { marca: e.target.value })} className="min-h-11 w-32 rounded-lg border border-[#c9c5ba] px-2" />
+                  <input aria-label="Marca" value={f.marca} onChange={(e) => cambiar(i, { marca: e.target.value })} className="min-h-11 w-32 rounded-lg border border-campo-borde px-2" />
                 </td>
                 <td>
-                  <input aria-label="Modelo" value={f.modelo} onChange={(e) => cambiar(i, { modelo: e.target.value })} className="min-h-11 w-32 rounded-lg border border-[#c9c5ba] px-2" />
+                  <input aria-label="Modelo" value={f.modelo} onChange={(e) => cambiar(i, { modelo: e.target.value })} className="min-h-11 w-32 rounded-lg border border-campo-borde px-2" />
                 </td>
                 <td className="text-apagado">{f.version}</td>
                 <td>{f.anio ?? <span className="text-aviso-texto">falta</span>}</td>
@@ -144,10 +144,10 @@ export function Importador({ participes, tcHoy }: { participes: Participe[]; tcH
                         // Igual que al leer la planilla: un monto menor a 200.000 se toma en USD (se puede cambiar al lado).
                         cambiar(i, { costo, moneda: costo != null && costo < 200_000 ? "USD" : "ARS" });
                       }}
-                      className="min-h-11 w-28 rounded-lg border border-[#c9c5ba] px-2 font-mono"
+                      className="min-h-11 w-28 rounded-lg border border-campo-borde px-2 font-mono"
                     />
                     <Bandera moneda={f.moneda} className="self-center" />
-                    <select aria-label="Moneda del costo" value={f.moneda} onChange={(e) => cambiar(i, { moneda: e.target.value as "ARS" | "USD" })} className="min-h-11 rounded-lg border border-[#c9c5ba] px-1">
+                    <select aria-label="Moneda del costo" value={f.moneda} onChange={(e) => cambiar(i, { moneda: e.target.value as "ARS" | "USD" })} className="min-h-11 rounded-lg border border-campo-borde px-1">
                       <option value="USD">USD</option>
                       <option value="ARS">ARS</option>
                     </select>
@@ -158,7 +158,7 @@ export function Importador({ participes, tcHoy }: { participes: Participe[]; tcH
                     aria-label="Estado"
                     value={f.estado}
                     onChange={(e) => cambiar(i, { estado: e.target.value as FilaImportacion["estado"], incluir: e.target.value !== "VENDIDA" })}
-                    className="min-h-11 rounded-lg border border-[#c9c5ba] px-1"
+                    className="min-h-11 rounded-lg border border-campo-borde px-1"
                   >
                     <option value="DISPONIBLE">Disponible</option>
                     <option value="POR_INGRESAR">Por ingresar</option>

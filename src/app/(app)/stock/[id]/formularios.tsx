@@ -124,7 +124,7 @@ export function FilaDocumento({ vehiculoId, doc }: { vehiculoId: number; doc: Do
               name="fechaVencimiento"
               defaultValue={doc.fechaVencimiento ?? ""}
               onBlur={(e) => e.target.value !== (doc.fechaVencimiento ?? "") && enviarYa()}
-              className="min-h-11 rounded-lg border border-[#c9c5ba] px-2"
+              className="min-h-11 rounded-lg border border-campo-borde px-2"
             />
           </label>
         )}
@@ -134,7 +134,7 @@ export function FilaDocumento({ vehiculoId, doc }: { vehiculoId: number; doc: Do
           onChange={enviarYa}
           disabled={pendiente}
           aria-label={`Estado de ${doc.nombre}`}
-          className={`min-h-11 rounded-lg border px-2 font-semibold ${recibido ? "border-ok bg-ok-fondo text-ok-texto" : doc.estado === "PENDIENTE" && doc.obligatorio ? "border-aviso-texto bg-aviso-fondo text-aviso-texto" : "border-[#c9c5ba] bg-white"}`}
+          className={`min-h-11 rounded-lg border px-2 font-semibold ${recibido ? "border-ok bg-ok-fondo text-ok-texto" : doc.estado === "PENDIENTE" && doc.obligatorio ? "border-aviso-texto bg-aviso-fondo text-aviso-texto" : "border-campo-borde bg-superficie"}`}
         >
           {(Object.keys(ETIQUETA_DOC) as (keyof typeof ETIQUETA_DOC)[]).map((e) => (
             <option key={e} value={e}>

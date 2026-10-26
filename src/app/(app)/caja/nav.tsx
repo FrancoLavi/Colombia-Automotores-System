@@ -26,7 +26,7 @@ function Pestanas({ actual, pestanas, etiqueta }: { actual: string; pestanas: { 
           key={p.href}
           href={p.href}
           aria-current={actual === p.href ? "page" : undefined}
-          className={`chip px-3.5 py-2 text-[13px] ${actual === p.href ? "bg-tinta text-white" : "border border-borde bg-white text-tinta"}`}
+          className={`chip px-3.5 py-2 text-[13px] ${actual === p.href ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
         >
           {p.texto}
         </Link>

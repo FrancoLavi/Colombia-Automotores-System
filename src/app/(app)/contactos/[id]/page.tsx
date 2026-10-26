@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
+import { listarBancosActivos } from "@/server/configuracion";
 import { vistaMoneda } from "@/lib/moneda";
 import { fichaContacto } from "@/server/contactos";
 import { marcasUsadas } from "@/server/vehiculos";
 import { operacionesDeContacto } from "@/server/ventas";
 import { ChipOperacion } from "../../ventas/chip";
-import { fecha } from "@/lib/formato";
+import { nombreContacto, fecha } from "@/lib/formato";
 import { describirPedido, ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { ChipEstado } from "@/components/ui";
 import { ChipEtapa, ChipOrigen, Telefono } from "../chips";
@@ -20,7 +21,8 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
   const id = Number((await params).id);
   const f = await fichaContacto(id);
   if (!f) notFound();
-  const [marcas, operaciones] = await Promise.all([marcasUsadas(), operacionesDeContacto(id)]);
+  const [marcas, operaciones, bancosActivos] = await Promise.all([marcasUsadas(), operacionesDeContacto(id), listarBancosActivos()]);
+  const bancos = bancosActivos.map((b) => b.nombre);
   const c = f.c;
   const pendientes = f.actividades.filter((x) => !x.a.realizadaEn);
   const hechas = f.actividades.filter((x) => x.a.realizadaEn);
@@ -38,7 +40,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
             <ChipOrigen origen={c.origen} />
           </div>
           <h1 className="text-2xl font-bold sm:text-3xl">
-            {c.nombre} {c.apellido}
+            {nombreContacto(c)}
           </h1>
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-suave">
             <Telefono telefono={c.telefono} />
@@ -87,7 +89,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-apagado">Agendado</h3>
               {pendientes.map(({ a }) => (
-                <div key={a.id} className="flex flex-col gap-2 rounded-lg border border-aviso-fondo bg-[#fffaf5] p-3 text-sm">
+                <div key={a.id} className="flex flex-col gap-2 rounded-lg border border-aviso-fondo bg-aviso-suave p-3 text-sm">
                   <span>
                     <b>{fechaHora(a.fechaProgramada)}</b> · {ETIQUETA_ACTIVIDAD[a.tipo]}
                     {a.nota && ` · ${a.nota}`}
@@ -129,7 +131,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
                   <div className="flex flex-wrap gap-2 text-sm">
                     <span className="text-ok-texto">En stock:</span>
                     {p.coincidencias.map((v) => (
-                      <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-white text-tinta">
+                      <Link key={v.id} href={`/stock/${v.id}`} className="chip border border-borde bg-superficie text-tinta">
                         {v.marca} {v.modelo} {v.anio} · {m(v.precio)}
                       </Link>
                     ))}
@@ -162,7 +164,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
       <details className="tarjeta">
         <summary className="cursor-pointer text-lg font-semibold">Editar datos del contacto</summary>
         <div className="mt-4">
-          <FormContacto key={JSON.stringify(c)} id={id} inicial={c} />
+          <FormContacto key={JSON.stringify(c)} id={id} inicial={c} bancos={bancos} marcas={marcas} />
         </div>
       </details>
 

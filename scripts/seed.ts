@@ -48,6 +48,18 @@ async function main() {
     console.log("Datos base cargados.");
   }
 
+  // Los bancos se miran aparte: la migración 0003 ya los carga, así que mirar el contador
+  // de partícipes los duplicaría en una base nueva (migrate y después seed).
+  const [{ nb }] = await db.select({ nb: sql<number>`count(*)::int` }).from(s.bancos);
+  if (nb === 0) {
+    await db.insert(s.bancos).values(
+      ["Banco Nación", "Banco Provincia", "Banco Ciudad", "Santander", "Galicia", "BBVA", "Macro", "Patagonia", "Credicoop", "Supervielle", "ICBC", "Comafi", "Hipotecario"].map(
+        (nombre, i) => ({ nombre, orden: i + 1 }),
+      ),
+    );
+    console.log("Bancos cargados.");
+  }
+
   const email = process.env.SEED_ADMIN_EMAIL;
   const password = process.env.SEED_ADMIN_PASSWORD;
   if (email && password) {

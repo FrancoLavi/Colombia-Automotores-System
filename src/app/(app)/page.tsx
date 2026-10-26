@@ -2,9 +2,10 @@ import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { tablero } from "@/server/dashboard";
-import { fecha, porcentaje } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje } from "@/lib/formato";
 import { avance, nombreMes } from "@/domain/dashboard";
 import { ChipAlerta } from "@/components/ui";
+import { TarjetaEnlace } from "@/components/tarjeta";
 import { Telefono } from "./contactos/chips";
 import { FormDolar } from "./stock/form-dolar";
 import { IlustracionAuto } from "@/components/ilustraciones";
@@ -36,7 +37,7 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 overflow-hidden rounded-2xl bg-[#eef2fc] px-6 py-5">
+      <header className="flex flex-wrap items-end justify-between gap-4 overflow-hidden rounded-2xl bg-panel px-6 py-5">
         <div className="flex items-center gap-5">
           <IlustracionAuto className="hidden h-20 w-auto sm:block" />
           <div>
@@ -54,7 +55,7 @@ export default async function InicioPage() {
             <span className="num text-3xl">{t.vendidos}</span>
             <span className="text-apagado"> / {t.objetivo.unidades.valor} objetivo</span>
           </div>
-          <Barra valor={avance(t.vendidos, t.objetivo.unidades.valor)} color="#1f4fd1" />
+          <Barra valor={avance(t.vendidos, t.objetivo.unidades.valor)} color="var(--color-grafico-cobrar)" />
           <span className="text-[13px] text-apagado">
             {t.objetivo.unidades.automatico ? "Meta automática: la mitad del stock" : "Meta cargada en configuración"} · rotación {porcentaje(t.rotacion)}
           </span>
@@ -65,32 +66,26 @@ export default async function InicioPage() {
             <span className="num text-3xl">{m(t.ganancia)}</span>
             {t.objetivo.ganancia ? <span className="text-apagado"> / {m(t.objetivo.ganancia)}</span> : null}
           </div>
-          {t.objetivo.ganancia ? <Barra valor={avance(t.ganancia, t.objetivo.ganancia)} color="#1e7a46" /> : null}
+          {t.objetivo.ganancia ? <Barra valor={avance(t.ganancia, t.objetivo.ganancia)} color="var(--color-grafico-caja)" /> : null}
           <span className="text-[13px] text-apagado">
             Salón {m(t.gananciaSalon)} · Inversores {m(t.gananciaInversores)}
           </span>
         </div>
-        <div className="tarjeta flex flex-col gap-2.5">
+        <TarjetaEnlace href="/caja" pie="Ver caja" className="gap-2.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Caja (líquido)</span>
           <span className={`num text-3xl ${t.patrimonio.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(t.patrimonio.caja.total)}</span>
           <span className="text-[13px] text-apagado">
             Efectivo {m(t.patrimonio.caja.efectivo)} · Banco {m(t.patrimonio.caja.banco)}
             {t.patrimonio.aCobrar > 0 && ` · a cobrar ${m(t.patrimonio.aCobrar)}`}
           </span>
-          <Link href="/caja" className="text-sm font-semibold">
-            Ver caja →
-          </Link>
-        </div>
-        <div className="tarjeta flex flex-col gap-2.5">
+        </TarjetaEnlace>
+        <TarjetaEnlace href="/patrimonio" pie="Ver patrimonio" className="gap-2.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Patrimonio</span>
           <span className="num text-3xl">{m(t.patrimonio.total)}</span>
           <span className="text-[13px] text-apagado">
             {t.stock.total} {t.stock.total === 1 ? "auto" : "autos"} en stock · {t.stock.diasPromedio} días promedio
           </span>
-          <Link href="/patrimonio" className="text-sm font-semibold">
-            Ver patrimonio →
-          </Link>
-        </div>
+        </TarjetaEnlace>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
@@ -127,7 +122,7 @@ export default async function InicioPage() {
               <div className="flex flex-wrap items-center gap-x-3">
                 <span className="num text-apagado">{i.hora}</span>
                 <Link href={`/contactos/${i.contacto.id}`} className="font-semibold text-tinta">
-                  {i.contacto.nombre} {i.contacto.apellido}
+                  {nombreContacto(i.contacto)}
                 </Link>
                 <Telefono telefono={i.contacto.telefono} />
               </div>
@@ -144,7 +139,7 @@ export default async function InicioPage() {
             {t.ventas12.map((m, i) => (
               <div key={m.periodo} className="flex h-full flex-1 flex-col justify-end">
                 {m.ventas > 0 && <span className="num pb-1 text-center text-xs text-apagado">{m.ventas}</span>}
-                <div className="rounded-t" style={{ height: `${(m.ventas / maxVentas) * 85}%`, background: i === t.ventas12.length - 1 ? "#8fa9f0" : "#1f4fd1" }} />
+                <div className="rounded-t" style={{ height: `${(m.ventas / maxVentas) * 85}%`, background: i === t.ventas12.length - 1 ? "var(--color-grafico-suave)" : "var(--color-grafico-cobrar)" }} />
               </div>
             ))}
           </div>

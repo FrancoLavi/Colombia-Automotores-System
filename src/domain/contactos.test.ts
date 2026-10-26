@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coincidePedido, describirPedido, etapasManuales, linkWhatsapp, normalizarTelefono } from "./contactos";
+import { coincidePedido, describirPedido, etapasManuales, linkWhatsapp, normalizarTelefono, pedidoVacio } from "./contactos";
 
 describe("teléfonos", () => {
   it.each([
@@ -45,5 +45,21 @@ describe("etapas", () => {
     expect(etapasManuales("DATO")).toEqual(["DESCARTADO"]);
     expect(etapasManuales("DESCARTADO")).toEqual(["DATO"]);
     expect(etapasManuales("PREVENTA")).toEqual([]);
+  });
+});
+
+describe("pedido vacío", () => {
+  const vacio = { marca: null, modelo: null, anioDesde: null, anioHasta: null, presupuestoMax: null, notas: null };
+
+  it("rechaza el pedido sin ningún dato", () => {
+    expect(pedidoVacio(vacio)).toBe(true);
+    expect(pedidoVacio({ ...vacio, marca: "   ", notas: "  " })).toBe(true);
+  });
+
+  it("acepta el pedido con al menos un dato", () => {
+    expect(pedidoVacio({ ...vacio, marca: "Volkswagen" })).toBe(false);
+    expect(pedidoVacio({ ...vacio, anioDesde: 2018 })).toBe(false);
+    expect(pedidoVacio({ ...vacio, presupuestoMax: 30_000_000 })).toBe(false);
+    expect(pedidoVacio({ ...vacio, notas: "Lo quiere blanco" })).toBe(false);
   });
 });

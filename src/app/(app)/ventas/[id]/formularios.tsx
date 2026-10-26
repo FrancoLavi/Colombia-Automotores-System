@@ -107,11 +107,14 @@ export function FormPermuta({
   participes,
   financistaDefecto,
   tcSugerido,
+  usado,
 }: {
   id: number;
   participes: { id: number; nombre: string; tipo: string }[];
   financistaDefecto: number;
   tcSugerido: number | null;
+  /** El usado que el cliente dijo que entrega, cargado en su ficha. Viene precompletado. */
+  usado?: { marca: string | null; modelo: string | null; anio: number | null; detalle: string | null };
 }) {
   const { form, r, enviar } = useFormReset(a.permutaAccion.bind(null, id));
   const [moneda, setMoneda] = useState<"ARS" | "USD">("ARS");
@@ -122,6 +125,12 @@ export function FormPermuta({
   const conv = nV > 0 && nT > 0 ? compraEnPesos(nV, moneda, nT) : null;
   return (
     <form action={enviar} ref={form} className="flex flex-col gap-3 rounded-lg bg-fondo p-3">
+      {(usado?.marca || usado?.modelo || usado?.anio) && (
+        <p className="text-xs text-apagado">
+          Precompletado con el usado que figura en la ficha del cliente
+          {usado.detalle ? ` (${usado.detalle})` : ""}. Si no es ese, cambialo.
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="campo">
           Patente
@@ -129,11 +138,11 @@ export function FormPermuta({
         </label>
         <label className="campo">
           Marca *
-          <input name="marca" required />
+          <input name="marca" defaultValue={usado?.marca ?? ""} required />
         </label>
         <label className="campo">
           Modelo *
-          <input name="modelo" required />
+          <input name="modelo" defaultValue={usado?.modelo ?? ""} required />
         </label>
         <label className="campo">
           Versión
@@ -141,7 +150,7 @@ export function FormPermuta({
         </label>
         <label className="campo">
           Año *
-          <input name="anio" inputMode="numeric" required />
+          <input name="anio" inputMode="numeric" defaultValue={usado?.anio ?? ""} required />
         </label>
         <label className="campo">
           Km
@@ -299,7 +308,7 @@ export function FormCobrar({ id, pagoId, tipo }: { id: number; pagoId: number; t
   return (
     <form action={enviar} className="flex flex-wrap items-center gap-2">
       {tipo !== "CREDITO" && tipo !== "TRANSFERENCIA" && (
-        <select name="medio" aria-label="Medio de cobro" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+        <select name="medio" aria-label="Medio de cobro" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
           <option value="EFECTIVO">Efectivo</option>
           <option value="BANCO">Banco</option>
         </select>

@@ -1,9 +1,11 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requerirUsuario } from "@/lib/auth";
 import { ejecutar } from "@/lib/acciones";
 import { ErrorValidacion, entero, importe, importeRequerido, opcion, requerido, texto, type Resultado } from "@/lib/form";
+import { COOKIE_TEMA, type Tema } from "@/lib/tema";
 import * as cfg from "@/server/configuracion";
 import { guardarDatosSalon, guardarParametros } from "@/server/parametros";
 
@@ -95,6 +97,13 @@ export async function resetPasswordAccion(id: number, _: Resultado, fd: FormData
   return r;
 }
 
+/** Tema de pantalla: preferencia personal de quien mira, guardada en su cookie. No se audita. */
+export async function temaAccion(tema: Tema) {
+  await requerirUsuario({ permitirInversor: true });
+  (await cookies()).set(COOKIE_TEMA, tema, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  revalidatePath("/", "layout");
+}
+
 export async function miPasswordAccion(_: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario({ permitirInversor: true });
   return ejecutar(async () => {
@@ -136,6 +145,25 @@ export async function activoCategoriaAccion(id: number, activo: boolean): Promis
   const u = await requerirUsuario();
   const r = await ejecutar(() => cfg.cambiarActivoCategoria(u.id, id, activo));
   revalidar();
+  return r;
+}
+
+export async function bancoAccion(_: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await cfg.crearBanco(u.id, requerido(fd, "nombre", "Nombre"));
+    return "Banco agregado.";
+  });
+  revalidar();
+  revalidatePath("/contactos");
+  return r;
+}
+
+export async function activoBancoAccion(id: number, activo: boolean): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(() => cfg.cambiarActivoBanco(u.id, id, activo));
+  revalidar();
+  revalidatePath("/contactos");
   return r;
 }
 

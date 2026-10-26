@@ -27,7 +27,7 @@ export function BotonMoneda({ enDolares, hayDolar }: { enDolares: boolean; hayDo
       type="button"
       disabled={pendiente || (!hayDolar && !enDolares)}
       onClick={() => iniciar(() => cambiarVista(!enDolares))}
-      className={`btn w-full gap-1.5 border text-sm ${enDolares ? "border-[#8fa9f0] bg-[#8fa9f0] text-tinta" : "border-[#3a414b] text-white hover:bg-[#2a3038]"}`}
+      className={`btn w-full gap-1.5 border text-sm ${enDolares ? "border-celeste bg-celeste text-[#1b1f24]" : "border-nav-borde text-white hover:bg-nav-hover"}`}
       aria-pressed={enDolares}
     >
       {pendiente ? (
@@ -52,10 +52,15 @@ export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; sa
   const activo = (href: string) => href === elegido;
 
   return (
-    <nav aria-label="Menú principal" className="bg-tinta text-[#d6d9de] md:min-h-screen md:w-60 md:shrink-0">
+    // En escritorio el menú queda fijo y acompaña el scroll de la página; si no entra
+    // a lo alto, scrollea por dentro. En celular sigue siendo el desplegable de arriba.
+    <nav
+      aria-label="Menú principal"
+      className="bg-nav text-nav-texto md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:self-start md:overflow-y-auto"
+    >
       <div className="flex items-center justify-between px-5 py-4 md:block md:py-6">
         <div className="font-display text-xl font-bold text-white">
-          Colombia <span className="text-[#8fa9f0]">· gestión</span>
+          Colombia <span className="text-celeste">· gestión</span>
         </div>
         <button type="button" className="btn text-white md:hidden" aria-expanded={abierto} aria-controls="menu-items" onClick={() => setAbierto(!abierto)}>
           Menú
@@ -67,7 +72,7 @@ export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; sa
             key={i.href}
             href={i.href}
             onClick={() => setAbierto(false)}
-            className={`block rounded-lg px-3.5 py-3 text-[15px] ${activo(i.href) ? "bg-acento text-white" : "hover:bg-[#2a3038] hover:text-white"}`}
+            className={`block rounded-lg px-3.5 py-3 text-[15px] ${activo(i.href) ? "bg-nav-activo text-white" : "hover:bg-nav-hover hover:text-white"}`}
           >
             {i.label}
           </Link>
@@ -75,10 +80,10 @@ export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; sa
         <div className="mt-4 px-1">
           <BotonMoneda enDolares={enDolares} hayDolar={hayDolar} />
         </div>
-        <div className="mt-6 border-t border-[#2a3038] px-3.5 pt-4 text-sm">
+        <div className="mt-6 border-t border-nav-hover px-3.5 pt-4 text-sm">
           <div className="text-white">{nombre}</div>
           <form action={salir}>
-            <button className="mt-2 min-h-11 text-[#8fa9f0] hover:text-white">Cerrar sesión</button>
+            <button className="mt-2 min-h-11 text-celeste hover:text-white">Cerrar sesión</button>
           </form>
         </div>
       </div>

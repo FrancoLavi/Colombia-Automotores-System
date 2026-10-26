@@ -1,5 +1,6 @@
 "use client";
 
+import { nombreContacto } from "@/lib/formato";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -81,7 +82,7 @@ export default function ImportarContactosPage() {
                       />
                     </td>
                     <td>
-                      {f.nombre} {f.apellido}
+                      {nombreContacto(f)}
                     </td>
                     <td className="num">{f.telefono ?? "—"}</td>
                     <td>{ETIQUETA_ORIGEN[f.origen]}</td>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import * as rep from "@/server/reportes";
-import { fecha, porcentaje } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje } from "@/lib/formato";
 import { nombreMes } from "@/domain/dashboard";
 import { ETIQUETA_CATEGORIA } from "@/domain/caja";
 import { ETIQUETA_ESTADO } from "@/domain/stock";
@@ -41,7 +41,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
                 key={p.clave}
                 href={`/reportes?ver=${p.clave}&anio=${anio}`}
                 aria-current={ver === p.clave ? "page" : undefined}
-                className={`chip px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-tinta text-white" : "border border-borde bg-white text-tinta"}`}
+                className={`chip px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
               >
                 {p.texto}
               </Link>
@@ -261,7 +261,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
                       {v.auto.marca} {v.auto.modelo} {v.auto.anio} <span className="num text-apagado">{v.auto.dominio}</span>
                     </td>
                     <td>
-                      {v.cliente.nombre} {v.cliente.apellido}
+                      {nombreContacto(v.cliente)}
                     </td>
                     <td>{v.financista}</td>
                     <td className="num text-right">{m(v.l.precio)}</td>

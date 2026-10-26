@@ -131,7 +131,7 @@ export function FormAnular({ id }: { id: number }) {
       <label className="sr-only" htmlFor={`motivo-${id}`}>
         Motivo de la anulación
       </label>
-      <input id={`motivo-${id}`} name="motivo" placeholder="Motivo" required className="min-h-11 w-32 rounded-lg border border-[#c9c5ba] px-2 text-xs" />
+      <input id={`motivo-${id}`} name="motivo" placeholder="Motivo" required className="min-h-11 w-32 rounded-lg border border-campo-borde px-2 text-xs" />
       <BotonEnviar className="btn min-h-11 border border-aviso-texto px-2 text-xs text-aviso-texto" pendiente="…">
         Anular
       </BotonEnviar>
@@ -146,7 +146,7 @@ export function FormPagarGanancia({ id, importe, etiqueta, socios }: { id: numbe
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
       {socios && socios.length > 0 && importe > 0 && (
-        <select name="personaId" aria-label="Socio que retira" defaultValue="" className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+        <select name="personaId" aria-label="Socio que retira" defaultValue="" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
           <option value="">Queda en el salón (sin retirar a nombre de nadie)</option>
           {socios.map((p) => (
             <option key={p.id} value={p.id}>
@@ -155,7 +155,7 @@ export function FormPagarGanancia({ id, importe, etiqueta, socios }: { id: numbe
           ))}
         </select>
       )}
-      <select name="medio" aria-label="Medio" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+      <select name="medio" aria-label="Medio" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>
       </select>
@@ -218,9 +218,9 @@ export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo
         defaultValue={saldo}
         readOnly={deVenta}
         title={deVenta ? "Los cobros de una venta van por el total" : undefined}
-        className="min-h-11 w-32 rounded-lg border border-[#c9c5ba] px-2 font-mono text-sm"
+        className="min-h-11 w-32 rounded-lg border border-campo-borde px-2 font-mono text-sm"
       />
-      <select name="medio" aria-label="Medio" defaultValue={tipo === "A_COBRAR" && deVenta ? "BANCO" : "EFECTIVO"} className="min-h-11 rounded-lg border border-[#c9c5ba] px-2 text-sm">
+      <select name="medio" aria-label="Medio" defaultValue={tipo === "A_COBRAR" && deVenta ? "BANCO" : "EFECTIVO"} className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>
       </select>

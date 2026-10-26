@@ -4,7 +4,7 @@ import { Vacio } from "@/components/ilustraciones";
 import { ChipAlerta } from "@/components/ui";
 import { entregasProgramadas } from "@/server/ventas";
 import { desdeArgentina, diaArgentina, horaArgentina, semanasDelMes, DIAS_ALARMA_ENTREGA } from "@/domain/entregas";
-import { fecha } from "@/lib/formato";
+import { nombreContacto, fecha } from "@/lib/formato";
 import { ChipOperacion } from "../chip";
 
 export const metadata = { title: "Entregas · Colombia Automotores" };
@@ -82,14 +82,14 @@ export default async function EntregasPage({ searchParams }: { searchParams: Pro
                 dia ? (
                   <div
                     key={dia}
-                    className={`flex min-h-24 flex-col gap-1 rounded-lg border p-1.5 text-xs ${dia === hoy ? "border-acento bg-info-fondo/50" : "border-linea bg-white"}`}
+                    className={`flex min-h-24 flex-col gap-1 rounded-lg border p-1.5 text-xs ${dia === hoy ? "border-acento bg-info-fondo/50" : "border-linea bg-superficie"}`}
                   >
                     <span className={`num ${dia === hoy ? "font-bold text-acento" : "text-apagado"}`}>{Number(dia.slice(8))}</span>
                     {(porDia.get(dia) ?? []).map((e) => (
                       <Link
                         key={e.op.id}
                         href={`/ventas/${e.op.id}`}
-                        title={`${e.auto.marca} ${e.auto.modelo} · ${e.contacto.nombre} ${e.contacto.apellido ?? ""}`}
+                        title={`${e.auto.marca} ${e.auto.modelo} · ${nombreContacto(e.contacto)}`}
                         className={`block rounded px-1.5 py-1 leading-tight no-underline ${
                           e.op.estado === "ENTREGADA"
                             ? "bg-ok-fondo text-ok-texto"
@@ -144,7 +144,7 @@ function FilaEntrega({ e }: { e: Awaited<ReturnType<typeof entregasProgramadas>>
         {e.auto.marca} {e.auto.modelo} {e.auto.anio} {e.auto.dominio ?? ""}
         <span className="font-normal text-suave">
           {" "}
-          · {e.contacto.nombre} {e.contacto.apellido ?? ""} · {e.numero}
+          · {nombreContacto(e.contacto)} · {e.numero}
         </span>
       </Link>
       {e.op.lugarEntrega && <span className="text-suave">{e.op.lugarEntrega}</span>}

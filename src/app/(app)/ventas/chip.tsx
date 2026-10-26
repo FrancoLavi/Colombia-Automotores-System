@@ -4,8 +4,8 @@ const COLOR: Record<EstadoOperacion, string> = {
   PREVENTA: "bg-neutro-fondo text-neutro-texto",
   SENIADA: "bg-info-fondo text-info-texto",
   CERRADA: "bg-ok-fondo text-ok-texto",
-  ENTREGADA: "bg-tinta text-white",
-  CAIDA: "bg-[#f3d6d6] text-[#7a1f1f]",
+  ENTREGADA: "bg-invertido text-invertido-texto",
+  CAIDA: "bg-error-fondo text-error-texto",
 };
 
 export function ChipOperacion({ estado }: { estado: EstadoOperacion }) {

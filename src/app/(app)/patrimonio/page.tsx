@@ -4,6 +4,7 @@ import { vistaMoneda } from "@/lib/moneda";
 import { listarCuentas, patrimonio, subcajas } from "@/server/caja";
 import { usd } from "@/lib/formato";
 import { ChipEstado } from "@/components/ui";
+import { TarjetaEnlace } from "@/components/tarjeta";
 import { IlustracionPatrimonio, Vacio } from "@/components/ilustraciones";
 import { NavPatrimonio } from "../caja/nav";
 
@@ -41,34 +42,28 @@ export default async function PatrimonioPage() {
             {p.autosEnStock} {p.autosEnStock === 1 ? "auto" : "autos"} al costo
           </span>
         </div>
-        <div className="tarjeta flex flex-col gap-1.5">
+        <TarjetaEnlace href="/caja/cuentas" pie="Ver cuentas" className="gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">A cobrar − a pagar</span>
           <span className={`num text-3xl ${p.aCobrar - p.aPagar < 0 ? "text-aviso-texto" : ""}`}>{m(p.aCobrar - p.aPagar)}</span>
-          <Link href="/caja/cuentas" className="text-[13px] font-semibold">
-            Ver cuentas →
-          </Link>
-        </div>
-        <div className="tarjeta flex flex-col gap-1.5">
+        </TarjetaEnlace>
+        <TarjetaEnlace href="/caja" pie="Ver caja" className="gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Líquido (caja)</span>
           <span className={`num text-3xl ${p.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(p.caja.total)}</span>
-          <Link href="/caja" className="text-[13px] font-semibold">
-            Ver caja →
-          </Link>
-        </div>
+        </TarjetaEnlace>
       </section>
 
       <section className="tarjeta flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Composición</h2>
         <div className="flex h-4 overflow-hidden rounded-full bg-linea" role="img" aria-label="Composición del patrimonio: autos, caja y cuentas a cobrar">
-          <div className="bg-[#c2410c]" style={{ width: pct(p.stock) }} />
+          <div className="bg-grafico-stock" style={{ width: pct(p.stock) }} />
           <div className="bg-ok" style={{ width: pct(Math.max(0, p.caja.total)) }} />
           <div className="bg-acento" style={{ width: pct(p.aCobrar) }} />
         </div>
         <div className="grid gap-x-8 sm:grid-cols-2">
           {[
-            { c: "#c2410c", t: "Autos en stock, al costo", v: p.stock },
-            { c: "#1e7a46", t: "Caja (efectivo + banco)", v: p.caja.total },
-            { c: "#1f4fd1", t: "A cobrar (créditos y saldos)", v: p.aCobrar },
+            { c: "var(--color-grafico-stock)", t: "Autos en stock, al costo", v: p.stock },
+            { c: "var(--color-grafico-caja)", t: "Caja (efectivo + banco)", v: p.caja.total },
+            { c: "var(--color-grafico-cobrar)", t: "A cobrar (créditos y saldos)", v: p.aCobrar },
             { c: "", t: "A pagar (deudas, consignantes, gastos)", v: -p.aPagar },
             { c: "", t: "Ganancias de inversores sin pagar", v: -p.aInversores },
           ].map((x) => (

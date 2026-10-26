@@ -1,13 +1,17 @@
 import { requerirUsuario } from "@/lib/auth";
+import { temaActual } from "@/lib/tema";
 import { datosConfiguracion } from "@/server/configuracion";
 import { obtenerParametros, obtenerDatosSalon } from "@/server/parametros";
 import { nombreMes, periodoDe } from "@/domain/dashboard";
 import {
   AccionesUsuario,
+  BotonTema,
+  FilaBanco,
   FilaCategoria,
   FilaDocumento,
   FilaParticipe,
   FilaPersona,
+  FormBanco,
   FormCategoria,
   FormDocumento,
   FormInversor,
@@ -23,7 +27,7 @@ export const metadata = { title: "Configuración · Colombia Automotores" };
 
 export default async function ConfiguracionPage() {
   const u = await requerirUsuario();
-  const [d, p, salon] = await Promise.all([datosConfiguracion(), obtenerParametros(), obtenerDatosSalon()]);
+  const [d, p, salon, tema] = await Promise.all([datosConfiguracion(), obtenerParametros(), obtenerDatosSalon(), temaActual()]);
   const hoy = new Date();
   const periodos = [0, 1, 2].map((i) => {
     const v = periodoDe(new Date(hoy.getFullYear(), hoy.getMonth() + i, 1));
@@ -49,7 +53,10 @@ export default async function ConfiguracionPage() {
           <p className="text-sm text-suave">
             {u.nombre} · {u.email}
           </p>
-          <FormMiPassword />
+          <BotonTema tema={tema} />
+          <div className="border-t border-linea pt-3">
+            <FormMiPassword />
+          </div>
         </section>
       </div>
 
@@ -126,6 +133,17 @@ export default async function ConfiguracionPage() {
             <FilaCategoria key={JSON.stringify(x)} c={x} />
           ))}
           <FormCategoria />
+        </section>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="tarjeta flex flex-col">
+          <h2 className="pb-1 text-lg font-semibold">Bancos que califican</h2>
+          <p className="pb-2 text-sm text-apagado">Aparecen en el desplegable de la ficha del contacto. Si el banco del cliente no está, se elige &quot;Otro&quot; y se escribe.</p>
+          {d.bancos.map((x) => (
+            <FilaBanco key={JSON.stringify(x)} b={x} />
+          ))}
+          <FormBanco />
         </section>
       </div>
     </div>

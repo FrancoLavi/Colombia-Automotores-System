@@ -4,7 +4,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { fichaOperacion } from "@/server/ventas";
 import { datosFormulario } from "@/server/vehiculos";
-import { fecha, porcentaje, usd } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje, usd } from "@/lib/formato";
 import { ETIQUETA_PAGO, ABIERTAS, CONCEPTOS_GASTO_VENTA } from "@/domain/ventas";
 import { alarmaEntrega, diaArgentina, horaArgentina } from "@/domain/entregas";
 import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
@@ -24,7 +24,7 @@ const IMPACTO: Record<string, string> = {
 const ESTADO_PAGO: Record<string, { texto: string; clase: string }> = {
   COBRADO: { texto: "Cobrado", clase: "bg-ok-fondo text-ok-texto" },
   PENDIENTE: { texto: "A cobrar", clase: "bg-neutro-fondo text-neutro-texto" },
-  DEVUELTA: { texto: "Devuelto", clase: "bg-[#f3d6d6] text-[#7a1f1f]" },
+  DEVUELTA: { texto: "Devuelto", clase: "bg-error-fondo text-error-texto" },
   RETENIDA: { texto: "Retenida", clase: "bg-info-fondo text-info-texto" },
 };
 
@@ -87,7 +87,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             Operación {f.numero} · abierta el {fecha(op.fechaPreventa)}
           </span>
           <h1 className="text-3xl font-bold">
-            Venta a {c.nombre} {c.apellido}
+            Venta a {nombreContacto(c)}
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -101,7 +101,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
       </header>
 
       {op.estado === "CAIDA" ? (
-        <p className="tarjeta bg-[#fbeeee]">
+        <p className="tarjeta bg-error-fondo">
           <b>Operación caída:</b> {op.motivoCaida}
         </p>
       ) : (
@@ -119,7 +119,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="tarjeta flex flex-col">
           <h2 className="pb-2 text-lg font-semibold">Cliente</h2>
-          <Fila etiqueta="Nombre" valor={<Link href={`/contactos/${c.id}`}>{`${c.nombre} ${c.apellido ?? ""}`}</Link>} />
+          <Fila etiqueta="Nombre" valor={<Link href={`/contactos/${c.id}`}>{nombreContacto(c)}</Link>} />
           <Fila etiqueta="Teléfono" valor={<Telefono telefono={c.telefono} />} />
           {c.calificacionMonto && <Fila etiqueta="Calificación" valor={`${m(c.calificacionMonto)}${c.calificacionBanco ? ` · ${c.calificacionBanco}` : ""}`} />}
         </section>
@@ -228,7 +228,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <div className="flex h-3 overflow-hidden rounded-full bg-linea" role="img" aria-label={`Cubierto ${Math.round(pctCaja + pctCobrar + pctPermuta)} %`}>
             <div className="bg-ok" style={{ width: `${pctCaja}%` }} />
             <div className="bg-acento" style={{ width: `${pctCobrar}%` }} />
-            <div className="bg-[#c2410c]" style={{ width: `${pctPermuta}%` }} />
+            <div className="bg-grafico-stock" style={{ width: `${pctPermuta}%` }} />
           </div>
           <div className="flex flex-wrap gap-4 text-xs text-neutro-texto">
             <span>
@@ -239,7 +239,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
               <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-acento" />A cobrar {m(f.cobertura.aCobrar)}
             </span>
             <span>
-              <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[#c2410c]" />
+              <span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-grafico-stock" />
               Usado {m(f.cobertura.permuta)}
             </span>
           </div>
@@ -255,7 +255,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             <details>
               <summary className="btn-secundario cursor-pointer list-none">+ Tomar usado en parte de pago</summary>
               <div className="mt-3">
-                <FormPermuta id={id} participes={participes} financistaDefecto={v.participeId} tcSugerido={f.tcRef} />
+                <FormPermuta id={id} participes={participes} financistaDefecto={v.participeId} tcSugerido={f.tcRef} usado={{ marca: c.usadoMarca, modelo: c.usadoModelo, anio: c.usadoAnio, detalle: c.usadoAEntregar }} />
               </div>
             </details>
           </div>
