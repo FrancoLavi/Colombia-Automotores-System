@@ -25,7 +25,7 @@ export interface ValoresContacto {
 }
 
 /** Carga rápida (HU-2.1) o edición completa. */
-export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: ValoresContacto; rapido?: boolean }) {
+export function FormContacto({ id, inicial, rapido, bancos = [] }: { id?: number; inicial?: ValoresContacto; rapido?: boolean; bancos?: string[] }) {
   const accion = id ? a.editarContactoAccion.bind(null, id) : a.crearContactoAccion;
   const form = useRef<HTMLFormElement>(null);
   const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
@@ -34,6 +34,10 @@ export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: V
     return res;
   }, INICIAL);
   const duplicado = r.error?.startsWith("Ya existe un contacto con ese teléfono");
+  // Un banco ya cargado que no esté en la lista (o que la hayan desactivado) no se puede perder:
+  // arranca en "Otro" con el texto a la vista.
+  const bancoInicial = inicial?.calificacionBanco ?? "";
+  const [bancoOtro, setBancoOtro] = useState(!!bancoInicial && !bancos.includes(bancoInicial));
 
   return (
     <form action={enviar} ref={form} className="flex flex-col gap-4">
@@ -74,7 +78,22 @@ export function FormContacto({ id, inicial, rapido }: { id?: number; inicial?: V
         </label>
         <label className="campo">
           Banco que lo califica
-          <input name="calificacionBanco" defaultValue={inicial?.calificacionBanco ?? ""} placeholder="Provincia, Patagonia…" />
+          <select
+            name={bancoOtro ? "bancoElegido" : "calificacionBanco"}
+            defaultValue={bancoOtro ? "__OTRO__" : bancoInicial}
+            onChange={(e) => setBancoOtro(e.target.value === "__OTRO__")}
+          >
+            <option value="">—</option>
+            {bancos.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+            <option value="__OTRO__">Otro…</option>
+          </select>
+          {bancoOtro && (
+            <input name="calificacionBanco" defaultValue={bancoInicial} required placeholder="Nombre del banco" className="mt-1.5" />
+          )}
         </label>
         <label className="campo">
           Próximo contacto

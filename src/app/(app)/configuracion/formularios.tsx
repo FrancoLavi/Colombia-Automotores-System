@@ -334,6 +334,30 @@ export function FormCategoria() {
   );
 }
 
+export function FilaBanco({ b }: { b: { id: number; nombre: string; activo: boolean } }) {
+  const [pendiente, iniciar] = useTransition();
+  return (
+    <label className={`flex min-h-11 items-center gap-2 border-t border-linea py-1 text-sm ${b.activo ? "" : "opacity-50"}`}>
+      <input type="checkbox" className="h-5 w-5" checked={b.activo} disabled={pendiente} onChange={(e) => iniciar(async () => void (await a.activoBancoAccion(b.id, e.target.checked)))} />
+      {b.nombre}
+    </label>
+  );
+}
+
+export function FormBanco() {
+  const { form, r, enviar } = useReset(a.bancoAccion);
+  return (
+    <form action={enviar} ref={form} className="flex flex-wrap items-end gap-2 pt-2">
+      <label className="campo min-w-40 flex-1">
+        Nuevo banco
+        <input name="nombre" required />
+      </label>
+      <BotonEnviar className="btn-secundario">Agregar</BotonEnviar>
+      <Mensaje r={r} />
+    </form>
+  );
+}
+
 export function FormPersona() {
   const { form, r, enviar } = useReset(a.personaAccion);
   return (

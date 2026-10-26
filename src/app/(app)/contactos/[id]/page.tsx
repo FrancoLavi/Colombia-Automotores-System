@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
+import { listarBancosActivos } from "@/server/configuracion";
 import { vistaMoneda } from "@/lib/moneda";
 import { fichaContacto } from "@/server/contactos";
 import { marcasUsadas } from "@/server/vehiculos";
@@ -20,7 +21,8 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
   const id = Number((await params).id);
   const f = await fichaContacto(id);
   if (!f) notFound();
-  const [marcas, operaciones] = await Promise.all([marcasUsadas(), operacionesDeContacto(id)]);
+  const [marcas, operaciones, bancosActivos] = await Promise.all([marcasUsadas(), operacionesDeContacto(id), listarBancosActivos()]);
+  const bancos = bancosActivos.map((b) => b.nombre);
   const c = f.c;
   const pendientes = f.actividades.filter((x) => !x.a.realizadaEn);
   const hechas = f.actividades.filter((x) => x.a.realizadaEn);
@@ -162,7 +164,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
       <details className="tarjeta">
         <summary className="cursor-pointer text-lg font-semibold">Editar datos del contacto</summary>
         <div className="mt-4">
-          <FormContacto key={JSON.stringify(c)} id={id} inicial={c} />
+          <FormContacto key={JSON.stringify(c)} id={id} inicial={c} bancos={bancos} />
         </div>
       </details>
 

@@ -6,10 +6,12 @@ import { nombreMes, periodoDe } from "@/domain/dashboard";
 import {
   AccionesUsuario,
   BotonTema,
+  FilaBanco,
   FilaCategoria,
   FilaDocumento,
   FilaParticipe,
   FilaPersona,
+  FormBanco,
   FormCategoria,
   FormDocumento,
   FormInversor,
@@ -131,6 +133,17 @@ export default async function ConfiguracionPage() {
             <FilaCategoria key={JSON.stringify(x)} c={x} />
           ))}
           <FormCategoria />
+        </section>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="tarjeta flex flex-col">
+          <h2 className="pb-1 text-lg font-semibold">Bancos que califican</h2>
+          <p className="pb-2 text-sm text-apagado">Aparecen en el desplegable de la ficha del contacto. Si el banco del cliente no está, se elige &quot;Otro&quot; y se escribe.</p>
+          {d.bancos.map((x) => (
+            <FilaBanco key={JSON.stringify(x)} b={x} />
+          ))}
+          <FormBanco />
         </section>
       </div>
     </div>

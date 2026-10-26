@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { listarBancosActivos } from "@/server/configuracion";
 import { vistaMoneda } from "@/lib/moneda";
 import { contarAgenda, listarContactos, pedidosAbiertos } from "@/server/contactos";
 import { nombreContacto, fecha, hoyIso } from "@/lib/formato";
@@ -16,7 +17,8 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
   const { m } = await vistaMoneda();
   const sp = await searchParams;
   const hoy = hoyIso();
-  const [{ contactos, conteo }, enAgenda, pedidos] = await Promise.all([listarContactos(sp), contarAgenda(hoy), pedidosAbiertos()]);
+  const [{ contactos, conteo }, enAgenda, pedidos, bancosActivos] = await Promise.all([listarContactos(sp), contarAgenda(hoy), pedidosAbiertos(), listarBancosActivos()]);
+  const bancos = bancosActivos.map((b) => b.nombre);
   const etapas: Etapa[] = ["DATO", "PREVENTA", "CLIENTE", "DESCARTADO"];
 
   return (
@@ -42,7 +44,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
       <details className="tarjeta" open={contactos.length === 0 && !sp.q}>
         <summary className="cursor-pointer text-lg font-semibold">+ Carga rápida de un dato</summary>
         <div className="mt-4">
-          <FormContacto rapido />
+          <FormContacto rapido bancos={bancos} />
         </div>
       </details>
 
