@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
+import { BanderaArs, BanderaUsd } from "@/components/banderas";
 import { cambiarVista } from "./vista-actions";
 
 const ITEMS = [
@@ -18,7 +19,7 @@ const ITEMS = [
   { href: "/configuracion", label: "Configuración" },
 ];
 
-/** Botón "Ver en USD / Ver en $": cambia cómo se muestran los importes en todas las pantallas. */
+/** Botón "Ver en USD / Ver en ARS": cambia cómo se muestran los importes en todas las pantallas. */
 export function BotonMoneda({ enDolares, hayDolar }: { enDolares: boolean; hayDolar: boolean }) {
   const [pendiente, iniciar] = useTransition();
   return (
@@ -26,10 +27,17 @@ export function BotonMoneda({ enDolares, hayDolar }: { enDolares: boolean; hayDo
       type="button"
       disabled={pendiente || (!hayDolar && !enDolares)}
       onClick={() => iniciar(() => cambiarVista(!enDolares))}
-      className={`btn w-full border text-sm ${enDolares ? "border-[#8fa9f0] bg-[#8fa9f0] text-tinta" : "border-[#3a414b] text-white hover:bg-[#2a3038]"}`}
+      className={`btn w-full gap-1.5 border text-sm ${enDolares ? "border-[#8fa9f0] bg-[#8fa9f0] text-tinta" : "border-[#3a414b] text-white hover:bg-[#2a3038]"}`}
       aria-pressed={enDolares}
     >
-      {pendiente ? "Cambiando…" : enDolares ? "Ver en pesos" : "Ver en USD"}
+      {pendiente ? (
+        "Cambiando…"
+      ) : (
+        <>
+          Ver en {enDolares ? "ARS" : "USD"}
+          {enDolares ? <BanderaArs /> : <BanderaUsd />}
+        </>
+      )}
     </button>
   );
 }

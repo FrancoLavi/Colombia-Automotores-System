@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
+import { Bandera } from "@/components/banderas";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { compraEnPesos, precioSugerido } from "@/domain/negocio";
 import { interpretarImporte } from "@/domain/importar";
@@ -203,10 +204,13 @@ export function VehiculoForm({
           </label>
           <label className="campo">
             Moneda
-            <select name="monedaCompra" value={moneda} onChange={(e) => setMoneda(e.target.value as "ARS" | "USD")}>
-              <option value="USD">Dólares</option>
-              <option value="ARS">Pesos</option>
-            </select>
+            <span className="flex items-center gap-2">
+              <Bandera moneda={moneda} />
+              <select name="monedaCompra" value={moneda} onChange={(e) => setMoneda(e.target.value as "ARS" | "USD")}>
+                <option value="USD">USD</option>
+                <option value="ARS">ARS</option>
+              </select>
+            </span>
           </label>
           <label className="campo">
             {etiquetaValor} *

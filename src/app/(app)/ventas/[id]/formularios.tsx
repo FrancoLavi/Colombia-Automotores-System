@@ -3,6 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
+import { Bandera } from "@/components/banderas";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { compraEnPesos } from "@/domain/negocio";
 import { interpretarImporte } from "@/domain/importar";
@@ -162,10 +163,13 @@ export function FormPermuta({
         </label>
         <label className="campo">
           Moneda
-          <select name="monedaCompra" value={moneda} onChange={(e) => setMoneda(e.target.value as "ARS" | "USD")}>
-            <option value="ARS">Pesos</option>
-            <option value="USD">Dólares</option>
-          </select>
+          <span className="flex items-center gap-2">
+            <Bandera moneda={moneda} />
+            <select name="monedaCompra" value={moneda} onChange={(e) => setMoneda(e.target.value as "ARS" | "USD")}>
+              <option value="ARS">ARS</option>
+              <option value="USD">USD</option>
+            </select>
+          </span>
         </label>
         <label className="campo">
           Valor de toma *
