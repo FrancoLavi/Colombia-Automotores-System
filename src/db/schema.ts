@@ -120,7 +120,14 @@ export const contactos = pgTable(
     etapa: etapaContactoEnum("etapa").notNull().default("DATO"),
     calificacionMonto: pesos("calificacion_monto"),
     calificacionBanco: text("calificacion_banco"),
+    // Qué busca: ahora se carga como pedido (tabla pedidos), que es lo que se cruza con el
+    // stock. Esta columna queda para lo que se escribió a mano antes de ese cambio.
     productoInteres: text("producto_interes"),
+    // El usado que entrega, estructurado para poder filtrar por marca y modelo.
+    usadoMarca: text("usado_marca"),
+    usadoModelo: text("usado_modelo"),
+    usadoAnio: integer("usado_anio"),
+    // Detalle libre del usado ("con granizo", "motor recién hecho") y lo cargado antes.
     usadoAEntregar: text("usado_a_entregar"),
     observaciones: text("observaciones"),
     proximoContacto: date("proximo_contacto"),

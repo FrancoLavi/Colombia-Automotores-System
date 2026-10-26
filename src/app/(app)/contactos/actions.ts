@@ -23,9 +23,24 @@ function datosContacto(fd: FormData): svc.DatosContacto {
     calificacionMonto: importe(fd, "calificacionMonto"),
     calificacionBanco: texto(fd, "calificacionBanco"),
     productoInteres: texto(fd, "productoInteres"),
+    usadoMarca: texto(fd, "usadoMarca"),
+    usadoModelo: texto(fd, "usadoModelo"),
+    usadoAnio: entero(fd, "usadoAnio"),
     usadoAEntregar: texto(fd, "usadoAEntregar"),
     observaciones: texto(fd, "observaciones"),
     proximoContacto: fechaIso(fd, "proximoContacto"),
+  };
+}
+
+/** Lo que busca el contacto se carga como pedido (HU-2.4), así se cruza con el stock. */
+function pedidoDelAlta(fd: FormData): svc.DatosPedido {
+  return {
+    marca: texto(fd, "pedidoMarca"),
+    modelo: texto(fd, "pedidoModelo"),
+    anioDesde: entero(fd, "pedidoAnioDesde"),
+    anioHasta: entero(fd, "pedidoAnioHasta"),
+    presupuestoMax: importe(fd, "pedidoPresupuesto"),
+    notas: null,
   };
 }
 
@@ -33,7 +48,10 @@ export async function crearContactoAccion(_: Resultado, fd: FormData): Promise<R
   const u = await requerirUsuario();
   let id = 0;
   const r = await ejecutar(async () => {
-    id = await svc.crearContacto(u.id, datosContacto(fd), { ignorarDuplicado: fd.get("ignorarDuplicado") === "1" });
+    id = await svc.crearContacto(u.id, datosContacto(fd), {
+      ignorarDuplicado: fd.get("ignorarDuplicado") === "1",
+      pedido: pedidoDelAlta(fd),
+    });
   });
   if (!r.ok) return r;
   revalidatePath("/contactos");

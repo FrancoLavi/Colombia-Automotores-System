@@ -19,13 +19,16 @@ export interface ValoresContacto {
   calificacionMonto: number | null;
   calificacionBanco: string | null;
   productoInteres: string | null;
+  usadoMarca: string | null;
+  usadoModelo: string | null;
+  usadoAnio: number | null;
   usadoAEntregar: string | null;
   observaciones: string | null;
   proximoContacto: string | null;
 }
 
 /** Carga rápida (HU-2.1) o edición completa. */
-export function FormContacto({ id, inicial, rapido, bancos = [] }: { id?: number; inicial?: ValoresContacto; rapido?: boolean; bancos?: string[] }) {
+export function FormContacto({ id, inicial, rapido, bancos = [], marcas = [] }: { id?: number; inicial?: ValoresContacto; rapido?: boolean; bancos?: string[]; marcas?: string[] }) {
   const accion = id ? a.editarContactoAccion.bind(null, id) : a.crearContactoAccion;
   const form = useRef<HTMLFormElement>(null);
   const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
@@ -64,13 +67,58 @@ export function FormContacto({ id, inicial, rapido, bancos = [] }: { id?: number
             ))}
           </select>
         </label>
+        {id ? (
+          // Al editar, lo que busca se administra con los pedidos de la ficha; acá solo
+          // queda a la vista lo que se haya escrito a mano antes de que existiera el pedido.
+          inicial?.productoInteres ? (
+            <label className="campo">
+              Qué busca (texto viejo)
+              <input name="productoInteres" defaultValue={inicial.productoInteres} />
+            </label>
+          ) : null
+        ) : (
+          <>
+            <label className="campo">
+              Qué busca · marca
+              <input name="pedidoMarca" list="marcas-contacto" placeholder="Volkswagen" />
+              <datalist id="marcas-contacto">
+                {marcas.map((x) => (
+                  <option key={x} value={x} />
+                ))}
+              </datalist>
+            </label>
+            <label className="campo">
+              Qué busca · modelo
+              <input name="pedidoModelo" placeholder="Amarok" />
+            </label>
+            <label className="campo">
+              Años (desde / hasta)
+              <span className="flex gap-2">
+                <input name="pedidoAnioDesde" inputMode="numeric" placeholder="2018" />
+                <input name="pedidoAnioHasta" inputMode="numeric" placeholder="2022" />
+              </span>
+            </label>
+            <label className="campo">
+              Presupuesto máx. ($)
+              <InputMoneda name="pedidoPresupuesto" />
+            </label>
+          </>
+        )}
         <label className="campo">
-          Qué busca
-          <input name="productoInteres" defaultValue={inicial?.productoInteres ?? ""} placeholder="Pick-up 4x4 hasta 2020" />
+          Usado · marca
+          <input name="usadoMarca" defaultValue={inicial?.usadoMarca ?? ""} placeholder="Ford" />
         </label>
         <label className="campo">
-          Usado a entregar
-          <input name="usadoAEntregar" defaultValue={inicial?.usadoAEntregar ?? ""} placeholder="Ford Fiesta 2015" />
+          Usado · modelo
+          <input name="usadoModelo" defaultValue={inicial?.usadoModelo ?? ""} placeholder="Fiesta" />
+        </label>
+        <label className="campo">
+          Usado · año
+          <input name="usadoAnio" inputMode="numeric" defaultValue={inicial?.usadoAnio ?? ""} placeholder="2015" />
+        </label>
+        <label className="campo">
+          Detalle del usado
+          <input name="usadoAEntregar" defaultValue={inicial?.usadoAEntregar ?? ""} placeholder="Con granizo, motor hecho…" />
         </label>
         <label className="campo">
           Calificación crediticia ($)
