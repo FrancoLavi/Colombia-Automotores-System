@@ -168,8 +168,8 @@ export function FormActividad({ contactoId }: { contactoId: number }) {
           </label>
         )}
         <label className="campo sm:col-span-2 lg:col-span-4">
-          Nota
-          <input name="nota" placeholder={modo === "AGENDAR" ? "Ej: confirmar si viene el martes" : "Ej: le pasé fotos de la Amarok"} />
+          Nota *
+          <input name="nota" required placeholder={modo === "AGENDAR" ? "Ej: confirmar si viene el martes" : "Ej: le pasé fotos de la Amarok"} />
         </label>
       </div>
       <div className="flex items-center justify-between gap-3">
@@ -187,8 +187,9 @@ export function FormCompletar({ actividadId, contactoId }: { actividadId: number
   return (
     <form action={enviar} className="flex flex-wrap items-end gap-2">
       <label className="campo min-w-40 flex-1">
-        Resultado
-        <input name="nota" placeholder="Qué pasó" />
+        Resultado{!actividadId && " *"}
+        {/* Sin actividad agendada esto crea un seguimiento nuevo, que no puede quedar sin nota. */}
+        <input name="nota" required={!actividadId} placeholder="Qué pasó" />
       </label>
       <label className="campo">
         Volver a contactar

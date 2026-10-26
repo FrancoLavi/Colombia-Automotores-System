@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
-import { coincidePedido, etapasManuales, normalizarTelefono, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
+import { coincidePedido, etapasManuales, normalizarTelefono, pedidoVacio, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
 import { ErrorNegocio } from "./errores";
 import { listarStock } from "./vehiculos";
 
@@ -200,6 +200,7 @@ export async function agregarActividad(
   contactoId: number,
   a: { tipo: TipoActividad; fechaProgramada: Date; realizada: boolean; nota: string | null; proximoContacto?: string | null },
 ) {
+  if (!a.nota?.trim()) throw new ErrorNegocio("Escribí una nota: un seguimiento sin nota no le sirve a nadie después");
   await db.transaction(async (t) => {
     const c = await t.query.contactos.findFirst({ where: eq(s.contactos.id, contactoId) });
     if (!c) throw new ErrorNegocio("El contacto no existe");
@@ -253,6 +254,7 @@ export interface DatosPedido {
 }
 
 export async function crearPedido(usuarioId: number, contactoId: number, p: DatosPedido) {
+  if (pedidoVacio(p)) throw new ErrorNegocio("Completá al menos la marca, el modelo, el año o el presupuesto");
   if (p.anioDesde && p.anioHasta && p.anioDesde > p.anioHasta) throw new ErrorNegocio("El año desde es mayor que el año hasta");
   await db.transaction(async (t) => {
     const [ped] = await t.insert(s.pedidos).values({ ...p, contactoId }).returning();
