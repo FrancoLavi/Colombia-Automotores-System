@@ -5,6 +5,7 @@ import { tablero } from "@/server/dashboard";
 import { fecha, porcentaje } from "@/lib/formato";
 import { avance, nombreMes } from "@/domain/dashboard";
 import { ChipAlerta } from "@/components/ui";
+import { TarjetaEnlace } from "@/components/tarjeta";
 import { Telefono } from "./contactos/chips";
 import { FormDolar } from "./stock/form-dolar";
 import { IlustracionAuto } from "@/components/ilustraciones";
@@ -70,27 +71,21 @@ export default async function InicioPage() {
             Salón {m(t.gananciaSalon)} · Inversores {m(t.gananciaInversores)}
           </span>
         </div>
-        <div className="tarjeta flex flex-col gap-2.5">
+        <TarjetaEnlace href="/caja" pie="Ver caja" className="gap-2.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Caja (líquido)</span>
           <span className={`num text-3xl ${t.patrimonio.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(t.patrimonio.caja.total)}</span>
           <span className="text-[13px] text-apagado">
             Efectivo {m(t.patrimonio.caja.efectivo)} · Banco {m(t.patrimonio.caja.banco)}
             {t.patrimonio.aCobrar > 0 && ` · a cobrar ${m(t.patrimonio.aCobrar)}`}
           </span>
-          <Link href="/caja" className="text-sm font-semibold">
-            Ver caja →
-          </Link>
-        </div>
-        <div className="tarjeta flex flex-col gap-2.5">
+        </TarjetaEnlace>
+        <TarjetaEnlace href="/patrimonio" pie="Ver patrimonio" className="gap-2.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Patrimonio</span>
           <span className="num text-3xl">{m(t.patrimonio.total)}</span>
           <span className="text-[13px] text-apagado">
             {t.stock.total} {t.stock.total === 1 ? "auto" : "autos"} en stock · {t.stock.diasPromedio} días promedio
           </span>
-          <Link href="/patrimonio" className="text-sm font-semibold">
-            Ver patrimonio →
-          </Link>
-        </div>
+        </TarjetaEnlace>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
