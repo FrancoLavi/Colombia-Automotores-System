@@ -34,7 +34,7 @@ export async function editarPersona(usuarioId: number, id: number, nombre: strin
 }
 
 export async function datosConfiguracion() {
-  const [participes, usuarios, objetivos, documentos, categorias, autosPorParticipe, personas] = await Promise.all([
+  const [participes, usuarios, objetivos, documentos, categorias, bancos, autosPorParticipe, personas] = await Promise.all([
     db.select().from(s.participes).orderBy(asc(s.participes.id)),
     db
       .select({ id: s.usuarios.id, nombre: s.usuarios.nombre, email: s.usuarios.email, rol: s.usuarios.rol, activo: s.usuarios.activo, participeId: s.usuarios.participeId })
@@ -43,6 +43,7 @@ export async function datosConfiguracion() {
     db.select().from(s.objetivos).orderBy(desc(s.objetivos.periodo)).limit(12),
     db.select().from(s.tiposDocumento).orderBy(asc(s.tiposDocumento.orden)),
     db.select().from(s.categoriasGasto).orderBy(asc(s.categoriasGasto.orden)),
+    db.select().from(s.bancos).orderBy(asc(s.bancos.orden)),
     db
       .select({ participeId: s.vehiculos.participeId, n: sql<number>`count(*)::int` })
       .from(s.vehiculos)
@@ -57,6 +58,7 @@ export async function datosConfiguracion() {
     objetivos,
     documentos,
     categorias,
+    bancos,
   };
 }
 
@@ -172,6 +174,29 @@ export async function cambiarActivoCategoria(usuarioId: number, id: number, acti
     if (!c) throw new ErrorNegocio("No existe");
     await t.update(s.categoriasGasto).set({ activo }).where(eq(s.categoriasGasto.id, id));
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes: { activo: c.activo }, despues: { activo }, descripcion: `Categoría ${c.nombre} ${activo ? "activada" : "desactivada"}` });
+  });
+}
+
+/** Bancos que califican al cliente. Los usa el desplegable de la ficha del contacto. */
+export async function listarBancosActivos() {
+  return db.select().from(s.bancos).where(eq(s.bancos.activo, true)).orderBy(asc(s.bancos.orden));
+}
+
+export async function crearBanco(usuarioId: number, nombre: string) {
+  if (!nombre.trim()) throw new ErrorNegocio("Completá el nombre del banco");
+  await db.transaction(async (t) => {
+    const [{ max }] = await t.select({ max: sql<number>`coalesce(max(${s.bancos.orden}), 0)::int` }).from(s.bancos);
+    const [b] = await t.insert(s.bancos).values({ nombre: nombre.trim(), orden: max + 1 }).returning();
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: b.id, accion: "CREAR", descripcion: `Banco agregado: ${b.nombre}` });
+  });
+}
+
+export async function cambiarActivoBanco(usuarioId: number, id: number, activo: boolean) {
+  await db.transaction(async (t) => {
+    const b = await t.query.bancos.findFirst({ where: eq(s.bancos.id, id) });
+    if (!b) throw new ErrorNegocio("No existe");
+    await t.update(s.bancos).set({ activo }).where(eq(s.bancos.id, id));
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes: { activo: b.activo }, despues: { activo }, descripcion: `Banco ${b.nombre} ${activo ? "activado" : "desactivado"}` });
   });
 }
 

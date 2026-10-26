@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import * as rep from "@/server/reportes";
-import { fecha, porcentaje } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje } from "@/lib/formato";
 import { nombreMes } from "@/domain/dashboard";
 import { ETIQUETA_CATEGORIA } from "@/domain/caja";
 import { ETIQUETA_ESTADO } from "@/domain/stock";
@@ -261,7 +261,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
                       {v.auto.marca} {v.auto.modelo} {v.auto.anio} <span className="num text-apagado">{v.auto.dominio}</span>
                     </td>
                     <td>
-                      {v.cliente.nombre} {v.cliente.apellido}
+                      {nombreContacto(v.cliente)}
                     </td>
                     <td>{v.financista}</td>
                     <td className="num text-right">{m(v.l.precio)}</td>

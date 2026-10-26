@@ -14,7 +14,7 @@ export const baseAuto = {
 
 export const baseContacto = {
   apellido: "Pérez", dniCuit: null, email: null, localidad: null, origen: "WHATSAPP" as const, calificacionMonto: null,
-  calificacionBanco: null, productoInteres: null, usadoAEntregar: null, observaciones: null, proximoContacto: null,
+  calificacionBanco: null, productoInteres: null, usadoMarca: null, usadoModelo: null, usadoAnio: null, usadoAEntregar: null, observaciones: null, proximoContacto: null,
 };
 
 /** Auto comprado (pagado por banco), con papeles y peritaje, habilitado para la venta. */

@@ -3,7 +3,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { Vacio } from "@/components/ilustraciones";
 import { vistaMoneda } from "@/lib/moneda";
 import { listarOperaciones } from "@/server/ventas";
-import { fecha, hoyIso } from "@/lib/formato";
+import { nombreContacto, fecha, hoyIso } from "@/lib/formato";
 import { ChipOperacion } from "./chip";
 
 export const metadata = { title: "Ventas · Colombia Automotores" };
@@ -84,7 +84,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                     <td className="num">{fecha(o.op.fechaPreventa)}</td>
                     <td>
                       <Link href={`/contactos/${o.contacto.id}`} className="text-tinta">
-                        {o.contacto.nombre} {o.contacto.apellido}
+                        {nombreContacto(o.contacto)}
                       </Link>
                     </td>
                     <td>

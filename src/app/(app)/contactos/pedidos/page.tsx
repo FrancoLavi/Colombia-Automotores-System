@@ -3,7 +3,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { Vacio } from "@/components/ilustraciones";
 import { vistaMoneda } from "@/lib/moneda";
 import { pedidosAbiertos } from "@/server/contactos";
-import { fecha } from "@/lib/formato";
+import { nombreContacto, fecha } from "@/lib/formato";
 import { describirPedido } from "@/domain/contactos";
 import { Telefono } from "../chips";
 
@@ -49,7 +49,7 @@ export default async function PedidosPage() {
                   </td>
                   <td>
                     <Link href={`/contactos/${p.contacto.id}`}>
-                      {p.contacto.nombre} {p.contacto.apellido}
+                      {nombreContacto(p.contacto)}
                     </Link>
                   </td>
                   <td>

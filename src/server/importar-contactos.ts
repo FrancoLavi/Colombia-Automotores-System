@@ -130,6 +130,11 @@ export async function leerPlanillaContactos(datos: ArrayBuffer, nombreArchivo: s
       calificacionMonto: null,
       calificacionBanco: null,
       productoInteres: get(f, "productoInteres") || null,
+      // La planilla vieja trae el usado como texto suelto; los campos estructurados
+      // quedan vacíos y se completan después desde la ficha.
+      usadoMarca: null,
+      usadoModelo: null,
+      usadoAnio: null,
       usadoAEntregar: get(f, "usadoAEntregar") || null,
       observaciones: get(f, "observaciones") || null,
       proximoContacto: null,

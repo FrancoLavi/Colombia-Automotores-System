@@ -7,7 +7,7 @@ import { Bandera } from "@/components/banderas";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { compraEnPesos, precioSugerido } from "@/domain/negocio";
 import { interpretarImporte } from "@/domain/importar";
-import { pesos, usd, hoyIso } from "@/lib/formato";
+import { nombreContacto, pesos, usd, hoyIso } from "@/lib/formato";
 import { ETIQUETA_UBICACION, type Ubicacion } from "@/domain/stock";
 
 type Participe = { id: number; nombre: string; tipo: "SALON" | "INVERSOR" };
@@ -116,7 +116,7 @@ export function VehiculoForm({
               <option value="">—</option>
               {contactos.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.nombre} {c.apellido ?? ""}
+                  {nombreContacto(c)}
                 </option>
               ))}
             </select>

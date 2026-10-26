@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { agenda } from "@/server/contactos";
-import { fecha, hoyIso } from "@/lib/formato";
+import { nombreContacto, fecha, hoyIso } from "@/lib/formato";
 import { ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { Telefono } from "../chips";
 import { FormCompletar } from "../formularios";
@@ -68,7 +68,7 @@ export default async function AgendaPage() {
                   {i.hora && <span className="num text-apagado">{i.hora}</span>}
                   {g.titulo === "Atrasados" && <span className="num text-aviso-texto">{fecha(i.dia)}</span>}
                   <Link href={`/contactos/${i.contacto.id}`} className="font-semibold text-tinta">
-                    {i.contacto.nombre} {i.contacto.apellido}
+                    {nombreContacto(i.contacto)}
                   </Link>
                   <Telefono telefono={i.contacto.telefono} />
                   <span className="text-sm text-suave">{i.detalle}</span>

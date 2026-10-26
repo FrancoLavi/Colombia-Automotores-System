@@ -148,6 +148,25 @@ export async function activoCategoriaAccion(id: number, activo: boolean): Promis
   return r;
 }
 
+export async function bancoAccion(_: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await cfg.crearBanco(u.id, requerido(fd, "nombre", "Nombre"));
+    return "Banco agregado.";
+  });
+  revalidar();
+  revalidatePath("/contactos");
+  return r;
+}
+
+export async function activoBancoAccion(id: number, activo: boolean): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(() => cfg.cambiarActivoBanco(u.id, id, activo));
+  revalidar();
+  revalidatePath("/contactos");
+  return r;
+}
+
 export async function personaAccion(_: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {

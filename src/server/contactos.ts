@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
-import { coincidePedido, etapasManuales, normalizarTelefono, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
+import { coincidePedido, etapasManuales, normalizarTelefono, pedidoVacio, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
 import { ErrorNegocio } from "./errores";
 import { listarStock } from "./vehiculos";
 
@@ -19,6 +19,9 @@ export interface DatosContacto {
   calificacionMonto: number | null;
   calificacionBanco: string | null;
   productoInteres: string | null;
+  usadoMarca: string | null;
+  usadoModelo: string | null;
+  usadoAnio: number | null;
   usadoAEntregar: string | null;
   observaciones: string | null;
   proximoContacto: string | null;
@@ -39,10 +42,35 @@ export async function buscarPorTelefono(telefono: string | null, excluirId?: num
   return candidatos.find((c) => c.id !== excluirId && normalizarTelefono(c.telefono) === n) ?? null;
 }
 
-export async function listarContactos(f: { q?: string; etapa?: string; origen?: string }) {
+export async function listarContactos(f: {
+  q?: string;
+  etapa?: string;
+  origen?: string;
+  marca?: string;
+  modelo?: string;
+  montoMin?: number;
+  banco?: string;
+}) {
   const cond = [];
   if (f.etapa) cond.push(eq(s.contactos.etapa, f.etapa as Etapa));
   if (f.origen) cond.push(eq(s.contactos.origen, f.origen as Origen));
+  if (f.banco) cond.push(eq(s.contactos.calificacionBanco, f.banco));
+  if (f.montoMin) cond.push(sql`coalesce(${s.contactos.calificacionMonto}, 0) >= ${f.montoMin}`);
+  // Marca y modelo buscan en los pedidos abiertos y, para lo cargado antes de que el
+  // pedido existiera, también en el texto libre y en el usado que entrega.
+  for (const [campo, valor] of [["marca", f.marca], ["modelo", f.modelo]] as const) {
+    if (!valor?.trim()) continue;
+    const v = `%${valor.trim()}%`;
+    const col = campo === "marca" ? s.pedidos.marca : s.pedidos.modelo;
+    const colUsado = campo === "marca" ? s.contactos.usadoMarca : s.contactos.usadoModelo;
+    cond.push(
+      or(
+        sql`exists (select 1 from ${s.pedidos} where ${s.pedidos.contactoId} = ${s.contactos.id} and ${s.pedidos.estado} = 'ABIERTO' and ${col} ilike ${v})`,
+        sql`${colUsado} ilike ${v}`,
+        sql`${s.contactos.productoInteres} ilike ${v}`,
+      )!,
+    );
+  }
   if (f.q?.trim()) {
     const q = `%${f.q.trim()}%`;
     const digitos = f.q.replace(/\D/g, "");
@@ -51,6 +79,8 @@ export async function listarContactos(f: { q?: string; etapa?: string; origen?: 
         sql`${s.contactos.nombre} ilike ${q}`,
         sql`${s.contactos.apellido} ilike ${q}`,
         sql`${s.contactos.productoInteres} ilike ${q}`,
+        sql`${s.contactos.usadoMarca} ilike ${q}`,
+        sql`${s.contactos.usadoModelo} ilike ${q}`,
         sql`${s.contactos.localidad} ilike ${q}`,
         digitos.length >= 4 ? sql`regexp_replace(coalesce(${s.contactos.telefono}, ''), '\\D', '', 'g') like ${"%" + digitos + "%"}` : sql`false`,
       )!,
@@ -155,7 +185,15 @@ export async function contarAgenda(hasta: string) {
 
 // ---------- Altas y modificaciones ----------
 
-export async function crearContacto(usuarioId: number, d: DatosContacto, opts: { ignorarDuplicado?: boolean } = {}) {
+/**
+ * Alta del contacto. Lo que busca se guarda como pedido (HU-2.4) y no como texto suelto:
+ * así se cruza solo con el stock y se puede filtrar por marca y modelo.
+ */
+export async function crearContacto(
+  usuarioId: number,
+  d: DatosContacto,
+  opts: { ignorarDuplicado?: boolean; pedido?: DatosPedido } = {},
+) {
   if (!d.nombre.trim()) throw new ErrorNegocio("Completá el nombre");
   return db.transaction(async (t) => {
     if (!opts.ignorarDuplicado) {
@@ -164,6 +202,10 @@ export async function crearContacto(usuarioId: number, d: DatosContacto, opts: {
     }
     const [c] = await t.insert(s.contactos).values({ ...d, creadoPor: usuarioId }).returning();
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: c.id, accion: "CREAR", despues: c, descripcion: "Alta del contacto" });
+    if (opts.pedido && !pedidoVacio(opts.pedido)) {
+      const [ped] = await t.insert(s.pedidos).values({ ...opts.pedido, contactoId: c.id }).returning();
+      await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: c.id, accion: "CREAR", despues: ped, descripcion: "Pedido registrado en el alta" });
+    }
     return c.id;
   });
 }
@@ -200,6 +242,7 @@ export async function agregarActividad(
   contactoId: number,
   a: { tipo: TipoActividad; fechaProgramada: Date; realizada: boolean; nota: string | null; proximoContacto?: string | null },
 ) {
+  if (!a.nota?.trim()) throw new ErrorNegocio("Escribí una nota: un seguimiento sin nota no le sirve a nadie después");
   await db.transaction(async (t) => {
     const c = await t.query.contactos.findFirst({ where: eq(s.contactos.id, contactoId) });
     if (!c) throw new ErrorNegocio("El contacto no existe");
@@ -253,6 +296,7 @@ export interface DatosPedido {
 }
 
 export async function crearPedido(usuarioId: number, contactoId: number, p: DatosPedido) {
+  if (pedidoVacio(p)) throw new ErrorNegocio("Completá al menos la marca, el modelo, el año o el presupuesto");
   if (p.anioDesde && p.anioHasta && p.anioDesde > p.anioHasta) throw new ErrorNegocio("El año desde es mayor que el año hasta");
   await db.transaction(async (t) => {
     const [ped] = await t.insert(s.pedidos).values({ ...p, contactoId }).returning();

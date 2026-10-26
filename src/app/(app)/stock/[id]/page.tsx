@@ -6,7 +6,7 @@ import { datosFormulario, fichaVehiculo } from "@/server/vehiculos";
 import { interesadosEnAuto } from "@/server/contactos";
 import { operacionAbiertaDeVehiculo } from "@/server/ventas";
 import { Telefono } from "../../contactos/chips";
-import { fecha, numero, porcentaje, usd } from "@/lib/formato";
+import { nombreContacto, fecha, numero, porcentaje, usd } from "@/lib/formato";
 import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
 import { eliminarGastoAccion, quitarArchivoAccion } from "../actions";
 import {
@@ -69,7 +69,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           <p className="text-sm text-suave">
             Financia: <b>{f.financista?.nombre}</b>
             {v.ingresadoPor && ` · Lo ingresó: ${v.ingresadoPor}`}
-            {f.contactoOrigen && ` · ${v.tipoIngreso === "CONSIGNACION" ? "Dueño" : "Vendedor"}: ${f.contactoOrigen.nombre} ${f.contactoOrigen.apellido ?? ""}`}
+            {f.contactoOrigen && ` · ${v.tipoIngreso === "CONSIGNACION" ? "Dueño" : "Vendedor"}: ${nombreContacto(f.contactoOrigen)}`}
           </p>
           {v.prendado && (
             <p className="text-sm text-aviso-texto">
@@ -179,7 +179,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
             {interesados.map((i) => (
               <div key={i.pedidoId} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-linea py-2 text-sm">
                 <Link href={`/contactos/${i.contacto.id}`} className="font-semibold">
-                  {i.contacto.nombre} {i.contacto.apellido}
+                  {nombreContacto(i.contacto)}
                 </Link>
                 <Telefono telefono={i.contacto.telefono} />
               </div>
@@ -221,7 +221,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
                   <img src={`/api/archivos/${x.id}`} alt={x.nombre ?? "Foto del peritaje"} className="aspect-[4/3] w-full rounded-lg object-cover" />
                 </a>
                 <span className="absolute right-0 top-0 rounded-lg bg-superficie/90">
-                  <BotonQuitar etiqueta="Quitar foto" accion={quitarArchivoAccion.bind(null, id, x.id)} />
+                  <BotonQuitar etiqueta="Quitar foto" accion={quitarArchivoAccion.bind(null, id, x.id)} soloIcono />
                 </span>
               </div>
             ))}

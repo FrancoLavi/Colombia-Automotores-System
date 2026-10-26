@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { tablero } from "@/server/dashboard";
-import { fecha, porcentaje } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje } from "@/lib/formato";
 import { avance, nombreMes } from "@/domain/dashboard";
 import { ChipAlerta } from "@/components/ui";
 import { TarjetaEnlace } from "@/components/tarjeta";
@@ -122,7 +122,7 @@ export default async function InicioPage() {
               <div className="flex flex-wrap items-center gap-x-3">
                 <span className="num text-apagado">{i.hora}</span>
                 <Link href={`/contactos/${i.contacto.id}`} className="font-semibold text-tinta">
-                  {i.contacto.nombre} {i.contacto.apellido}
+                  {nombreContacto(i.contacto)}
                 </Link>
                 <Telefono telefono={i.contacto.telefono} />
               </div>
