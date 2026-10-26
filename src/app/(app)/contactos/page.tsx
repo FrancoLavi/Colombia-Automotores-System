@@ -86,8 +86,14 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
         {contactos.map((c) => {
           const atrasado = c.proximoContacto && c.proximoContacto <= hoy;
           return (
-            <article key={c.id} className="tarjeta flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-              <div className="flex min-w-48 flex-1 flex-col gap-1">
+            // Grilla de columnas fijas en escritorio: si cada fila se midiera por su propio
+            // contenido, el teléfono y lo demás quedarían en una x distinta en cada fila.
+            // En celular se apila, que es como conviene a lo ancho de un teléfono.
+            <article
+              key={c.id}
+              className="tarjeta grid items-center gap-x-6 gap-y-2 px-4 py-3 md:grid-cols-[minmax(11rem,1.2fr)_9.5rem_minmax(12rem,1.6fr)_10rem]"
+            >
+              <div className="flex flex-col gap-1">
                 <Link href={`/contactos/${c.id}`} className="font-semibold text-tinta">
                   {nombreContacto(c)}
                 </Link>
@@ -96,10 +102,10 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                   <ChipOrigen origen={c.origen} />
                 </div>
               </div>
-              <div className="min-w-40 text-sm">
+              <div className="text-sm">
                 <Telefono telefono={c.telefono} />
               </div>
-              <div className="min-w-48 flex-1 text-sm text-suave">
+              <div className="text-sm text-suave">
                 {c.productoInteres ?? "—"}
                 {c.usadoAEntregar && <span> · entrega {c.usadoAEntregar}</span>}
                 {c.calificacionMonto && (
@@ -110,7 +116,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                   </span>
                 )}
               </div>
-              <div className={`text-sm ${atrasado ? "font-semibold text-aviso-texto" : "text-apagado"}`}>
+              <div className={`text-sm md:text-right ${atrasado ? "font-semibold text-aviso-texto" : "text-apagado"}`}>
                 {c.proximoContacto ? `Contactar ${c.proximoContacto === hoy ? "hoy" : fecha(c.proximoContacto)}` : ""}
               </div>
             </article>
