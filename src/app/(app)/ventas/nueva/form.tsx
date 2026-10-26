@@ -1,5 +1,6 @@
 "use client";
 
+import { nombreContacto } from "@/lib/formato";
 import Link from "next/link";
 import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { useActionState, useMemo, useState } from "react";
@@ -54,7 +55,7 @@ export function FormNuevaVenta({
             <option value="">Elegí…</option>
             {visibles.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nombre} {c.apellido ?? ""} {c.telefono ? `· ${c.telefono}` : ""} ({ETIQUETA_ETAPA[c.etapa].toLowerCase()})
+                {nombreContacto(c)} {c.telefono ? `· ${c.telefono}` : ""} ({ETIQUETA_ETAPA[c.etapa].toLowerCase()})
               </option>
             ))}
           </select>

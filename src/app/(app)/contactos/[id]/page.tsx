@@ -6,7 +6,7 @@ import { fichaContacto } from "@/server/contactos";
 import { marcasUsadas } from "@/server/vehiculos";
 import { operacionesDeContacto } from "@/server/ventas";
 import { ChipOperacion } from "../../ventas/chip";
-import { fecha } from "@/lib/formato";
+import { nombreContacto, fecha } from "@/lib/formato";
 import { describirPedido, ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { ChipEstado } from "@/components/ui";
 import { ChipEtapa, ChipOrigen, Telefono } from "../chips";
@@ -38,7 +38,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
             <ChipOrigen origen={c.origen} />
           </div>
           <h1 className="text-2xl font-bold sm:text-3xl">
-            {c.nombre} {c.apellido}
+            {nombreContacto(c)}
           </h1>
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-suave">
             <Telefono telefono={c.telefono} />

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { contarAgenda, listarContactos, pedidosAbiertos } from "@/server/contactos";
-import { fecha, hoyIso } from "@/lib/formato";
+import { nombreContacto, fecha, hoyIso } from "@/lib/formato";
 import { ETIQUETA_ETAPA, ETIQUETA_ORIGEN, type Etapa, type Origen } from "@/domain/contactos";
 import { FormContacto } from "./formularios";
 import { ChipEtapa, ChipOrigen, Telefono } from "./chips";
@@ -89,7 +89,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
             <article key={c.id} className="tarjeta flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
               <div className="flex min-w-48 flex-1 flex-col gap-1">
                 <Link href={`/contactos/${c.id}`} className="font-semibold text-tinta">
-                  {c.nombre} {c.apellido}
+                  {nombreContacto(c)}
                 </Link>
                 <div className="flex flex-wrap gap-1.5">
                   <ChipEtapa etapa={c.etapa} />
