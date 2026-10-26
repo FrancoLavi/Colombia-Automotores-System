@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FilaImportacion } from "@/server/importar-stock";
 import type { Resultado } from "@/lib/form";
+import { Bandera } from "@/components/banderas";
 import { Mensaje } from "@/components/ui";
 import { hoyIso, pesos } from "@/lib/formato";
 import { interpretarImporte } from "@/domain/importar";
@@ -145,9 +146,10 @@ export function Importador({ participes, tcHoy }: { participes: Participe[]; tcH
                       }}
                       className="min-h-11 w-28 rounded-lg border border-[#c9c5ba] px-2 font-mono"
                     />
+                    <Bandera moneda={f.moneda} className="self-center" />
                     <select aria-label="Moneda del costo" value={f.moneda} onChange={(e) => cambiar(i, { moneda: e.target.value as "ARS" | "USD" })} className="min-h-11 rounded-lg border border-[#c9c5ba] px-1">
                       <option value="USD">USD</option>
-                      <option value="ARS">$</option>
+                      <option value="ARS">ARS</option>
                     </select>
                   </div>
                 </td>
