@@ -255,7 +255,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             <details>
               <summary className="btn-secundario cursor-pointer list-none">+ Tomar usado en parte de pago</summary>
               <div className="mt-3">
-                <FormPermuta id={id} participes={participes} financistaDefecto={v.participeId} tcSugerido={f.tcRef} />
+                <FormPermuta id={id} participes={participes} financistaDefecto={v.participeId} tcSugerido={f.tcRef} usado={{ marca: c.usadoMarca, modelo: c.usadoModelo, anio: c.usadoAnio, detalle: c.usadoAEntregar }} />
               </div>
             </details>
           </div>
