@@ -221,7 +221,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
                   <img src={`/api/archivos/${x.id}`} alt={x.nombre ?? "Foto del peritaje"} className="aspect-[4/3] w-full rounded-lg object-cover" />
                 </a>
                 <span className="absolute right-0 top-0 rounded-lg bg-superficie/90">
-                  <BotonQuitar etiqueta="Quitar foto" accion={quitarArchivoAccion.bind(null, id, x.id)} />
+                  <BotonQuitar etiqueta="Quitar foto" accion={quitarArchivoAccion.bind(null, id, x.id)} soloIcono />
                 </span>
               </div>
             ))}
