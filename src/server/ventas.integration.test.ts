@@ -51,7 +51,9 @@ describe("venta completa: seña + permuta + crédito + efectivo", () => {
     expect(f.v.estado).toBe("VENDIDO");
     expect(f.contacto.etapa).toBe("CLIENTE");
     expect(f.liquidacion).toMatchObject({ regla: "INVERSOR_BASE", costo: 11_000_000, ganancia: 1_900_000, parteInversor: 825_000, parteSalon: 1_075_000, costoUsd: 7_333.33 });
-    expect(f.distribuciones.map((d) => d.d.importe).sort()).toEqual([1_075_000, 825_000]);
+    // K10: además del reparto R3, al inversor se le devuelven los 10 M que puso.
+    expect(f.distribuciones.map((d) => d.d.importe).sort()).toEqual([10_000_000, 1_075_000, 825_000]);
+    expect(f.distribuciones.filter((d) => d.d.tipo === "CAPITAL").map((d) => d.d.importe)).toEqual([10_000_000]);
     const ctas = await db.select().from(s.cuentasPendientes).where(eq(s.cuentasPendientes.operacionId, op));
     expect(ctas).toHaveLength(1);
     expect(ctas[0]).toMatchObject({ tipo: "A_COBRAR", origen: "CREDITO_BANCARIO", saldo: 3_000_000 });

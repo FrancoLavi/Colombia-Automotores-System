@@ -7,6 +7,7 @@ import { datosFormulario } from "@/server/vehiculos";
 import { nombreContacto, fecha, porcentaje, usd } from "@/lib/formato";
 import { ETIQUETA_PAGO, ABIERTAS, CONCEPTOS_GASTO_VENTA } from "@/domain/ventas";
 import { alarmaEntrega, diaArgentina, horaArgentina } from "@/domain/entregas";
+import { capitalDelInversor } from "@/domain/caja";
 import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
 import { Telefono } from "../../contactos/chips";
 import { ChipOperacion } from "../chip";
@@ -50,6 +51,8 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
   const pendientes = f.pagos.filter((x) => x.p.estado === "PENDIENTE" && x.p.tipo !== "PERMUTA");
   const aCobrar = pendientes.reduce((s, x) => s + x.p.importe, 0);
   const l = f.liquidacion ?? f.prevista;
+  // K10: al cerrar, al inversor se le devuelve el capital que puso además de su parte (R3).
+  const capital = capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: f.financista?.tipo ?? "SALON", valorCompraArs: v.valorCompraArs });
   const pctCaja = f.total ? (f.cobertura.caja / f.total) * 100 : 0;
   const pctCobrar = f.total ? (f.cobertura.aCobrar / f.total) * 100 : 0;
   const pctPermuta = f.total ? (f.cobertura.permuta / f.total) * 100 : 0;
@@ -274,6 +277,15 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           </div>
           <div className="flex min-w-72 flex-1 flex-col gap-2.5">
             <h2 className="text-lg font-semibold">Reparto</h2>
+            {/* K10: al inversor se le devuelve el capital que puso, además de su parte. */}
+            {capital !== 0 && (
+              <div className="flex justify-between gap-3 rounded-lg bg-info-fondo p-3.5">
+                <span>
+                  <b>{f.financista?.nombre}</b> · capital que puso
+                </span>
+                <span className="num">{m(capital)}</span>
+              </div>
+            )}
             {l.regla !== "SALON_TOTAL" && (
               <div className="flex justify-between gap-3 rounded-lg bg-info-fondo p-3.5">
                 <span>
@@ -290,7 +302,10 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             </div>
             {f.distribuciones.length > 0 && (
               <p className="text-xs text-apagado">
-                {f.distribuciones.map((d) => `${d.participe}: ${d.d.estado === "PAGADO" ? "pagado" : "pendiente de pago"}`).join(" · ")} — se paga desde Caja.
+                {f.distribuciones
+                  .map((d) => `${d.participe} (${d.d.tipo === "CAPITAL" ? "capital" : "ganancia"}): ${d.d.estado === "PAGADO" ? "pagado" : "pendiente de pago"}`)
+                  .join(" · ")}{" "}
+                — se paga desde Caja.
               </p>
             )}
             {f.usd && (

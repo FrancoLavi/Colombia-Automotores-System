@@ -3,7 +3,22 @@ import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { r2 } from "@/domain/negocio";
-import { cuentaEnPatrimonio, esManual, exigePersona, saldos, ETIQUETA_CATEGORIA, MANUALES, PIDEN_PERSONA, type CategoriaManual, type Medio, type Sentido } from "@/domain/caja";
+import {
+  cajaDelSalon,
+  capitalDelInversor,
+  cuentaEnPatrimonio,
+  esManual,
+  exigePersona,
+  patrimonioSalon,
+  patrimonioTotal,
+  saldos,
+  ETIQUETA_CATEGORIA,
+  MANUALES,
+  PIDEN_PERSONA,
+  type CategoriaManual,
+  type Medio,
+  type Sentido,
+} from "@/domain/caja";
 import { numeroOperacion } from "@/domain/ventas";
 import { ErrorNegocio } from "./errores";
 import { cobrarPagoPendiente } from "./ventas";
@@ -96,9 +111,10 @@ export async function anularMovimiento(usuarioId: number, id: number, motivo: st
   });
 }
 
-// ---------- Ganancias por pagar ----------
+// ---------- Lo que queda por pagar de cada venta ----------
 
-export async function gananciasPendientes() {
+/** K5/K10: por venta cerrada, lo que falta pagar: la ganancia de cada uno y el capital del inversor. */
+export async function pendientesPorPagar() {
   const filas = await db
     .select({
       d: s.distribuciones,
@@ -117,7 +133,10 @@ export async function gananciasPendientes() {
   return filas.map((x) => ({ ...x, numero: numeroOperacion(x.operacionId) }));
 }
 
-/** K5: paga (o retira) la parte de una venta. Si la parte es negativa (venta con pérdida), el participe la reintegra. */
+/**
+ * K5/K10: paga lo que quedó de una venta: la ganancia de cada uno o el capital del inversor.
+ * Si la parte es negativa (venta con pérdida), el participe la reintegra.
+ */
 export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio, personaId: number | null = null) {
   await db.transaction(async (t) => {
     const d = await t.query.distribuciones.findFirst({ where: eq(s.distribuciones.id, id) });
@@ -127,14 +146,15 @@ export async function pagarDistribucion(usuarioId: number, id: number, medio: Me
     const liq = (await t.query.liquidaciones.findFirst({ where: eq(s.liquidaciones.id, d.liquidacionId) }))!;
     const op = (await t.query.operaciones.findFirst({ where: eq(s.operaciones.id, liq.operacionId) }))!;
     const reintegro = d.importe < 0;
+    const capital = d.tipo === "CAPITAL";
     const [m] = await t
       .insert(s.movimientosCaja)
       .values({
         sentido: reintegro ? "INGRESO" : "EGRESO",
         medio,
-        categoria: reintegro ? "AJUSTE" : p.tipo === "INVERSOR" ? "PAGO_INVERSOR" : "RETIRO_SOCIO",
+        categoria: reintegro ? "AJUSTE" : capital ? "DEVOLUCION_CAPITAL" : p.tipo === "INVERSOR" ? "PAGO_INVERSOR" : "RETIRO_SOCIO",
         importe: Math.abs(d.importe),
-        concepto: `${reintegro ? "Reintegro de pérdida" : p.tipo === "INVERSOR" ? "Ganancia" : "Retiro ganancia salón"} ${numeroOperacion(op.id)} · ${p.nombre}`,
+        concepto: `${reintegro ? "Reintegro de pérdida" : capital ? "Devolución de capital" : p.tipo === "INVERSOR" ? "Ganancia" : "Retiro ganancia salón"} ${numeroOperacion(op.id)} · ${p.nombre}`,
         operacionId: op.id,
         vehiculoId: op.vehiculoId,
         participeId: p.id,
@@ -146,7 +166,7 @@ export async function pagarDistribucion(usuarioId: number, id: number, medio: Me
     await t.update(s.distribuciones).set({ estado: "PAGADO", movimientoId: m.id }).where(eq(s.distribuciones.id, id));
     await auditar(t, {
       usuarioId, entidad: "operacion", entidadId: op.id, accion: "MODIFICAR",
-      descripcion: `${reintegro ? "Reintegro" : "Pago de ganancia"} a ${p.nombre}: $ ${Math.abs(d.importe).toLocaleString("es-AR")}`,
+      descripcion: `${reintegro ? "Reintegro" : capital ? "Devolución de capital" : "Pago de ganancia"} a ${p.nombre}: $ ${Math.abs(d.importe).toLocaleString("es-AR")}`,
     });
   });
 }
@@ -239,11 +259,13 @@ async function stockConCosto() {
       estado: s.vehiculos.estado,
       tipoIngreso: s.vehiculos.tipoIngreso,
       participeId: s.vehiculos.participeId,
+      financista: s.participes.tipo,
       valorCompraArs: s.vehiculos.valorCompraArs,
       operacionOrigenId: s.vehiculos.operacionOrigenId,
       tcIngreso: s.vehiculos.tcIngreso,
     })
     .from(s.vehiculos)
+    .leftJoin(s.participes, eq(s.participes.id, s.vehiculos.participeId))
     .where(inArray(s.vehiculos.estado, ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"]));
   const ids = autos.map((a) => a.id);
   const gastos = ids.length
@@ -258,7 +280,9 @@ async function stockConCosto() {
   return autos.map((a) => {
     const costo = r2(a.valorCompraArs + (gastos.find((g) => g.vehiculoId === a.id)?.total ?? 0));
     const estadoOperacionOrigen = ops.find((o) => o.id === a.operacionOrigenId)?.estado ?? null;
-    return { ...a, costo, estadoOperacionOrigen, enPatrimonio: cuentaEnPatrimonio({ ...a, costo, estadoOperacionOrigen }) };
+    // K9/K10: del costo, lo que puso el inversor (el valor de compra). El resto lo puso el salon.
+    const capitalInversor = capitalDelInversor({ tipoIngreso: a.tipoIngreso, financista: a.financista ?? "SALON", valorCompraArs: a.valorCompraArs });
+    return { ...a, costo, capitalInversor, estadoOperacionOrigen, enPatrimonio: cuentaEnPatrimonio({ ...a, costo, estadoOperacionOrigen }) };
   });
 }
 
@@ -267,47 +291,76 @@ export async function patrimonio() {
     db.select({ sentido: s.movimientosCaja.sentido, medio: s.movimientosCaja.medio, importe: s.movimientosCaja.importe, anulado: s.movimientosCaja.anulado }).from(s.movimientosCaja),
     stockConCosto(),
     db.select({ tipo: s.cuentasPendientes.tipo, saldo: s.cuentasPendientes.saldo }).from(s.cuentasPendientes).where(eq(s.cuentasPendientes.estado, "ABIERTA")),
-    gananciasPendientes(),
+    pendientesPorPagar(),
   ]);
   const caja = saldos(movs);
   const propios = autos.filter((a) => a.enPatrimonio);
   const stock = r2(propios.reduce((a, x) => a + x.costo, 0));
+  // De ese stock, lo que pusieron los inversores. El resto es del salón: sus propios autos y
+  // los gastos que les puso a los autos ajenos.
+  const capitalInversores = r2(propios.reduce((a, x) => a + x.capitalInversor, 0));
   const aCobrar = r2(cuentas.filter((c) => c.tipo === "A_COBRAR").reduce((a, c) => a + c.saldo, 0));
   const aPagar = r2(cuentas.filter((c) => c.tipo === "A_PAGAR").reduce((a, c) => a + c.saldo, 0));
-  // La parte de los inversores todavía no pagada es plata que se les debe.
-  const aInversores = r2(pendientes.filter((p) => p.participe.tipo === "INVERSOR").reduce((a, p) => a + p.d.importe, 0));
+  // Capital y ganancias de ventas ya cerradas que todavía no se les pagaron: plata que está en
+  // la caja y no es del salón (K11).
+  const deudaInversores = r2(pendientes.filter((p) => p.participe.tipo === "INVERSOR").reduce((a, p) => a + p.d.importe, 0));
+  const piezas = { caja: caja.total, stock, capitalInversores, aCobrar, aPagar, deudaInversores };
   return {
     caja,
+    /** K11: de la caja, lo que es del salón. */
+    cajaSalon: cajaDelSalon(caja.total, deudaInversores),
     stock,
+    stockInversores: capitalInversores,
+    stockSalon: r2(stock - capitalInversores),
     autosEnStock: propios.length,
     consignados: autos.filter((a) => a.tipoIngreso === "CONSIGNACION").length,
     aCobrar,
     aPagar,
-    aInversores,
-    total: r2(caja.total + stock + aCobrar - aPagar - aInversores),
+    deudaInversores,
+    /** K3: todo lo que hay, sea del salón o de los inversores. */
+    total: patrimonioTotal(piezas),
+    /** K11: de ese total, lo que es del salón. */
+    salon: patrimonioSalon(piezas),
   };
 }
 
-/** K6: subcaja por inversor (y por el salón con fondos propios). */
+/**
+ * K6: subcaja por inversor (y por el salón con fondos propios).
+ * El inversor ve lo que puso él: el valor de compra de sus autos, sin los gastos que puso el
+ * salón (K9). Los autos del salón, en cambio, valen el costo completo.
+ */
 export async function subcajas() {
   const [participes, autos, dist] = await Promise.all([
     db.select().from(s.participes).where(eq(s.participes.activo, true)).orderBy(asc(s.participes.id)),
     stockConCosto(),
     db
-      .select({ participeId: s.distribuciones.participeId, estado: s.distribuciones.estado, importe: s.distribuciones.importe })
+      .select({
+        participeId: s.distribuciones.participeId,
+        liquidacionId: s.distribuciones.liquidacionId,
+        tipo: s.distribuciones.tipo,
+        estado: s.distribuciones.estado,
+        importe: s.distribuciones.importe,
+      })
       .from(s.distribuciones),
   ]);
   return participes.map((p) => {
-    const suyos = autos.filter((a) => a.enPatrimonio && a.participeId === p.id);
+    const esInversor = p.tipo === "INVERSOR";
+    const suyos = autos
+      .filter((a) => a.enPatrimonio && a.participeId === p.id)
+      .map((a) => ({ ...a, invertido: esInversor ? a.capitalInversor : a.costo }));
     const d = dist.filter((x) => x.participeId === p.id);
+    const pendientes = d.filter((x) => x.estado === "PENDIENTE");
+    const suma = (xs: typeof d) => r2(xs.reduce((a, x) => a + x.importe, 0));
     return {
       participe: p,
       autos: suyos,
-      capital: r2(suyos.reduce((a, x) => a + x.costo, 0)),
-      capitalUsd: r2(suyos.reduce((a, x) => a + x.costo / x.tcIngreso, 0)),
-      pendiente: r2(d.filter((x) => x.estado === "PENDIENTE").reduce((a, x) => a + x.importe, 0)),
-      cobrado: r2(d.filter((x) => x.estado === "PAGADO").reduce((a, x) => a + x.importe, 0)),
-      ventas: d.length,
+      capital: r2(suyos.reduce((a, x) => a + x.invertido, 0)),
+      capitalUsd: r2(suyos.reduce((a, x) => a + x.invertido / x.tcIngreso, 0)),
+      /** K10: capital de autos ya vendidos que todavía no se le devolvió. */
+      capitalPorCobrar: suma(pendientes.filter((x) => x.tipo === "CAPITAL")),
+      pendiente: suma(pendientes.filter((x) => x.tipo === "GANANCIA")),
+      cobrado: suma(d.filter((x) => x.estado === "PAGADO" && x.tipo === "GANANCIA")),
+      ventas: new Set(d.map((x) => x.liquidacionId)).size,
     };
   });
 }

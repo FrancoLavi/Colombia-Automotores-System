@@ -39,7 +39,16 @@ export async function gananciasPagadasPorMes(anio: number) {
     .from(s.distribuciones)
     .innerJoin(s.movimientosCaja, eq(s.movimientosCaja.id, s.distribuciones.movimientoId))
     .innerJoin(s.participes, eq(s.participes.id, s.distribuciones.participeId))
-    .where(and(eq(s.distribuciones.estado, "PAGADO"), eq(s.movimientosCaja.anulado, false), gte(s.movimientosCaja.fecha, desdeTs), lte(s.movimientosCaja.fecha, hastaTs)));
+    .where(
+      and(
+        eq(s.distribuciones.estado, "PAGADO"),
+        // La devolución del capital al inversor (K10) no es ganancia de nadie.
+        eq(s.distribuciones.tipo, "GANANCIA"),
+        eq(s.movimientosCaja.anulado, false),
+        gte(s.movimientosCaja.fecha, desdeTs),
+        lte(s.movimientosCaja.fecha, hastaTs),
+      ),
+    );
   const participes = [...new Map(filas.map((f) => [f.participe.id, f.participe])).values()].sort((a, b) => (a.tipo === "SALON" ? -1 : b.tipo === "SALON" ? 1 : a.nombre.localeCompare(b.nombre)));
   const meses = mesesDelAnio(anio).map((periodo) => {
     const delMes = filas.filter((f) => periodoDe(f.fecha) === periodo);

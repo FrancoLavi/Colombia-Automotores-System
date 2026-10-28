@@ -72,6 +72,30 @@ export function liquidar(input: {
   return { regla: "INVERSOR_MITADES", costo, precio, ganancia, gananciaBase, sobreprecio, parteInversor, parteSalon: r2(ganancia - parteInversor) };
 }
 
+export interface DeudaVenta {
+  /** CAPITAL: la plata que puso el inversor. GANANCIA: la parte del reparto (R3). */
+  tipo: "CAPITAL" | "GANANCIA";
+  destino: TipoParticipe;
+  importe: number;
+}
+
+/**
+ * K10: lo que queda por pagar al cerrar la venta.
+ * Al inversor se le devuelve el capital que puso —el valor de compra del auto, sin los gastos,
+ * que los puso el salón (K9)— además de su parte de la ganancia (R3). Si la venta dio pérdida,
+ * su parte es negativa y la reintegra: cobra el capital menos su mitad de la pérdida.
+ */
+export function deudasPorVenta(l: Liquidacion, input: { financista: TipoParticipe; capitalInversor: number }): DeudaVenta[] {
+  const deudas: DeudaVenta[] = [];
+  if (input.financista === "INVERSOR") {
+    const capital = r2(input.capitalInversor);
+    if (capital > 0) deudas.push({ tipo: "CAPITAL", destino: "INVERSOR", importe: capital });
+    if (l.parteInversor !== 0) deudas.push({ tipo: "GANANCIA", destino: "INVERSOR", importe: l.parteInversor });
+  }
+  if (l.parteSalon !== 0) deudas.push({ tipo: "GANANCIA", destino: "SALON", importe: l.parteSalon });
+  return deudas;
+}
+
 /**
  * R5: margen en dólares (informativo). El costo en USD usa el TC fijado al ingreso (V7);
  * el precio se convierte con el blue de hoy (o el de la venta).

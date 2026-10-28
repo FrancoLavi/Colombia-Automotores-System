@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
-import { gananciasPendientes, movimientos } from "@/server/caja";
+import { movimientos, patrimonio, pendientesPorPagar } from "@/server/caja";
 import { datosFormulario } from "@/server/vehiculos";
 import { listarPersonas } from "@/server/configuracion";
 import { fecha, hoyIso } from "@/lib/formato";
@@ -20,10 +20,11 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
   const hoy = hoyIso();
   const desde = sp.desde ?? `${hoy.slice(0, 8)}01`;
   const hasta = sp.hasta ?? hoy;
-  const [{ m }, mov, pendientes, { participes }, personas] = await Promise.all([
+  const [{ m }, mov, pendientes, p, { participes }, personas] = await Promise.all([
     vistaMoneda(),
     movimientos({ desde, hasta, medio: sp.medio as Medio | undefined, categoria: sp.categoria, q: sp.q }),
-    gananciasPendientes(),
+    pendientesPorPagar(),
+    patrimonio(),
     datosFormulario(),
     listarPersonas(true),
   ]);
@@ -42,22 +43,33 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
         <IlustracionCaja className="hidden h-24 w-auto sm:block" />
       </header>
 
-      <section aria-label="Saldos" className="grid gap-4 sm:grid-cols-3">
+      <section aria-label="Saldos" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { t: "Efectivo", v: mov.saldos.efectivo },
-          { t: "Banco", v: mov.saldos.banco },
-          { t: "Total líquido", v: mov.saldos.total },
+          { t: "Efectivo", v: mov.saldos.efectivo, pie: null },
+          { t: "Banco", v: mov.saldos.banco, pie: null },
+          { t: "Total en caja", v: mov.saldos.total, pie: "Toda la plata que hay" },
         ].map((x) => (
           <div key={x.t} className="tarjeta flex flex-col gap-1.5">
             <span className="text-xs font-semibold uppercase tracking-wider text-apagado">{x.t}</span>
             <span className={`num text-3xl ${x.v < 0 ? "text-aviso-texto" : ""}`}>{m(x.v)}</span>
+            {x.pie && <span className="text-[13px] text-apagado">{x.pie}</span>}
           </div>
         ))}
+        {/* K11: de la plata que hay, la que es del salón. El resto se les debe a los inversores. */}
+        <div className="tarjeta flex flex-col gap-1.5 border-tinta">
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Del salón</span>
+          <span className={`num text-3xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</span>
+          <span className="text-[13px] text-apagado">
+            {p.deudaInversores === 0 ? "No se le debe nada a los inversores" : `${m(p.deudaInversores)} son de los inversores`}
+          </span>
+        </div>
       </section>
 
       <section className="tarjeta flex flex-col">
-        <h2 className="pb-2 text-lg font-semibold">Ganancias pendientes de pago</h2>
-        {pendientes.length === 0 && <p className="text-sm text-apagado">No hay ganancias pendientes. Se generan al cerrar cada venta.</p>}
+        <h2 className="pb-2 text-lg font-semibold">Pendiente de pagar por ventas cerradas</h2>
+        {pendientes.length === 0 && (
+          <p className="text-sm text-apagado">No hay nada pendiente. Al cerrar una venta queda la ganancia de cada uno y, si el auto era de un inversor, su capital.</p>
+        )}
         {pendientes.map((g) => (
           <div key={g.d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-linea py-2.5 text-sm">
             <span className="min-w-48">
@@ -69,9 +81,17 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
                 {g.auto.marca} {g.auto.modelo} {g.auto.anio}
               </span>
             </span>
-            <span className={`num ${g.d.importe < 0 ? "text-aviso-texto" : ""}`}>{m(g.d.importe)}</span>
+            <span className="flex items-center gap-2">
+              <span className="rounded-full bg-panel px-2 py-0.5 text-xs font-semibold text-apagado">{g.d.tipo === "CAPITAL" ? "Capital" : "Ganancia"}</span>
+              <span className={`num ${g.d.importe < 0 ? "text-aviso-texto" : ""}`}>{m(g.d.importe)}</span>
+            </span>
             <div className="w-full">
-              <FormPagarGanancia id={g.d.id} importe={g.d.importe} etiqueta={g.participe.tipo === "INVERSOR" ? "Pagar" : "Retirar"} socios={g.participe.tipo === "SALON" ? socios : undefined} />
+              <FormPagarGanancia
+                id={g.d.id}
+                importe={g.d.importe}
+                etiqueta={g.d.tipo === "CAPITAL" ? "Devolver" : g.participe.tipo === "INVERSOR" ? "Pagar" : "Retirar"}
+                socios={g.participe.tipo === "SALON" ? socios : undefined}
+              />
             </div>
           </div>
         ))}

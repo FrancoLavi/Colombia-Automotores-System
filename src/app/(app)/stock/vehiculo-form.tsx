@@ -67,6 +67,11 @@ export function VehiculoForm({
   const [pagoModo, setPagoModo] = useState("PAGADO");
   const [prendado, setPrendado] = useState(inicial?.prendado ?? false);
   const salon = participes.find((p) => p.tipo === "SALON");
+  const [financistaId, setFinancistaId] = useState(
+    String(inicial?.participeId ?? participes.find((p) => p.tipo === "INVERSOR")?.id ?? salon?.id ?? ""),
+  );
+  // K9: si el auto lo financia un inversor, la compra la paga él y no pasa por la caja del salón.
+  const financiaInversor = tipo !== "CONSIGNACION" && participes.find((x) => String(x.id) === financistaId)?.tipo === "INVERSOR";
 
   const nValor = interpretarImporte(valor) ?? 0;
   const nTc = interpretarImporte(tc) ?? 0;
@@ -100,7 +105,7 @@ export function VehiculoForm({
                 <input type="hidden" name="participeId" value={salon?.id ?? ""} />
               </>
             ) : (
-              <select name="participeId" defaultValue={inicial?.participeId ?? participes.find((p) => p.tipo === "INVERSOR")?.id ?? salon?.id}>
+              <select name="participeId" value={financistaId} onChange={(e) => setFinancistaId(e.target.value)}>
                 {participes.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nombre}
@@ -228,7 +233,13 @@ export function VehiculoForm({
           </p>
         )}
 
-        {esNuevo && tipo === "COMPRA" && (
+        {esNuevo && tipo === "COMPRA" && financiaInversor && (
+          <p className="border-t border-linea pt-4 text-sm text-suave">
+            La compra la paga el inversor directo al vendedor: <b>no sale de la caja del salón</b> ni queda como deuda. Cuando el auto se venda se le devuelve lo
+            que puso, más su parte de la ganancia. Los gastos del auto (chapa, alistaje) sí los pone el salón y los recupera al vender.
+          </p>
+        )}
+        {esNuevo && tipo === "COMPRA" && !financiaInversor && (
           <div className="grid gap-4 border-t border-linea pt-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className="campo">
               Pago al vendedor
