@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { FormFiltros } from "@/components/filtros";
 import { listarBancosActivos } from "@/server/configuracion";
 import { marcasUsadas } from "@/server/vehiculos";
 import { vistaMoneda } from "@/lib/moneda";
@@ -71,7 +72,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
         ))}
       </nav>
 
-      <form method="get" className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <FormFiltros className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         {sp.etapa && <input type="hidden" name="etapa" value={sp.etapa} />}
         <label className="campo lg:col-span-2">
           Buscar
@@ -124,7 +125,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
             </Link>
           )}
         </div>
-      </form>
+      </FormFiltros>
 
       <section className="flex flex-col gap-2.5" aria-label="Listado de contactos">
         {contactos.length === 0 && <p className="tarjeta text-suave">No hay contactos con estos filtros.</p>}

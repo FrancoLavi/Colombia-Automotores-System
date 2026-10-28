@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { FilaEnlace, FormFiltros } from "@/components/filtros";
 import { Vacio } from "@/components/ilustraciones";
 import { vistaMoneda } from "@/lib/moneda";
 import { listarStock } from "@/server/vehiculos";
@@ -63,7 +64,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <form className="tarjeta grid gap-3.5 p-4 sm:grid-cols-2 lg:grid-cols-6" method="get">
+      <FormFiltros className="tarjeta grid gap-3.5 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <label className="campo lg:col-span-2">
           Buscar
           <input type="search" name="q" defaultValue={sp.q} placeholder="Patente, marca o modelo" />
@@ -107,7 +108,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
           </label>
           <button className="btn-secundario">Filtrar</button>
         </div>
-      </form>
+      </FormFiltros>
 
       <section className="tarjeta overflow-x-auto p-0">
         {vehiculos.length === 0 ? (
@@ -133,7 +134,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
             </thead>
             <tbody>
               {vehiculos.map((v) => (
-                <tr key={v.id}>
+                <FilaEnlace key={v.id} href={`/stock/${v.id}`}>
                   <td>
                     <Link href={`/stock/${v.id}`} className="num font-medium">
                       {v.dominio ?? "Sin patente"}
@@ -166,7 +167,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                       ))}
                     </div>
                   </td>
-                </tr>
+                </FilaEnlace>
               ))}
             </tbody>
           </table>

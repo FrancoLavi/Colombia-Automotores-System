@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { FilaEnlace } from "@/components/filtros";
 import { Vacio } from "@/components/ilustraciones";
 import { vistaMoneda } from "@/lib/moneda";
 import { listarOperaciones } from "@/server/ventas";
@@ -75,7 +76,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
               {operaciones.map((o) => {
                 const pct = Math.min(100, Math.round((o.cobertura.cubierto / o.total) * 100));
                 return (
-                  <tr key={o.op.id}>
+                  <FilaEnlace key={o.op.id} href={`/ventas/${o.op.id}`}>
                     <td>
                       <Link href={`/ventas/${o.op.id}`} className="num font-medium">
                         {o.numero}
@@ -109,7 +110,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                       )}
                       {o.op.estado === "CAIDA" && o.op.motivoCaida}
                     </td>
-                  </tr>
+                  </FilaEnlace>
                 );
               })}
             </tbody>
