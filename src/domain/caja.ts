@@ -1,5 +1,5 @@
-// Reglas de caja y patrimonio. Ver docs/MVP.md (K1–K6).
-import { r2 } from "./negocio";
+// Reglas de caja y patrimonio. Ver docs/MVP.md (K1–K11).
+import { patrimonio, r2, type TipoIngreso, type TipoParticipe } from "./negocio";
 
 export type Medio = "EFECTIVO" | "BANCO";
 export type Sentido = "INGRESO" | "EGRESO";
@@ -16,6 +16,7 @@ export const ETIQUETA_CATEGORIA: Record<string, string> = {
   GASTO_EXTRAORDINARIO: "Gasto extraordinario",
   RETIRO_SOCIO: "Retiro de ganancia",
   PAGO_INVERSOR: "Pago a inversor",
+  DEVOLUCION_CAPITAL: "Devolución de capital",
   APORTE: "Aporte de capital",
   INGRESO_EXTRAORDINARIO: "Ingreso extraordinario",
   PAGO_CUENTA: "Pago de cuenta",
@@ -80,4 +81,48 @@ export function cuentaEnPatrimonio(a: AutoPatrimonio): boolean {
 
 export function valorStock(autos: AutoPatrimonio[]) {
   return r2(autos.filter(cuentaEnPatrimonio).reduce((s, a) => s + a.costo, 0));
+}
+
+// ---------- La plata de los inversores (K9–K11) ----------
+
+/**
+ * K9: la compra de un auto que financia un inversor la paga el inversor directo al vendedor,
+ * así que no sale de la caja del salón ni le queda como deuda.
+ * Los gastos del auto (R1) sí los pone el salón, y los recupera al vender: el capital que se
+ * le devuelve al inversor es solo lo que puso él (K10).
+ */
+export function compraSaleDeCaja(a: { tipoIngreso: TipoIngreso; financista: TipoParticipe }): boolean {
+  return a.tipoIngreso === "COMPRA" && a.financista === "SALON";
+}
+
+export interface PiezasPatrimonio {
+  /** Toda la plata que hay: efectivo + banco, sea de quien sea. */
+  caja: number;
+  /** Todo el stock propio, al costo (compra + gastos). */
+  stock: number;
+  /** De ese stock, lo que pusieron los inversores: el valor de compra de sus autos, sin gastos. */
+  capitalInversores: number;
+  aCobrar: number;
+  aPagar: number;
+  /** Capital y ganancias de ventas ya cerradas que todavía no se les pagaron a los inversores. */
+  deudaInversores: number;
+}
+
+/** K3: patrimonio total = todo lo que hay, sea del salón o de los inversores. */
+export function patrimonioTotal(p: PiezasPatrimonio): number {
+  return patrimonio({ caja: p.caja, stockAlCosto: p.stock, aCobrar: p.aCobrar, aPagar: p.aPagar });
+}
+
+/** K11: del total, lo que es del salón: se le descuenta todo lo que es de los inversores. */
+export function patrimonioSalon(p: PiezasPatrimonio): number {
+  return r2(patrimonioTotal(p) - p.capitalInversores - p.deudaInversores);
+}
+
+/**
+ * K11: la caja del salón. La caja guarda plata que no es suya: lo que se les debe a los
+ * inversores por autos ya vendidos. Mientras el auto está en stock su capital no se descuenta
+ * de la caja, porque no está en la caja: está en el auto.
+ */
+export function cajaDelSalon(cajaTotal: number, deudaInversores: number): number {
+  return r2(cajaTotal - deudaInversores);
 }

@@ -62,3 +62,59 @@ describe("vista en dólares", () => {
     expect(exigePersona("RETIRO_SOCIO")).toBe(false);
   });
 });
+
+import { cajaDelSalon, compraSaleDeCaja, patrimonioSalon, patrimonioTotal } from "./caja";
+
+describe("la plata del inversor no es del salón (K9–K11)", () => {
+  it("la compra sale de caja solo si la financia el salón", () => {
+    expect(compraSaleDeCaja({ tipoIngreso: "COMPRA", financista: "SALON" })).toBe(true);
+    expect(compraSaleDeCaja({ tipoIngreso: "COMPRA", financista: "INVERSOR" })).toBe(false);
+    // La permuta no se paga y la consignación se le paga al dueño recién al vender.
+    expect(compraSaleDeCaja({ tipoIngreso: "PERMUTA", financista: "SALON" })).toBe(false);
+    expect(compraSaleDeCaja({ tipoIngreso: "CONSIGNACION", financista: "SALON" })).toBe(false);
+  });
+
+  /**
+   * El ciclo completo de un auto de inversor, para ver que cierra en cada paso.
+   * El salón arranca con 5.000.000. Juan compra un auto en 10.000.000 pagándolo él,
+   * el salón le pone 500.000 de gastos y se vende en 13.000.000 (R3: Juan 787.500,
+   * salón 1.712.500). El salón tiene que terminar con 5.000.000 + 1.712.500.
+   */
+  it("el ciclo completo de un auto financiado por un inversor cierra", () => {
+    const vacio = { aCobrar: 0, aPagar: 0 };
+
+    const alta = { ...vacio, caja: 5_000_000, stock: 10_000_000, capitalInversores: 10_000_000, deudaInversores: 0 };
+    expect(patrimonioTotal(alta)).toBe(15_000_000);
+    expect(patrimonioSalon(alta)).toBe(5_000_000); // la compra no le movió nada al salón
+    expect(cajaDelSalon(alta.caja, alta.deudaInversores)).toBe(5_000_000);
+
+    // El salón paga 500.000 de gastos: la plata pasa de la caja al auto.
+    const conGastos = { ...alta, caja: 4_500_000, stock: 10_500_000 };
+    expect(patrimonioTotal(conGastos)).toBe(15_000_000);
+    expect(patrimonioSalon(conGastos)).toBe(5_000_000);
+
+    // Se vende en 13.000.000 y se cobra. A Juan se le deben 10.000.000 + 787.500.
+    const vendido = { ...vacio, caja: 17_500_000, stock: 0, capitalInversores: 0, deudaInversores: 10_787_500 };
+    expect(patrimonioTotal(vendido)).toBe(17_500_000);
+    expect(patrimonioSalon(vendido)).toBe(6_712_500);
+    expect(cajaDelSalon(vendido.caja, vendido.deudaInversores)).toBe(6_712_500);
+
+    // Se le paga a Juan: la caja baja pero el salón queda igual, porque esa plata no era suya.
+    const pagado = { ...vendido, caja: 6_712_500, deudaInversores: 0 };
+    expect(patrimonioTotal(pagado)).toBe(6_712_500);
+    expect(patrimonioSalon(pagado)).toBe(6_712_500);
+    expect(patrimonioSalon(pagado) - patrimonioSalon(alta)).toBe(1_712_500); // su parte de R3
+  });
+
+  it("el capital en stock no se descuenta de la caja: está en el auto", () => {
+    const p = { caja: 2_000_000, stock: 10_000_000, capitalInversores: 10_000_000, aCobrar: 0, aPagar: 0, deudaInversores: 0 };
+    expect(cajaDelSalon(p.caja, p.deudaInversores)).toBe(2_000_000);
+    expect(patrimonioSalon(p)).toBe(2_000_000);
+  });
+
+  it("las cuentas abiertas suman y restan al total", () => {
+    const p = { caja: 1_000_000, stock: 0, capitalInversores: 0, aCobrar: 4_000_000, aPagar: 1_500_000, deudaInversores: 500_000 };
+    expect(patrimonioTotal(p)).toBe(3_500_000);
+    expect(patrimonioSalon(p)).toBe(3_000_000);
+  });
+});
