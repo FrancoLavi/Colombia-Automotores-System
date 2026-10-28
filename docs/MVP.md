@@ -140,6 +140,12 @@ Facturación electrónica (AFIP) · publicación en portales y redes · sucursal
 - Importes en `numeric(14,2)`; nunca en float.
 - Backups diarios (Supabase).
 - Interfaz en español (es-AR), formato `$ 1.234.567` y fechas `dd/mm/aaaa`. El nombre del contacto se **muestra** en mayúsculas; se guarda tal cual se escribió.
+- **Usabilidad** (heurísticas de Nielsen):
+  - Toda acción que **no se puede deshacer** (cerrar o dar de baja una venta, registrar la entrega, pagar o retirar una ganancia, dar de baja o rechazar un auto, quitar un pago o un gasto) pide **confirmación** en un diálogo que explica qué va a pasar. El foco arranca en "Cancelar".
+  - **Búsqueda global** con Ctrl+K (o "/"): autos por patente, marca o modelo; contactos por nombre o teléfono; ventas por número, cliente o modelo. No distingue tildes ni mayúsculas. Incluye accesos rápidos a las tareas más comunes.
+  - Los **filtros** de los listados se aplican solos al cambiarlos, y las filas de Stock y Ventas se abren con un clic en cualquier parte.
+  - Al navegar se ve una barra de carga; si una pantalla falla o un registro no existe, se explica en criollo y se ofrece reintentar o volver.
+  - Los términos del negocio que no son obvios (precio sugerido, margen en USD, ganancia base, sobreprecio) tienen una **ayuda** al lado.
 - **Tema claro y oscuro**, a elección de cada usuario desde Configuración → Mi cuenta. Es preferencia personal: va en cookie, no en la base, y no se audita.
 - El esquema de la base **no se expone** por la API REST de Supabase: RLS activado en todas las tablas y sin permisos para los roles públicos. La app entra directo a Postgres. Ver `AGENTS.md` → Producción.
 
