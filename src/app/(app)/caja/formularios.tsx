@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
@@ -159,9 +160,14 @@ export function FormPagarGanancia({ id, importe, etiqueta, socios }: { id: numbe
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>
       </select>
-      <BotonEnviar className="btn-secundario" pendiente="…">
+      <BotonConfirmar
+        className="btn-secundario"
+        pendiente="…"
+        titulo={importe < 0 ? `¿Registrar el reintegro de ${pesos(-importe)}?` : `¿${etiqueta} ${pesos(importe)}?`}
+        detalle={importe < 0 ? "La pérdida que le toca al inversor entra a la caja." : "Sale de la caja por el medio elegido y la ganancia queda marcada como pagada."}
+      >
         {importe < 0 ? "Registrar reintegro" : etiqueta}
-      </BotonEnviar>
+      </BotonConfirmar>
       {r.error && <span className="w-full text-right text-xs text-aviso-texto">{r.error}</span>}
     </form>
   );

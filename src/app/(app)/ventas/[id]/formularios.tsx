@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { Bandera } from "@/components/banderas";
@@ -229,7 +230,24 @@ export function FormCerrar({ id, tcSugerido, faltantes }: { id: number; tcSugeri
           Dólar blue de hoy (referencia)
           <InputMoneda name="tcVenta" defaultValue={tcSugerido} />
         </label>
-        <BotonEnviar pendiente="Cerrando…">Cerrar venta</BotonEnviar>
+        {faltantes.length > 0 ? (
+          <button type="button" className="btn-primario" disabled title="Primero completá lo que falta (abajo)">
+            Cerrar venta
+          </button>
+        ) : (
+          <BotonConfirmar
+            pendiente="Cerrando…"
+            titulo="¿Cerrar la venta?"
+            detalle={
+              <>
+                <p>Se congela la liquidación: la ganancia y el reparto ya no cambian, aunque después aparezcan gastos.</p>
+                <p>El auto pasa a vendido y lo que falte cobrar queda en Cuentas pendientes. No se puede deshacer.</p>
+              </>
+            }
+          >
+            Cerrar venta
+          </BotonConfirmar>
+        )}
       </div>
       {faltantes.length > 0 && (
         <ul className="list-disc pl-5 text-sm text-aviso-texto">
@@ -258,7 +276,12 @@ export function FormEntregar({ id, aCobrar }: { id: number; aCobrar: number }) {
           Hora
           <input type="time" name="hora" defaultValue={`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`} />
         </label>
-        <BotonEnviar>Registrar entrega</BotonEnviar>
+        <BotonConfirmar
+          titulo="¿Registrar la entrega?"
+          detalle="Desde la fecha y hora indicadas, multas y patentes corren por cuenta del comprador. La operación queda entregada."
+        >
+          Registrar entrega
+        </BotonConfirmar>
       </div>
       <p className="text-xs text-apagado">Desde esta fecha y hora, multas y patentes corren por cuenta del comprador.</p>
       <Mensaje r={r} />
@@ -296,7 +319,15 @@ export function FormCaer({ id, haySena }: { id: number; haySena: boolean }) {
       <p className="text-xs text-apagado">El auto vuelve a estar disponible y el usado tomado (si había) se da de baja.</p>
       <Mensaje r={r} />
       <div>
-        <BotonEnviar className="btn border border-aviso-texto text-aviso-texto hover:bg-aviso-fondo">Dar de baja la operación</BotonEnviar>
+        <BotonConfirmar
+          peligro
+          className="btn border border-aviso-texto text-aviso-texto hover:bg-aviso-fondo"
+          titulo="¿Dar de baja la operación?"
+          detalle="Se devuelven los cobros (o se retiene la seña, según elegiste), el auto vuelve a disponible y el usado tomado se da de baja. No se puede deshacer."
+          confirmar="Dar de baja"
+        >
+          Dar de baja la operación
+        </BotonConfirmar>
       </div>
     </form>
   );
