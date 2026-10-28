@@ -44,6 +44,13 @@ Una regla de negocio nueva va primero en `src/domain` con su test, después se u
 - **Una migración por vez en el equipo.** Antes de generar, traer `main` actualizado. Si dos ramas generan migraciones en paralelo chocan `drizzle/meta/_journal.json` y los snapshots: en ese caso, descartar la propia, rebasear sobre `main` y regenerar.
 - Nunca apuntar `DATABASE_URL` a la base de producción para desarrollar ni para correr tests.
 
+## Producción (Vercel + Supabase)
+- **La base se conecta por el "Session pooler" de Supabase, puerto 5432.** No usar el "Transaction pooler" (6543) aunque la documentación de Supabase lo recomiende para serverless: esta app manda varias consultas encadenadas por la misma conexión y ese pooler las parte, así que el servidor queda esperando un cierre que nunca llega. **No da error: se cuelga.** El síntoma son pantallas que cargan para siempre, `Vercel Runtime Timeout Error` a los 300 s y, en `pg_stat_activity`, consultas triviales en estado `active` / `ClientRead` durante minutos.
+- Por eso `src/db/index.ts` abre **una sola conexión por instancia** (`max: 1`). Sin ese límite, cada instancia de Vercel pide hasta diez y se agotan las del pooler: con el session pooler eso da `EMAXCONNSESSION`. Las dos cosas van juntas; cambiar una sola rompe.
+- Las migraciones contra producción se corren a mano y también por el 5432 (`scripts/migrate.ts`). **Nunca** apuntar `DATABASE_URL` a producción para desarrollar ni para tests.
+- **El esquema `public` está cerrado a la API REST de Supabase**: RLS activado en todas las tablas, sin políticas, y sin permisos para `anon` ni `authenticated`. La app no usa esa API —entra directo a Postgres como `postgres`, que es dueño de las tablas y no queda afectado por RLS—, así que no hay que crear políticas. Si se agrega una tabla nueva, **dejarla cerrada igual**.
+- Los deploys salen solos al mergear a `main`. En el plan Hobby de Vercel, los deploys cuyo autor de commit no sea el dueño de la cuenta quedan bloqueados.
+
 ## Git y equipo
 - Somos 3 (Juani, Lavi, Mati), cada uno con su asistente. Nada directo a `main`: una rama por tarea (`stock/filtros-precio`, `fix/reparto-perdida`, `chore/...`) y PR revisado por otra persona.
 - Preferí tareas dentro de un solo módulo (`stock`, `ventas`, `caja`, `contactos`, `configuracion`) para no pisarse. Si hay que tocar `schema.ts`, `src/lib/` o `src/components/ui.tsx`, avisalo en el PR.

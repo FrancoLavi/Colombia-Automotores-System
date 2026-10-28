@@ -3,7 +3,7 @@
 Sistema web para la gestión de un salón de compra-venta de autos: contactos y agenda, stock, operaciones de venta, caja, patrimonio y reparto de ganancias.
 
 ## Estado
-MVP completo en desarrollo local, listo para publicar (falta conectar Supabase y Vercel).
+**Publicado y funcionando** en Vercel con Supabase. Falta cargar los datos reales del salón (stock, contactos, caja inicial y cuentas pendientes) y empezar a usarlo.
 
 | Módulo | Qué hace |
 |---|---|
