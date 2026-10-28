@@ -4,6 +4,7 @@ import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { hoyIso } from "@/lib/formato";
 import { costoTotal, compraEnPesos, diasEnStock, margenUsd, precioSugerido } from "@/domain/negocio";
+import { compraSaleDeCaja } from "@/domain/caja";
 import {
   alertasVehiculo,
   faltantesParaHabilitar,
@@ -298,8 +299,11 @@ export async function crearVehiculo(usuarioId: number, d: DatosVehiculo, pago: P
 
     await sincronizarPapeles(t, v.id, v.prendado);
 
-    // Pago de la compra (solo COMPRA; la permuta no pasa por caja y la consignación se paga al vender).
-    if (d.tipoIngreso === "COMPRA" && v.valorCompraArs > 0) {
+    // K9: la compra la paga el salón solo si el auto es suyo. El de un inversor lo paga él
+    // directo al vendedor, así que no toca la caja ni queda como deuda del salón. La permuta no
+    // se paga y la consignación se le paga al dueño recién cuando se vende.
+    const financista = (await t.query.participes.findFirst({ where: eq(s.participes.id, participeId) }))!;
+    if (v.valorCompraArs > 0 && compraSaleDeCaja({ tipoIngreso: d.tipoIngreso, financista: financista.tipo })) {
       const etiqueta = `${v.marca} ${v.modelo}${v.dominio ? ` ${v.dominio}` : ""}`;
       if (pago.modo === "PAGADO") {
         await t.insert(s.movimientosCaja).values({

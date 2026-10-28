@@ -47,13 +47,15 @@ export const estadoOperacionEnum = pgEnum("estado_operacion", ["PREVENTA", "SENI
 export const tipoPagoEnum = pgEnum("tipo_pago", ["SENIA", "EFECTIVO", "TRANSFERENCIA", "CREDITO", "PERMUTA", "OTRO"]);
 export const estadoPagoEnum = pgEnum("estado_pago", ["PENDIENTE", "COBRADO", "DEVUELTA", "RETENIDA"]);
 export const estadoDistribucionEnum = pgEnum("estado_distribucion", ["PENDIENTE", "PAGADO"]);
+/** K10: lo que se le debe al inversor por una venta es el capital que puso más su ganancia. */
+export const tipoDistribucionEnum = pgEnum("tipo_distribucion", ["CAPITAL", "GANANCIA"]);
 
 export const sentidoEnum = pgEnum("sentido", ["INGRESO", "EGRESO"]);
 export const medioEnum = pgEnum("medio", ["EFECTIVO", "BANCO"]);
 export const categoriaMovimientoEnum = pgEnum("categoria_movimiento", [
   "COBRO_VENTA", "SENIA", "DEVOLUCION_SENIA", "COBRO_CREDITO",
   "PAGO_COMPRA", "PAGO_CONSIGNANTE", "GASTO_VEHICULO", "GASTO_SALON", "GASTO_EXTRAORDINARIO",
-  "RETIRO_SOCIO", "PAGO_INVERSOR", "APORTE", "INGRESO_EXTRAORDINARIO", "PAGO_CUENTA", "COBRO_CUENTA",
+  "RETIRO_SOCIO", "PAGO_INVERSOR", "DEVOLUCION_CAPITAL", "APORTE", "INGRESO_EXTRAORDINARIO", "PAGO_CUENTA", "COBRO_CUENTA",
   "TRANSFERENCIA_INTERNA", "AJUSTE", "SUELDO",
 ]);
 export const tipoCuentaEnum = pgEnum("tipo_cuenta", ["A_COBRAR", "A_PAGAR"]);
@@ -372,6 +374,7 @@ export const distribuciones = pgTable("distribuciones", {
   id: serial("id").primaryKey(),
   liquidacionId: integer("liquidacion_id").notNull().references(() => liquidaciones.id),
   participeId: integer("participe_id").notNull().references(() => participes.id),
+  tipo: tipoDistribucionEnum("tipo").notNull().default("GANANCIA"),
   importe: pesos("importe").notNull(),
   estado: estadoDistribucionEnum("estado").notNull().default("PENDIENTE"),
   movimientoId: integer("movimiento_id"),

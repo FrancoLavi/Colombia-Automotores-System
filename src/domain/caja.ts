@@ -95,6 +95,15 @@ export function compraSaleDeCaja(a: { tipoIngreso: TipoIngreso; financista: Tipo
   return a.tipoIngreso === "COMPRA" && a.financista === "SALON";
 }
 
+/**
+ * K10: lo que el inversor puso de su bolsillo en un auto, y que hay que devolverle al venderlo:
+ * el valor de compra, sin los gastos (los puso el salón). Una permuta o una consignación no le
+ * costaron nada, así que no hay capital que devolver.
+ */
+export function capitalDelInversor(a: { tipoIngreso: TipoIngreso; financista: TipoParticipe; valorCompraArs: number }): number {
+  return a.tipoIngreso === "COMPRA" && a.financista === "INVERSOR" ? r2(a.valorCompraArs) : 0;
+}
+
 export interface PiezasPatrimonio {
   /** Toda la plata que hay: efectivo + banco, sea de quien sea. */
   caja: number;

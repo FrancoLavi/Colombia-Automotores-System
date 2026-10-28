@@ -43,6 +43,13 @@
       "when": 1793153649194,
       "tag": "0005_cerrar_api_publica",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793228406326,
+      "tag": "0006_capital_inversor",
+      "breakpoints": true
     }
   ]
 }

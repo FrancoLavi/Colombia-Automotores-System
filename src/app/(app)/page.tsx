@@ -77,6 +77,7 @@ export default async function InicioPage() {
           <span className="text-[13px] text-apagado">
             Efectivo {m(t.patrimonio.caja.efectivo)} · Banco {m(t.patrimonio.caja.banco)}
             {t.patrimonio.aCobrar > 0 && ` · a cobrar ${m(t.patrimonio.aCobrar)}`}
+            {t.patrimonio.deudaInversores > 0 && ` · del salón ${m(t.patrimonio.cajaSalon)}`}
           </span>
         </TarjetaEnlace>
         <TarjetaEnlace href="/patrimonio" pie="Ver patrimonio" className="gap-2.5">
@@ -84,6 +85,7 @@ export default async function InicioPage() {
           <span className="num text-3xl">{m(t.patrimonio.total)}</span>
           <span className="text-[13px] text-apagado">
             {t.stock.total} {t.stock.total === 1 ? "auto" : "autos"} en stock · {t.stock.diasPromedio} días promedio
+            {t.patrimonio.total !== t.patrimonio.salon && ` · del salón ${m(t.patrimonio.salon)}`}
           </span>
         </TarjetaEnlace>
       </section>

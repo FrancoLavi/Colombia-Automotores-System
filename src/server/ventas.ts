@@ -3,7 +3,8 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, sql } from "drizzl
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { hoyIso } from "@/lib/formato";
-import { cobertura, costoTotal, liquidar, margenUsd, precioSugerido, r2 } from "@/domain/negocio";
+import { cobertura, costoTotal, deudasPorVenta, liquidar, margenUsd, precioSugerido, r2 } from "@/domain/negocio";
+import { capitalDelInversor } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
 import { ErrorNegocio } from "./errores";
@@ -375,11 +376,21 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
       .returning();
 
     const salon = (await t.query.participes.findFirst({ where: eq(s.participes.tipo, "SALON") }))!;
-    const reparto = [
-      { participeId: financista.id, importe: l.parteInversor, inversor: true },
-      { participeId: salon.id, importe: l.parteSalon, inversor: false },
-    ].filter((x) => x.importe !== 0 && (x.inversor ? financista.tipo === "INVERSOR" : true));
-    if (reparto.length) await t.insert(s.distribuciones).values(reparto.map((x) => ({ liquidacionId: liq.id, participeId: x.participeId, importe: x.importe })));
+    // K10: al inversor se le devuelve el capital que puso (K9) además de su parte de la ganancia.
+    const deudas = deudasPorVenta(l, {
+      financista: financista.tipo,
+      capitalInversor: capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: financista.tipo, valorCompraArs: v.valorCompraArs }),
+    });
+    if (deudas.length) {
+      await t.insert(s.distribuciones).values(
+        deudas.map((x) => ({
+          liquidacionId: liq.id,
+          participeId: x.destino === "INVERSOR" ? financista.id : salon.id,
+          tipo: x.tipo,
+          importe: x.importe,
+        })),
+      );
+    }
 
     // Lo que no entró a caja queda a cobrar (crédito bancario o saldo del cliente). La permuta ya es stock.
     for (const p of pagos) {

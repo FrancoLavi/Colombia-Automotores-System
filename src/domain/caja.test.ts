@@ -63,7 +63,7 @@ describe("vista en dólares", () => {
   });
 });
 
-import { cajaDelSalon, compraSaleDeCaja, patrimonioSalon, patrimonioTotal } from "./caja";
+import { cajaDelSalon, capitalDelInversor, compraSaleDeCaja, patrimonioSalon, patrimonioTotal } from "./caja";
 
 describe("la plata del inversor no es del salón (K9–K11)", () => {
   it("la compra sale de caja solo si la financia el salón", () => {
@@ -72,6 +72,15 @@ describe("la plata del inversor no es del salón (K9–K11)", () => {
     // La permuta no se paga y la consignación se le paga al dueño recién al vender.
     expect(compraSaleDeCaja({ tipoIngreso: "PERMUTA", financista: "SALON" })).toBe(false);
     expect(compraSaleDeCaja({ tipoIngreso: "CONSIGNACION", financista: "SALON" })).toBe(false);
+  });
+
+  it("el capital a devolver es el valor de compra, y solo si el inversor lo compró", () => {
+    const auto = { valorCompraArs: 10_000_000, tipoIngreso: "COMPRA" as const, financista: "INVERSOR" as const };
+    expect(capitalDelInversor(auto)).toBe(10_000_000);
+    expect(capitalDelInversor({ ...auto, financista: "SALON" })).toBe(0);
+    // Una permuta o una consignación no le costaron plata al inversor.
+    expect(capitalDelInversor({ ...auto, tipoIngreso: "PERMUTA" })).toBe(0);
+    expect(capitalDelInversor({ ...auto, tipoIngreso: "CONSIGNACION" })).toBe(0);
   });
 
   /**
