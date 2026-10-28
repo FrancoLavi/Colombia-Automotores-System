@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { db, schema as s } from "@/db";
+import { eq } from "drizzle-orm";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { datosFormulario, fichaVehiculo } from "@/server/vehiculos";
@@ -7,7 +9,7 @@ import { interesadosEnAuto } from "@/server/contactos";
 import { operacionAbiertaDeVehiculo } from "@/server/ventas";
 import { Telefono } from "../../contactos/chips";
 import { nombreContacto, fecha, numero, porcentaje, usd } from "@/lib/formato";
-import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
+import { BotonQuitar, ChipAlerta, ChipEstado, Ayuda } from "@/components/ui";
 import { eliminarGastoAccion, quitarArchivoAccion } from "../actions";
 import {
   AccionesEstado,
@@ -30,6 +32,11 @@ function Fila({ etiqueta, valor, fuerte }: { etiqueta: React.ReactNode; valor: R
       <span className="num text-right">{valor}</span>
     </div>
   );
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const v = await db.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, Number((await params).id)) });
+  return { title: `${v ? `${v.marca} ${v.modelo}${v.dominio ? ` ${v.dominio}` : ""}` : "Auto"} · Colombia Automotores` };
 }
 
 export default async function FichaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -154,12 +161,23 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
 
         <section className="tarjeta flex flex-col">
           <h2 className="pb-2 text-lg font-semibold">Precio</h2>
-          <Fila etiqueta={`Sugerido (costo + ${porcentaje(f.margenBase)})`} valor={m(f.sugerido - v.ajustePrecio)} />
+          <Fila
+            etiqueta={
+              <>
+                Sugerido (costo + {porcentaje(f.margenBase)})
+                <Ayuda>Costo real (compra + gastos, incluido el peritaje) más el margen base que se configura en Configuración. Es en pesos y no se mueve con el dólar.</Ayuda>
+              </>
+            }
+            valor={m(f.sugerido - v.ajustePrecio)}
+          />
           {v.ajustePrecio !== 0 && <Fila etiqueta="Ajuste comercial" valor={`${v.ajustePrecio > 0 ? "+ " : ""}${m(v.ajustePrecio)}`} />}
           <Fila etiqueta="Precio publicado" valor={m(f.precio)} fuerte />
           {f.margen ? (
             <div className={`my-3 flex flex-col gap-1 rounded-lg p-3.5 text-sm ${f.margen.alerta ? "bg-aviso-fondo text-aviso-texto" : "bg-ok-fondo text-ok-texto"}`}>
-              <b>Margen en dólares: {porcentaje(f.margen.margen)}</b>
+              <b>
+                Margen en dólares: {porcentaje(f.margen.margen)}
+                <Ayuda>Cuánto rinde el precio pasado al blue de hoy contra lo invertido al dólar fijado al comprar. Es solo informativo; por debajo del umbral salta una alerta.</Ayuda>
+              </b>
               <span>
                 Con el blue a $ {f.tc!.valor.toLocaleString("es-AR")} ({fecha(f.tc!.fecha)}), el precio rinde {usd(f.margen.ventaUsd)} contra {usd(f.margen.costoUsd)}{" "}
                 invertidos.{f.margen.alerta && " Bajó del umbral de alerta: conviene revisar el precio o priorizar la venta."}

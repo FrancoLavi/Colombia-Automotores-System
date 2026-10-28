@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { db, schema as s } from "@/db";
+import { eq } from "drizzle-orm";
 import { requerirUsuario } from "@/lib/auth";
 import { listarBancosActivos } from "@/server/configuracion";
 import { vistaMoneda } from "@/lib/moneda";
@@ -14,6 +16,11 @@ import { ChipEtapa, ChipOrigen, Telefono } from "../chips";
 import { AccionesEtapa, BotonesPedido, FormActividad, FormCompletar, FormContacto, FormPedido } from "../formularios";
 
 const fechaHora = (d: Date) => d.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const c = await db.query.contactos.findFirst({ where: eq(s.contactos.id, Number((await params).id)) });
+  return { title: `${c ? `${c.nombre} ${c.apellido ?? ""}`.trim() : "Contacto"} · Colombia Automotores` };
+}
 
 export default async function FichaContactoPage({ params }: { params: Promise<{ id: string }> }) {
   await requerirUsuario();

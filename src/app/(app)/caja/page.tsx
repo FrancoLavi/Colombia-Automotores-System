@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { FormFiltros } from "@/components/filtros";
 import { vistaMoneda } from "@/lib/moneda";
 import { gananciasPendientes, movimientos } from "@/server/caja";
 import { datosFormulario } from "@/server/vehiculos";
@@ -54,6 +55,12 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
           </div>
         ))}
       </section>
+      {(mov.saldos.efectivo < 0 || mov.saldos.banco < 0) && (
+        <p role="status" className="-mt-2 rounded-lg bg-aviso-fondo px-4 py-3 text-sm text-aviso-texto">
+          <b>{mov.saldos.efectivo < 0 ? "El efectivo" : "El banco"} da negativo.</b> En la realidad no puede salir más plata de la que hay: casi siempre falta cargar
+          la caja inicial (como ingreso extraordinario) o algún cobro. Revisá los movimientos de abajo.
+        </p>
+      )}
 
       <section className="tarjeta flex flex-col">
         <h2 className="pb-2 text-lg font-semibold">Ganancias pendientes de pago</h2>
@@ -87,7 +94,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
       </details>
 
       <section className="tarjeta flex flex-col gap-3 p-0">
-        <form method="get" className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-6">
+        <FormFiltros className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-6">
           <label className="campo">
             Desde
             <input type="date" name="desde" defaultValue={desde} />
@@ -120,7 +127,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
             <input type="search" name="q" defaultValue={sp.q} placeholder="Concepto" />
           </label>
           <button className="btn-secundario self-end">Filtrar</button>
-        </form>
+        </FormFiltros>
         <div className="flex flex-wrap gap-x-6 gap-y-1 px-4 text-sm">
           <span>
             Ingresos <b className="num text-ok-texto">{m(mov.ingresos)}</b>

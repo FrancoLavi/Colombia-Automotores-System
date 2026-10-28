@@ -5,9 +5,9 @@ import { vistaMoneda } from "@/lib/moneda";
 import { fichaOperacion } from "@/server/ventas";
 import { datosFormulario } from "@/server/vehiculos";
 import { nombreContacto, fecha, porcentaje, usd } from "@/lib/formato";
-import { ETIQUETA_PAGO, ABIERTAS, CONCEPTOS_GASTO_VENTA } from "@/domain/ventas";
+import { ETIQUETA_PAGO, ABIERTAS, CONCEPTOS_GASTO_VENTA, numeroOperacion } from "@/domain/ventas";
 import { alarmaEntrega, diaArgentina, horaArgentina } from "@/domain/entregas";
-import { BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
+import { Ayuda, BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
 import { Telefono } from "../../contactos/chips";
 import { ChipOperacion } from "../chip";
 import { quitarGastoVentaAccion, quitarPagoAccion } from "../actions";
@@ -35,6 +35,10 @@ function Fila({ etiqueta, valor, fuerte }: { etiqueta: React.ReactNode; valor: R
       <span className="num text-right">{valor}</span>
     </div>
   );
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  return { title: `Venta ${numeroOperacion(Number((await params).id))} · Colombia Automotores` };
 }
 
 export default async function OperacionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -269,8 +273,24 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             <Fila etiqueta="Precio de venta" valor={m(l.precio)} />
             <Fila etiqueta="Costo real del auto" valor={`− ${m(l.costo)}`} />
             <Fila etiqueta="Ganancia" valor={m(l.ganancia)} fuerte />
-            <Fila etiqueta={`Ganancia base (${porcentaje(l.costo ? l.gananciaBase / l.costo : 0)} del costo)`} valor={m(l.gananciaBase)} />
-            <Fila etiqueta="Sobreprecio" valor={m(l.sobreprecio)} />
+            <Fila
+              etiqueta={
+                <>
+                  Ganancia base ({porcentaje(l.costo ? l.gananciaBase / l.costo : 0)} del costo)
+                  <Ayuda>Lo que se espera ganar con el margen base sobre el costo. Si la venta llega a esto, el inversor cobra la mitad de la base y el salón el resto; si no llega, se reparte mitad y mitad.</Ayuda>
+                </>
+              }
+              valor={m(l.gananciaBase)}
+            />
+            <Fila
+              etiqueta={
+                <>
+                  Sobreprecio
+                  <Ayuda>Lo que se vendió por encima del precio sugerido. Cuando el auto lo financia un inversor, el sobreprecio es todo para el salón.</Ayuda>
+                </>
+              }
+              valor={m(l.sobreprecio)}
+            />
           </div>
           <div className="flex min-w-72 flex-1 flex-col gap-2.5">
             <h2 className="text-lg font-semibold">Reparto</h2>
