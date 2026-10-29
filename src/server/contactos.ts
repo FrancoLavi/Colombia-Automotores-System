@@ -82,6 +82,7 @@ export async function listarContactos(f: {
         sql`${s.contactos.usadoMarca} ilike ${q}`,
         sql`${s.contactos.usadoModelo} ilike ${q}`,
         sql`${s.contactos.localidad} ilike ${q}`,
+        sql`${s.contactos.email} ilike ${q}`,
         digitos.length >= 4 ? sql`regexp_replace(coalesce(${s.contactos.telefono}, ''), '\\D', '', 'g') like ${"%" + digitos + "%"}` : sql`false`,
       )!,
     );

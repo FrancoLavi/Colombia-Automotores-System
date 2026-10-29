@@ -106,3 +106,14 @@ describe("HU-2.4: editar y eliminar pedidos", () => {
     );
   });
 });
+
+describe("búsqueda de contactos", () => {
+  it("encuentra un contacto por su mail, completo o en parte y sin importar mayúsculas", async () => {
+    const id = await con.crearContacto(U, { ...baseContacto, nombre: "Con mail", telefono: "2915550500", email: "Lucia.Gomez@Gmail.com" });
+    for (const q of ["lucia.gomez@gmail.com", "LUCIA.GOMEZ", "gomez@gmail"]) {
+      const { contactos } = await con.listarContactos({ q });
+      expect(contactos.map((c) => c.id)).toContain(id);
+    }
+    expect((await con.listarContactos({ q: "otra@gmail.com" })).contactos.map((c) => c.id)).not.toContain(id);
+  });
+});
