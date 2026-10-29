@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { coincidePedido, etapasManuales, normalizarTelefono, pedidoVacio, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
@@ -156,21 +156,26 @@ export async function interesadosEnAuto(auto: { marca: string; modelo: string; v
 
 /**
  * HU-2.3: agenda. Actividades programadas sin realizar hasta `hasta` (incluye atrasadas)
- * y contactos cuyo "próximo contacto" cae en el rango.
+ * y contactos cuyo "próximo contacto" cae en el rango. Sin `hasta`, trae todo lo pendiente.
  */
-export async function agenda(hasta: string) {
-  const finDia = new Date(`${hasta}T23:59:59`);
+export async function agenda(hasta?: string) {
+  const finDia = hasta ? new Date(`${hasta}T23:59:59`) : null;
   const [actividades, proximos] = await Promise.all([
     db
       .select({ a: s.actividades, contacto: { id: s.contactos.id, nombre: s.contactos.nombre, apellido: s.contactos.apellido, telefono: s.contactos.telefono } })
       .from(s.actividades)
       .innerJoin(s.contactos, eq(s.contactos.id, s.actividades.contactoId))
-      .where(and(isNull(s.actividades.realizadaEn), lte(s.actividades.fechaProgramada, finDia)))
+      .where(and(isNull(s.actividades.realizadaEn), finDia ? lte(s.actividades.fechaProgramada, finDia) : undefined))
       .orderBy(asc(s.actividades.fechaProgramada)),
     db
       .select()
       .from(s.contactos)
-      .where(and(lte(s.contactos.proximoContacto, hasta), ne(s.contactos.etapa, "DESCARTADO")))
+      .where(
+        and(
+          hasta ? lte(s.contactos.proximoContacto, hasta) : isNotNull(s.contactos.proximoContacto),
+          ne(s.contactos.etapa, "DESCARTADO"),
+        ),
+      )
       .orderBy(asc(s.contactos.proximoContacto)),
   ]);
   // Si un contacto ya tiene una actividad pendiente, no se repite por su "próximo contacto".

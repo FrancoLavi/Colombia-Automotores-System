@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { FormFiltros } from "@/components/filtros";
 import { agenda } from "@/server/contactos";
 import { nombreContacto, fecha, hoyIso, hora } from "@/lib/formato";
-import { ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
+import { ETIQUETA_ACTIVIDAD, type TipoActividad } from "@/domain/contactos";
 import { Telefono } from "../chips";
 import { FormCompletar } from "../formularios";
 
@@ -13,37 +14,54 @@ type Item = {
   dia: string;
   hora: string | null;
   contacto: { id: number; nombre: string; apellido: string | null; telefono: string | null };
+  tipo: TipoActividad | "RECONTACTO";
   detalle: string;
   actividadId: number | null;
 };
 
-/** Suma meses a un día "AAAA-MM-DD" (31/01 + 1 mes = 28/02 o 29/02, no 03/03). */
-function sumarMeses(dia: string, meses: number) {
-  const [a, m, d] = dia.split("-").map(Number);
-  const ultimoDelMes = new Date(Date.UTC(a, m - 1 + meses + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(a, m - 1 + meses, Math.min(d, ultimoDelMes))).toISOString().slice(0, 10);
-}
+type Busqueda = { q?: string; tipo?: string; desde?: string; hasta?: string };
 
-/** "lunes 03/11/2026": el día de la semana ayuda a ubicarse en una agenda de un mes. */
+/** "Volver a contactar" no es una actividad cargada: sale del "próximo contacto" del contacto. */
+const ETIQUETA_TIPO: Record<Item["tipo"], string> = { ...ETIQUETA_ACTIVIDAD, RECONTACTO: "Volver a contactar" };
+
+/** "lunes 03/11/2026": el día de la semana ayuda a ubicarse en una agenda larga. */
 function diaConSemana(dia: string) {
   const semana = new Date(`${dia}T12:00:00Z`).toLocaleDateString("es-AR", { weekday: "long", timeZone: "UTC" });
   return `${semana.charAt(0).toUpperCase()}${semana.slice(1)} ${fecha(dia)}`;
 }
 
-export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ rango?: string }> }) {
+/** Minúsculas y sin tildes, para que "gomez" encuentre a "Gómez". */
+const normalizar = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+function coincide(i: Item, sp: Busqueda) {
+  if (sp.tipo && i.tipo !== sp.tipo) return false;
+  if (sp.desde && i.dia < sp.desde) return false;
+  if (sp.hasta && i.dia > sp.hasta) return false;
+  const q = sp.q?.trim();
+  if (!q) return true;
+  const texto = normalizar(`${nombreContacto(i.contacto)} ${i.contacto.telefono ?? ""} ${i.detalle}`);
+  const digitos = q.replace(/\D/g, "");
+  // Un teléfono se busca por sus números, se haya escrito con espacios o guiones o sin ellos.
+  if (digitos.length >= 3 && (i.contacto.telefono ?? "").replace(/\D/g, "").includes(digitos)) return true;
+  return normalizar(q)
+    .split(/\s+/)
+    .every((palabra) => texto.includes(palabra));
+}
+
+export default async function AgendaPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
-  const mes = (await searchParams).rango === "mes";
+  const sp = await searchParams;
   const hoy = hoyIso();
   const manana = hoyIso(new Date(Date.now() + 86_400_000));
-  const hasta = mes ? sumarMeses(hoy, 1) : manana;
-  const { actividades, proximos } = await agenda(hasta);
+  const { actividades, proximos } = await agenda();
 
-  const items: Item[] = [
+  const todos: Item[] = [
     ...actividades.map(({ a, contacto }) => ({
       clave: `a${a.id}`,
       dia: hoyIso(a.fechaProgramada),
       hora: hora(a.fechaProgramada),
       contacto,
+      tipo: a.tipo,
       detalle: `${ETIQUETA_ACTIVIDAD[a.tipo]}${a.nota ? ` · ${a.nota}` : ""}`,
       actividadId: a.id,
     })),
@@ -52,16 +70,19 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       dia: c.proximoContacto!,
       hora: null,
       contacto: c,
+      tipo: "RECONTACTO" as const,
       detalle: `Volver a contactar${c.productoInteres ? ` · busca ${c.productoInteres}` : ""}`,
       actividadId: null,
     })),
   ].sort((x, y) => (x.dia + (x.hora ?? "99")).localeCompare(y.dia + (y.hora ?? "99")));
+  const items = todos.filter((i) => coincide(i, sp));
+  const filtrando = Boolean(sp.q || sp.tipo || sp.desde || sp.hasta);
 
   const grupos = [
     { titulo: "Atrasados", items: items.filter((i) => i.dia < hoy), clase: "text-aviso-texto" },
     { titulo: `Hoy · ${fecha(hoy)}`, items: items.filter((i) => i.dia === hoy), clase: "" },
     { titulo: `Mañana · ${fecha(manana)}`, items: items.filter((i) => i.dia === manana), clase: "" },
-    // Con el rango de un mes, del pasado mañana en adelante va un grupo por día.
+    // Del pasado mañana en adelante, un grupo por día.
     ...[...new Set(items.filter((i) => i.dia > manana).map((i) => i.dia))].map((dia) => ({
       titulo: diaConSemana(dia),
       items: items.filter((i) => i.dia === dia),
@@ -74,17 +95,49 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       <Link href="/contactos" className="text-sm font-semibold">
         ← Volver a contactos
       </Link>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Agenda</h1>
-          <p className="mt-1 text-suave">{mes ? `De hoy al ${fecha(hasta)}` : "Hoy y mañana"}</p>
-        </div>
-        <Link href={mes ? "/contactos/agenda" : "/contactos/agenda?rango=mes"} className="btn-secundario">
-          {mes ? "Ver solo hoy y mañana" : "Ver el próximo mes"}
-        </Link>
+      <div>
+        <h1 className="text-3xl font-bold">Agenda</h1>
+        <p className="mt-1 text-suave">
+          {filtrando ? `${items.length} de ${todos.length} pendientes` : `Todo lo pendiente · ${todos.length}`}
+        </p>
       </div>
+
+      <FormFiltros className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <label className="campo lg:col-span-2">
+          Buscar
+          <input type="search" name="q" defaultValue={sp.q} placeholder="Nombre, teléfono o nota" />
+        </label>
+        <label className="campo">
+          Tipo
+          <select name="tipo" defaultValue={sp.tipo ?? ""}>
+            <option value="">Todos</option>
+            {(Object.keys(ETIQUETA_TIPO) as Item["tipo"][]).map((t) => (
+              <option key={t} value={t}>
+                {ETIQUETA_TIPO[t]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="campo">
+          Desde
+          <input type="date" name="desde" defaultValue={sp.desde} />
+        </label>
+        <label className="campo">
+          Hasta
+          <input type="date" name="hasta" defaultValue={sp.hasta} />
+        </label>
+        <div className="flex items-end gap-2 lg:col-span-5">
+          <button className="btn-secundario">Buscar</button>
+          {filtrando && (
+            <Link href="/contactos/agenda" className="btn text-sm text-acento">
+              Limpiar
+            </Link>
+          )}
+        </div>
+      </FormFiltros>
+
       {items.length === 0 && (
-        <p className="tarjeta text-suave">{mes ? "No hay nada agendado de acá a un mes." : "No hay nada agendado para hoy ni mañana."}</p>
+        <p className="tarjeta text-suave">{filtrando ? "No hay citas con estos filtros." : "No hay nada agendado."}</p>
       )}
       {grupos
         .filter((g) => g.items.length)
