@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { costoTotal, precioSugerido, compraEnPesos, liquidar, margenUsd, cobertura, patrimonio, diasEnStock } from "./negocio";
+import { costoTotal, precioSugerido, compraEnPesos, liquidar, deudasPorVenta, margenUsd, cobertura, patrimonio, diasEnStock } from "./negocio";
 
 describe("costo y precio", () => {
   it("suma compra y gastos, sin los extraordinarios", () => {
@@ -97,5 +97,52 @@ describe("patrimonio y días", () => {
   it("días en stock desde la fecha de disponible", () => {
     expect(diasEnStock("2026-09-01", "2026-09-06", new Date(2026, 9, 14))).toBe(38);
     expect(diasEnStock("2026-10-14", null, new Date(2026, 9, 14))).toBe(0);
+  });
+});
+
+describe("devolución del capital al inversor (K10)", () => {
+  // Auto de Juan: compró en 10.000.000 y el salón le puso 500.000 de gastos.
+  const costo = 10_500_000;
+  const capitalInversor = 10_000_000;
+
+  it("le devuelve lo que puso más su parte de la ganancia", () => {
+    const l = liquidar({ costo, precio: 13_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+    expect(l.regla).toBe("INVERSOR_BASE");
+    expect(deudasPorVenta(l, { financista: "INVERSOR", capitalInversor })).toEqual([
+      { tipo: "CAPITAL", destino: "INVERSOR", importe: 10_000_000 },
+      { tipo: "GANANCIA", destino: "INVERSOR", importe: 787_500 },
+      { tipo: "GANANCIA", destino: "SALON", importe: 1_712_500 },
+    ]);
+  });
+
+  it("no le devuelve los gastos: esos los puso el salón y los recupera en su parte", () => {
+    const l = liquidar({ costo, precio: 13_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+    const deudas = deudasPorVenta(l, { financista: "INVERSOR", capitalInversor });
+    const alInversor = deudas.filter((d) => d.destino === "INVERSOR").reduce((a, d) => a + d.importe, 0);
+    const alSalon = deudas.filter((d) => d.destino === "SALON").reduce((a, d) => a + d.importe, 0);
+    // Lo cobrado alcanza para pagarle al inversor, al salón y reponer los gastos.
+    expect(alInversor + alSalon + 500_000).toBe(13_000_000);
+  });
+
+  it("con pérdida cobra el capital menos su mitad (R4)", () => {
+    const l = liquidar({ costo, precio: 9_500_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+    expect(l.regla).toBe("INVERSOR_MITADES");
+    expect(deudasPorVenta(l, { financista: "INVERSOR", capitalInversor })).toEqual([
+      { tipo: "CAPITAL", destino: "INVERSOR", importe: 10_000_000 },
+      { tipo: "GANANCIA", destino: "INVERSOR", importe: -500_000 },
+      { tipo: "GANANCIA", destino: "SALON", importe: -500_000 },
+    ]);
+  });
+
+  it("si financia el salón no hay capital que devolver: toda la ganancia es suya", () => {
+    const l = liquidar({ costo, precio: 13_000_000, financista: "SALON", tipoIngreso: "COMPRA" });
+    expect(deudasPorVenta(l, { financista: "SALON", capitalInversor: 0 })).toEqual([
+      { tipo: "GANANCIA", destino: "SALON", importe: 2_500_000 },
+    ]);
+  });
+
+  it("si la venta no dejó nada, no deja deudas", () => {
+    const l = liquidar({ costo, precio: costo, financista: "SALON", tipoIngreso: "COMPRA" });
+    expect(deudasPorVenta(l, { financista: "SALON", capitalInversor: 0 })).toEqual([]);
   });
 });

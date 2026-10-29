@@ -19,36 +19,52 @@ export default async function PatrimonioPage() {
   const activos = Math.max(1, Math.max(0, p.caja.total) + p.stock + p.aCobrar);
   const pct = (n: number) => `${Math.max(0, (n / activos) * 100)}%`;
 
+  // K11: de todo lo que hay, cuánto le toca a cada uno. El salón sale por resta, así que
+  // incluye los gastos que les puso a los autos de los inversores.
+  const porDueno = inversiones
+    .filter((x) => x.participe.tipo === "INVERSOR")
+    .map((x) => ({ nombre: x.participe.nombre, enAutos: x.capital, porCobrar: x.capitalPorCobrar + x.pendiente }))
+    .filter((x) => x.enAutos !== 0 || x.porCobrar !== 0);
+
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
           <h1 className="text-3xl font-bold">Patrimonio</h1>
           <NavPatrimonio actual="/patrimonio" />
-          <p className="max-w-2xl text-suave">Todo lo que vale el negocio: la plata invertida en autos (al costo), lo que hay por cobrar y la caja, menos lo que se debe.</p>
+          <p className="max-w-2xl text-suave">
+            Todo lo que vale el negocio: la plata invertida en autos (al costo), lo que hay por cobrar y la caja, menos lo que se debe. Los autos de los
+            inversores suman al total, pero son de ellos.
+          </p>
         </div>
         <IlustracionPatrimonio className="hidden h-24 w-auto sm:block" />
       </header>
 
       <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="tarjeta flex flex-col gap-1.5 border-tinta">
+        <div className="tarjeta flex flex-col gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Patrimonio total</span>
           <span className="num text-3xl">{m(p.total)}</span>
+          <span className="text-[13px] text-apagado">Todo lo que hay, sea de quien sea</span>
+        </div>
+        <div className="tarjeta flex flex-col gap-1.5 border-tinta">
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Del salón</span>
+          <span className={`num text-3xl ${p.salon < 0 ? "text-aviso-texto" : ""}`}>{m(p.salon)}</span>
+          <span className="text-[13px] text-apagado">
+            {p.total - p.salon === 0 ? "No hay plata de inversores" : `${m(p.total - p.salon)} son de los inversores`}
+          </span>
         </div>
         <div className="tarjeta flex flex-col gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Invertido en autos</span>
           <span className="num text-3xl">{m(p.stock)}</span>
           <span className="text-[13px] text-apagado">
             {p.autosEnStock} {p.autosEnStock === 1 ? "auto" : "autos"} al costo
+            {p.stockInversores > 0 && ` · ${m(p.stockInversores)} de inversores`}
           </span>
         </div>
-        <TarjetaEnlace href="/caja/cuentas" pie="Ver cuentas" className="gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">A cobrar − a pagar</span>
-          <span className={`num text-3xl ${p.aCobrar - p.aPagar < 0 ? "text-aviso-texto" : ""}`}>{m(p.aCobrar - p.aPagar)}</span>
-        </TarjetaEnlace>
         <TarjetaEnlace href="/caja" pie="Ver caja" className="gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Líquido (caja)</span>
           <span className={`num text-3xl ${p.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(p.caja.total)}</span>
+          <span className="text-[13px] text-apagado">{p.deudaInversores > 0 ? `Del salón ${m(p.cajaSalon)}` : "Toda del salón"}</span>
         </TarjetaEnlace>
       </section>
 
@@ -65,7 +81,6 @@ export default async function PatrimonioPage() {
             { c: "var(--color-grafico-caja)", t: "Caja (efectivo + banco)", v: p.caja.total },
             { c: "var(--color-grafico-cobrar)", t: "A cobrar (créditos y saldos)", v: p.aCobrar },
             { c: "", t: "A pagar (deudas, consignantes, gastos)", v: -p.aPagar },
-            { c: "", t: "Ganancias de inversores sin pagar", v: -p.aInversores },
           ].map((x) => (
             <div key={x.t} className="flex justify-between gap-3 border-t border-linea py-2 text-sm">
               <span className="flex items-center gap-2">
@@ -77,6 +92,36 @@ export default async function PatrimonioPage() {
           ))}
         </div>
         {p.consignados > 0 && <p className="text-xs text-apagado">{p.consignados} autos en consignación no suman: no son del salón.</p>}
+      </section>
+
+      <section className="tarjeta flex flex-col gap-1">
+        <div className="flex items-center justify-between pb-2">
+          <h2 className="text-lg font-semibold">De quién es</h2>
+          {porDueno.length > 0 && (
+            <Link href="/patrimonio/inversores" className="text-sm font-semibold">
+              Ver inversores →
+            </Link>
+          )}
+        </div>
+        <div className="flex justify-between gap-3 border-t border-linea py-2 text-sm">
+          <span className="font-semibold">Salón</span>
+          <span className="num font-semibold">{m(p.salon)}</span>
+        </div>
+        {porDueno.map((x) => (
+          <div key={x.nombre} className="flex flex-wrap justify-between gap-3 border-t border-linea py-2 text-sm">
+            <span>
+              {x.nombre}
+              <span className="text-apagado">
+                {" · "}
+                {x.enAutos > 0 && `${m(x.enAutos)} en autos`}
+                {x.enAutos > 0 && x.porCobrar !== 0 && " · "}
+                {x.porCobrar !== 0 && `${m(x.porCobrar)} por cobrar`}
+              </span>
+            </span>
+            <span className="num">{m(x.enAutos + x.porCobrar)}</span>
+          </div>
+        ))}
+        {porDueno.length === 0 && <p className="border-t border-linea py-2 text-sm text-apagado">Todo el patrimonio es del salón: no hay autos ni plata de inversores.</p>}
       </section>
 
       <section className="tarjeta flex flex-col p-0">
@@ -108,8 +153,8 @@ export default async function PatrimonioPage() {
                         <ChipEstado estado={a.estado} />
                       </td>
                       <td>{x.participe.nombre}</td>
-                      <td className="num text-right">{m(a.costo)}</td>
-                      <td className="num text-right text-apagado">{usd(a.costo / a.tcIngreso)}</td>
+                      <td className="num text-right">{m(a.invertido)}</td>
+                      <td className="num text-right text-apagado">{usd(a.invertido / a.tcIngreso)}</td>
                     </tr>
                   )),
                 )}
@@ -118,7 +163,7 @@ export default async function PatrimonioPage() {
                 {conAutos.map((x) => (
                   <tr key={x.participe.id}>
                     <td colSpan={3} className="font-semibold">
-                      {x.participe.tipo === "SALON" ? "Fondos propios del salón" : `Invertido por ${x.participe.nombre}`}
+                      {x.participe.tipo === "SALON" ? "Fondos propios del salón" : `Puesto por ${x.participe.nombre}`}
                     </td>
                     <td className="num text-right font-semibold">{m(x.capital)}</td>
                     <td className="num text-right text-apagado">{usd(x.capitalUsd)}</td>
@@ -127,6 +172,11 @@ export default async function PatrimonioPage() {
               </tfoot>
             </table>
           </div>
+        )}
+        {p.stockInversores > 0 && (
+          <p className="px-4 pb-4 text-xs text-apagado">
+            De los autos de inversores se cuenta lo que puso cada uno (el valor de compra). Los gastos los pone el salón y los recupera al vender.
+          </p>
         )}
       </section>
 

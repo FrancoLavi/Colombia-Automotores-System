@@ -16,7 +16,10 @@ export default async function InversoresPage() {
       <header className="flex flex-col gap-3">
         <h1 className="text-3xl font-bold">Inversores</h1>
         <NavPatrimonio actual="/patrimonio/inversores" />
-        <p className="text-suave">Lo que cada uno tiene invertido en autos hoy y cuánto ganó. El salón aparece con los autos comprados con fondos propios.</p>
+        <p className="text-suave">
+          Lo que cada uno puso en autos hoy, lo que se le debe de ventas ya cerradas y cuánto ganó. El salón aparece con los autos comprados con fondos
+          propios.
+        </p>
       </header>
       <div className="grid gap-5 lg:grid-cols-2">
         {filas.map((f) => (
@@ -25,11 +28,16 @@ export default async function InversoresPage() {
               <h2 className="text-xl font-semibold">{f.participe.nombre}</h2>
               <span className="text-sm text-apagado">{f.participe.tipo === "SALON" ? "Fondos propios" : "Inversor"}</span>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Invertido en autos</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Puesto en autos</div>
                 <div className="num text-xl">{m(f.capital)}</div>
                 <div className="num text-xs text-apagado">{usd(f.capitalUsd)} al dólar de compra</div>
+              </div>
+              {/* K10: capital de autos ya vendidos que todavía no se le devolvió. */}
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Capital por cobrar</div>
+                <div className={`num text-xl ${f.capitalPorCobrar ? "text-aviso-texto" : ""}`}>{m(f.capitalPorCobrar)}</div>
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Ganancia por cobrar</div>
@@ -49,13 +57,13 @@ export default async function InversoresPage() {
                   </span>
                   <span className="flex items-center gap-2">
                     <ChipEstado estado={a.estado} />
-                    <span className="num">{m(a.costo)}</span>
+                    <span className="num">{m(a.invertido)}</span>
                   </span>
                 </Link>
               ))}
             </div>
             <div className="flex flex-wrap gap-4 text-sm font-semibold">
-              {f.pendiente !== 0 && <Link href="/caja">Pagar ganancias pendientes →</Link>}
+              {(f.pendiente !== 0 || f.capitalPorCobrar !== 0) && <Link href="/caja">Pagar lo pendiente →</Link>}
               <Link href="/reportes">Ganancias pagadas por mes →</Link>
             </div>
           </section>

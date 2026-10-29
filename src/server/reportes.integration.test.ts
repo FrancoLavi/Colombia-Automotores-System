@@ -38,11 +38,12 @@ describe("personas, ganancias pagadas e históricos", () => {
     const op = await ven.crearOperacion(U, { contactoId: cliente, vehiculoId: auto, precioVenta: 12_000_000, observaciones: null });
     await ven.agregarPago(U, op, { tipo: "TRANSFERENCIA", importe: 12_000_000, fecha: hoyIso(), medio: "BANCO", banco: null, vence: null, cobradoAhora: true });
     await ven.cerrarOperacion(U, op, null);
-    for (const g of await caja.gananciasPendientes()) await caja.pagarDistribucion(U, g.d.id, "BANCO", g.participe.tipo === "SALON" ? bruno : null);
+    for (const g of await caja.pendientesPorPagar()) await caja.pagarDistribucion(U, g.d.id, "BANCO", g.participe.tipo === "SALON" ? bruno : null);
 
     const g = await rep.gananciasPagadasPorMes(anio);
     const deEsteMes = g.meses.find((m) => m.periodo === mes)!;
     // Ganancia 2 M sobre costo 10 M: base 1,5 M → inversor 750.000, salón 1.250.000.
+    // La devolución del capital (K10) se paga igual pero no cuenta como ganancia de nadie.
     expect(Object.values(deEsteMes.porParticipe).sort()).toEqual([1_250_000, 750_000]);
     expect(g.total).toBe(2_000_000);
   });

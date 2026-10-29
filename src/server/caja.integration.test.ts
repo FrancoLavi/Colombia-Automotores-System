@@ -17,9 +17,15 @@ describe("patrimonio a lo largo de una venta", () => {
     const auto = await autoDisponible("AA111AA"); // $ 10 M pagados por banco
     await veh.agregarGasto(U, auto, { categoriaId: 1, fecha: "2026-10-02", descripcion: null, importe: 1_000_000, estado: "PAGADO", medio: "EFECTIVO" });
     const p = await caja.patrimonio();
-    expect(p.caja).toEqual({ efectivo: 7_000_000, banco: 2_000_000, total: 9_000_000 });
+    // K9: el Amarok lo financia un inversor, así que sus 10 M no salieron de la caja del salón.
+    // De la caja solo salió 1 M de gastos, y el pase entre efectivo y banco no la cambia.
+    expect(p.caja).toEqual({ efectivo: 7_000_000, banco: 12_000_000, total: 19_000_000 });
     expect(p.stock).toBe(11_000_000);
-    expect(p.total).toBe(20_000_000);
+    expect(p.stockInversores).toBe(10_000_000);
+    expect(p.total).toBe(30_000_000);
+    // K11: del total, al salón le corresponden los 20 M que puso (19 M en caja + 1 M de gastos).
+    expect(p.salon).toBe(20_000_000);
+    expect(p.cajaSalon).toBe(19_000_000);
 
     const cliente = await con.crearContacto(U, { ...baseContacto, nombre: "Marcos", telefono: "2915550142" });
     op = await ven.crearOperacion(U, { contactoId: cliente, vehiculoId: auto, precioVenta: 12_900_000, observaciones: null });
@@ -37,27 +43,38 @@ describe("patrimonio a lo largo de una venta", () => {
     const p = await caja.patrimonio();
     expect(p.stock).toBe(4_000_000); // ahora cuenta el Fiesta
     expect(p.aCobrar).toBe(3_000_000);
-    expect(p.aInversores).toBe(825_000);
-    // 20 M iniciales + 1,9 M de ganancia − 825.000 del inversor
-    expect(p.total).toBe(21_075_000);
+    // K10: al inversor se le deben los 10 M que puso más sus 825.000 de ganancia.
+    expect(p.deudaInversores).toBe(10_825_000);
+    expect(p.total).toBe(31_900_000);
+    // K11: 20 M iniciales + 1,9 M de ganancia − 825.000 del inversor
+    expect(p.salon).toBe(21_075_000);
   });
 
-  it("pagar al inversor y cobrar el crédito no cambian el patrimonio", async () => {
-    const [inv] = (await caja.gananciasPendientes()).filter((g) => g.participe.tipo === "INVERSOR");
-    await caja.pagarDistribucion(U, inv.d.id, "EFECTIVO");
+  it("devolverle el capital y la ganancia al inversor no cambia lo que es del salón", async () => {
+    const suyo = (await caja.pendientesPorPagar()).filter((g) => g.participe.tipo === "INVERSOR");
+    expect(suyo.map((g) => g.d.tipo).sort()).toEqual(["CAPITAL", "GANANCIA"]);
+    for (const g of suyo) await caja.pagarDistribucion(U, g.d.id, "EFECTIVO");
     const credito = (await caja.listarCuentas({ tipo: "A_COBRAR" }))[0];
     await expect(caja.registrarPagoCuenta(U, credito.c.id, 1_000_000, "BANCO")).rejects.toThrow(/por el total/);
     await caja.registrarPagoCuenta(U, credito.c.id, 3_000_000, "BANCO");
     const p = await caja.patrimonio();
-    expect(p.aInversores).toBe(0);
+    expect(p.deudaInversores).toBe(0);
     expect(p.aCobrar).toBe(0);
     expect(p.total).toBe(21_075_000);
+    expect(p.salon).toBe(21_075_000); // pagada la deuda, todo el patrimonio es del salón
+    // La devolución quedó registrada aparte del pago de la ganancia.
+    const { movimientos } = await caja.movimientos({});
+    expect(movimientos.find((x) => x.m.categoria === "DEVOLUCION_CAPITAL")!.m.importe).toBe(10_000_000);
+    expect(movimientos.find((x) => x.m.categoria === "PAGO_INVERSOR")!.m.importe).toBe(825_000);
     expect((await ven.fichaOperacion(op))!.pagos.find((x) => x.p.tipo === "CREDITO")!.p.estado).toBe("COBRADO");
   });
 
-  it("subcaja del inversor: capital en autos y ganancias cobradas", async () => {
+  it("subcaja del inversor: lo que puso y lo que cobró", async () => {
     const inv = (await caja.subcajas()).find((x) => x.participe.tipo === "INVERSOR")!;
-    expect(inv.capital).toBe(4_000_000);
+    // Le queda el Fiesta, que vino por permuta: no lo pagó él, así que no cuenta como capital suyo.
+    expect(inv.autos.map((a) => a.dominio)).toEqual(["OPQ214"]);
+    expect(inv.capital).toBe(0);
+    expect(inv.capitalPorCobrar).toBe(0);
     expect(inv.cobrado).toBe(825_000);
     expect(inv.pendiente).toBe(0);
   });
@@ -86,7 +103,7 @@ describe("movimientos y cuentas manuales", () => {
 
   it("solo se anulan movimientos manuales; el pase anula sus dos patas", async () => {
     const { movimientos } = await caja.movimientos({});
-    const automatico = movimientos.find((m) => m.m.categoria === "PAGO_COMPRA")!;
+    const automatico = movimientos.find((m) => m.m.categoria === "GASTO_VEHICULO")!;
     await expect(caja.anularMovimiento(U, automatico.m.id, "error")).rejects.toThrow(/otra operación/);
     const antes = await caja.movimientos({});
     const pase = antes.movimientos.find((m) => m.m.categoria === "TRANSFERENCIA_INTERNA")!;

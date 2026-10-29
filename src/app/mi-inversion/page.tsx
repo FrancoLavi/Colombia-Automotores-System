@@ -30,11 +30,16 @@ export default async function MiInversionPage() {
         <p className="tarjeta text-suave">Tu usuario todavía no está asociado a un inversor. Pedile al salón que lo configure.</p>
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-3">
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="tarjeta">
-              <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Invertido en autos</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Puesto en autos</div>
               <div className="num mt-1 text-2xl">{pesos(f.capital)}</div>
               <div className="num text-xs text-apagado">{usd(f.capitalUsd)} al dólar de compra</div>
+            </div>
+            {/* K10: al venderse tu auto se te devuelve lo que pusiste, además de tu ganancia. */}
+            <div className="tarjeta">
+              <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Capital por cobrar</div>
+              <div className="num mt-1 text-2xl">{pesos(f.capitalPorCobrar)}</div>
             </div>
             <div className="tarjeta">
               <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Ganancia por cobrar</div>
@@ -53,7 +58,7 @@ export default async function MiInversionPage() {
                 <span>
                   {a.marca} {a.modelo} {a.anio} <span className="text-apagado">· {ETIQUETA_ESTADO[a.estado].toLowerCase()}</span>
                 </span>
-                <span className="num">{pesos(a.costo)}</span>
+                <span className="num">{pesos(a.invertido)}</span>
               </div>
             ))}
           </section>

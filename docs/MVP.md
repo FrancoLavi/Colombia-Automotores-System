@@ -26,9 +26,9 @@ Sea **C** el costo total en $, **P** el precio de venta y **G = P − C** la gan
 
 | ID | Regla |
 |---|---|
-| R1 | **Costo** = valor de compra + Σ gastos del auto. En consignación, valor de compra = **monto pactado con el dueño**. El **costo del peritaje** entra como un gasto más del auto. |
+| R1 | **Costo** = valor de compra + Σ gastos del auto. En consignación, valor de compra = **monto pactado con el dueño**. El **costo del peritaje** entra como un gasto más del auto. Los gastos los pone **siempre el salón**, incluso en un auto de inversor (K9). |
 | R2 | **Precio sugerido** = C × 1,15 + ajuste comercial (±). Se publica en $ y no se actualiza con el dólar. |
-| R3 | **Financiado por un inversor:** si G ≥ 15 % de C, el inversor cobra **7,5 % de C** y el salón cobra el resto (su 7,5 % más el sobreprecio). Si G < 15 % de C, incluida una venta con pérdida, **mitad y mitad**. |
+| R3 | **Financiado por un inversor:** si G ≥ 15 % de C, el inversor cobra **7,5 % de C** y el salón cobra el resto (su 7,5 % más el sobreprecio). Si G < 15 % de C, incluida una venta con pérdida, **mitad y mitad**. Esto reparte **solo la ganancia**: el capital que puso el inversor se le devuelve aparte (K10). |
 | R4 | **Financiado por el salón** o **consignación:** el salón se queda con el **100 %** de G. |
 | R5 | La comparación en dólares (C en USD al TC fijado contra P en USD al blue de la venta) es **solo informativa**. **Alerta** cuando el margen en USD de un auto en stock baja a ≤ 10 %. |
 | R6 | Al cerrar la venta, la **liquidación se congela**. Los gastos que aparezcan después son **gastos extraordinarios del salón** y no la modifican. |
@@ -49,14 +49,17 @@ Sea **C** el costo total en $, **P** el precio de venta y **G = P − C** la gan
 ### 1.4 Caja y patrimonio
 | ID | Regla |
 |---|---|
-| K1 | **Una sola caja, en pesos**, con dos medios: efectivo y banco. No hay caja en dólares. **Caja y Patrimonio son pantallas separadas:** Caja muestra solo la plata líquida; Patrimonio, lo invertido en autos, las cuentas y los inversores. |
+| K1 | **Una sola caja, en pesos**, con dos medios: efectivo y banco. No hay caja en dólares. **Caja y Patrimonio son pantallas separadas:** Caja muestra solo la plata líquida; Patrimonio, lo invertido en autos, las cuentas y los inversores. La caja puede tener plata que no es del salón (K11). |
 | K2 | En la caja solo entra **plata líquida**. |
-| K3 | **Patrimonio** = caja + autos propios en stock al costo (los financiados por el salón y por inversores; **no** los consignados) + cuentas a cobrar − cuentas a pagar. |
+| K3 | **Patrimonio total** = caja + autos propios en stock al costo (los financiados por el salón y por inversores; **no** los consignados) + cuentas a cobrar − cuentas a pagar. Es todo lo que hay, sea del salón o de los inversores, y se muestra **abierto por dueño** (K11). |
 | K4 | **Arranque:** se importa el stock (patrimonio inicial). La caja inicial se carga después como **ingreso extraordinario**. Las deudas y créditos con terceros se cargan más adelante como cuentas pendientes. |
 | K5 | Los **retiros de ganancia** y los **pagos a inversores** se registran **por venta**. |
-| K6 | La **subcaja del inversor** muestra por inversor su capital invertido en autos, las ganancias pendientes y las cobradas. |
+| K6 | La **subcaja del inversor** muestra, por inversor: lo que puso en los autos que tiene en stock (al **valor de compra**, sin los gastos, que son del salón), el **capital por cobrar** de autos ya vendidos, y las ganancias pendientes y cobradas. El inversor ve solo lo suyo (T2). |
 | K7 | **Personas (socios y empleados):** los **sueldos** y los **retiros** se atribuyen a una persona. El sueldo la exige; los retiros y aportes la admiten. No necesitan usuario en el sistema. |
 | K8 | **Vista en dólares:** un botón convierte todos los importes de pantalla al blue del día. Es **solo presentación**: los datos siguen guardados en pesos, los formularios se cargan en pesos y el dólar fijado en cada compra (V7) no cambia. |
+| K9 | **La compra del auto de un inversor no pasa por la caja del salón.** La paga el inversor directo al vendedor, así que no genera egreso ni cuenta a pagar: es plata suya, no un gasto del salón. Los **gastos** del auto (chapa, alistaje, gestoría) sí los pone el salón y los recupera al vender, porque el capital que se le devuelve al inversor es solo el **valor de compra** (K10). Una permuta o una consignación no le costaron plata a nadie: no hay capital que devolver. |
+| K10 | **Al cerrar la venta de un auto de inversor se le devuelve el capital que puso**, además de su parte de la ganancia (R3). Son dos cosas separadas: una **devolución de capital** y un **pago de ganancia**, cada una con su movimiento de caja. Si la venta dio pérdida, su parte es negativa y la reintegra: cobra el capital menos su mitad de la pérdida (R3). La devolución de capital **no es ganancia de nadie** y no aparece en el reporte de ganancias pagadas. |
+| K11 | **Hay que distinguir lo que hay de lo que es del salón**, en Caja y en Patrimonio. **Caja del salón** = caja − lo que se les debe a los inversores por autos **ya vendidos** (capital + ganancia). Mientras el auto sigue en stock su capital **no** se descuenta de la caja, porque no está en la caja: está en el auto. **Patrimonio del salón** = patrimonio total − el capital de los inversores en stock − lo que se les debe. Lo que queda en la caja del salón es el profit de los dueños. |
 
 ### 1.5 Transversales
 | ID | Regla |
@@ -106,12 +109,12 @@ Sea **C** el costo total en $, **P** el precio de venta y **G = P − C** la gan
 
 ### M5 · Caja, patrimonio e inversores
 - **HU-5.1** Registrar ingresos y egresos (gasto del salón, retiro de socio, pago a inversor, ingreso extraordinario, ajuste) por medio (efectivo o banco).
-- **HU-5.2** Ver el saldo por medio y la planilla de movimientos con filtros.
-- **HU-5.3** Ver el patrimonio desglosado, en pantalla aparte de Caja (K1).
-- **HU-5.4** Ver y pagar las **ganancias pendientes** por venta y por beneficiario.
+- **HU-5.2** Ver el saldo por medio, **cuánto de ese saldo es del salón** (K11) y la planilla de movimientos con filtros.
+- **HU-5.3** Ver el patrimonio desglosado, en pantalla aparte de Caja (K1), con **el total y lo que es del salón** y abierto por dueño (K11).
+- **HU-5.4** Ver y pagar lo **pendiente de cada venta cerrada** por beneficiario: la ganancia de cada uno y la devolución del capital al inversor (K10).
 - **HU-5.5** Registrar el cobro de un crédito bancario (cancela la cuenta a cobrar e ingresa a caja).
 - **HU-5.6** Cuentas pendientes: alta manual (deudas y créditos con terceros), pagos parciales y saldo.
-- **HU-5.7** Subcaja por inversor.
+- **HU-5.7** Subcaja por inversor: lo que puso en autos, el capital por cobrar y sus ganancias (K6).
 - **HU-5.8** Administrar **personas** (socios y empleados) y registrar sueldos y retiros a nombre de cada una (K7).
 
 ### M6 · Alertas y dashboard
