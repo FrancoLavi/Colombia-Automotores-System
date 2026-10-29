@@ -1,0 +1,44 @@
+# Actualizaciones de dependencias.
+#
+# Una vez por mes y agrupadas, para que no nos llueva un PR por paquete. Somos tres y el
+# sistema ya está en producción: conviene revisar todo junto una vez al mes antes que ir
+# aceptando parches sueltos.
+#
+# Los saltos de versión mayor quedan afuera a propósito (Next, React, TypeScript, vitest…):
+# esos se charlan y se hacen en su propia rama, no automáticos.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+      time: "09:00"
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "Actualizar"
+    labels:
+      - dependencias
+    groups:
+      # Todo lo que no sea salto mayor, en un solo PR.
+      menores:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+  # Las acciones del workflow de CI.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Actualizar"
+    labels:
+      - dependencias
