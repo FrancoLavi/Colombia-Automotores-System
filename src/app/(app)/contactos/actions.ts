@@ -113,6 +113,59 @@ export async function completarAccion(actividadId: number | null, contactoId: nu
   return r;
 }
 
+function revalidarAgenda(contactoId: number) {
+  revalidatePath("/contactos/agenda");
+  revalidatePath(`/contactos/${contactoId}`);
+  revalidatePath("/contactos");
+  revalidatePath("/");
+}
+
+export async function editarCitaAccion(actividadId: number, contactoId: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    const fecha = fechaIso(fd, "fecha");
+    if (!fecha) throw new ErrorValidacion("Indicá la fecha");
+    const hora = texto(fd, "hora") ?? "10:00";
+    const nota = texto(fd, "nota");
+    if (!nota) throw new ErrorValidacion("Escribí una nota");
+    await svc.editarActividad(u.id, actividadId, {
+      tipo: opcion(fd, "tipo", TIPOS, "LLAMADA"),
+      // La hora se carga en hora argentina, que no tiene horario de verano: siempre UTC-3.
+      fechaProgramada: new Date(`${fecha}T${hora}:00-03:00`),
+      nota,
+    });
+    return "Cita actualizada.";
+  });
+  revalidarAgenda(contactoId);
+  return r;
+}
+
+export async function eliminarCitaAccion(actividadId: number, contactoId: number): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(() => svc.eliminarActividad(u.id, actividadId));
+  revalidarAgenda(contactoId);
+  return r;
+}
+
+export async function editarProximoAccion(contactoId: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    const fecha = fechaIso(fd, "fecha");
+    if (!fecha) throw new ErrorValidacion("Indicá la fecha");
+    await svc.cambiarProximoContacto(u.id, contactoId, fecha);
+    return "Fecha actualizada.";
+  });
+  revalidarAgenda(contactoId);
+  return r;
+}
+
+export async function quitarProximoAccion(contactoId: number): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(() => svc.cambiarProximoContacto(u.id, contactoId, null));
+  revalidarAgenda(contactoId);
+  return r;
+}
+
 export async function pedidoAccion(contactoId: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {

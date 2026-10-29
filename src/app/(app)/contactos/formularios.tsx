@@ -5,7 +5,7 @@ import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { ETIQUETA_ACTIVIDAD, ETIQUETA_ORIGEN, type Origen, type TipoActividad } from "@/domain/contactos";
-import { hoyIso } from "@/lib/formato";
+import { hoyIso, ZONA } from "@/lib/formato";
 import * as a from "./actions";
 
 export interface ValoresContacto {
@@ -258,12 +258,98 @@ export function FormCompletar({ actividadId, contactoId }: { actividadId: number
         {/* Sin actividad agendada esto crea un seguimiento nuevo, que no puede quedar sin nota. */}
         <input name="nota" required={!actividadId} placeholder="Qué pasó" />
       </label>
-      <label className="campo">
-        Volver a contactar
-        <input type="date" name="proximoContacto" />
-      </label>
       <BotonEnviar className="btn-secundario">Hecho</BotonEnviar>
       {r.error && <span className="w-full text-sm text-aviso-texto">{r.error}</span>}
+    </form>
+  );
+}
+
+/** Hora "HH:MM" en hora argentina, para precargar un input type="time". */
+const horaArgentina = (d: Date) =>
+  new Intl.DateTimeFormat("en-GB", { timeZone: ZONA, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+
+type Cita =
+  | { clase: "actividad"; id: number; tipo: TipoActividad; fechaProgramada: Date; nota: string | null }
+  | { clase: "proximo"; dia: string };
+
+/**
+ * HU-2.3: editar o eliminar una cita. Una actividad agendada se edita entera (tipo, fecha, hora y
+ * nota); el "volver a contactar" es solo una fecha del contacto.
+ */
+export function EditarCita({ contactoId, cita }: { contactoId: number; cita: Cita }) {
+  const [abierto, setAbierto] = useState(false);
+  const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
+    const res = cita.clase === "actividad" ? await a.editarCitaAccion(cita.id, contactoId, prev, fd) : await a.editarProximoAccion(contactoId, prev, fd);
+    if (res.ok) setAbierto(false);
+    return res;
+  }, INICIAL);
+  const [borrando, iniciar] = useTransition();
+  const [errorBorrar, setErrorBorrar] = useState<string>();
+
+  const eliminar = () => {
+    const que = cita.clase === "actividad" ? "esta cita" : "el volver a contactar";
+    if (!confirm(`¿Eliminar ${que}? No se puede deshacer (queda registrado en el historial).`)) return;
+    iniciar(async () => {
+      const res = cita.clase === "actividad" ? await a.eliminarCitaAccion(cita.id, contactoId) : await a.quitarProximoAccion(contactoId);
+      setErrorBorrar(res.ok ? undefined : res.error);
+    });
+  };
+
+  if (!abierto)
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn-secundario" onClick={() => setAbierto(true)}>
+          Editar
+        </button>
+        {r.ok && r.mensaje && <span className="text-sm text-ok-texto">{r.mensaje}</span>}
+      </div>
+    );
+
+  return (
+    <form action={enviar} className="flex flex-col gap-3 rounded-lg bg-fondo p-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {cita.clase === "actividad" ? (
+          <>
+            <label className="campo">
+              Tipo
+              <select name="tipo" defaultValue={cita.tipo}>
+                {(Object.keys(ETIQUETA_ACTIVIDAD) as TipoActividad[]).map((t) => (
+                  <option key={t} value={t}>
+                    {ETIQUETA_ACTIVIDAD[t]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="campo">
+              Fecha
+              <input type="date" name="fecha" defaultValue={hoyIso(cita.fechaProgramada)} required />
+            </label>
+            <label className="campo">
+              Hora
+              <input type="time" name="hora" defaultValue={horaArgentina(cita.fechaProgramada)} />
+            </label>
+            <label className="campo sm:col-span-2 lg:col-span-4">
+              Nota *
+              <input name="nota" required defaultValue={cita.nota ?? ""} />
+            </label>
+          </>
+        ) : (
+          <label className="campo">
+            Volver a contactar el
+            <input type="date" name="fecha" defaultValue={cita.dia} required />
+          </label>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <BotonEnviar className="btn-primario">Guardar</BotonEnviar>
+        <button type="button" className="btn-secundario" onClick={() => setAbierto(false)}>
+          Cancelar
+        </button>
+        <button type="button" className="btn ml-auto text-sm text-aviso-texto" onClick={eliminar} disabled={borrando}>
+          {borrando ? "Eliminando…" : "Eliminar"}
+        </button>
+      </div>
+      {(r.error || errorBorrar) && <span className="text-sm text-aviso-texto">{r.error ?? errorBorrar}</span>}
     </form>
   );
 }

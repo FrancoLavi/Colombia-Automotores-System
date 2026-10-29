@@ -13,7 +13,7 @@ import { nombreContacto, fecha, fechaHora } from "@/lib/formato";
 import { describirPedido, ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { ChipEstado } from "@/components/ui";
 import { ChipEtapa, ChipOrigen, Telefono } from "../chips";
-import { AccionesEtapa, BotonesPedido, FormActividad, FormCompletar, FormContacto, FormPedido } from "../formularios";
+import { AccionesEtapa, BotonesPedido, EditarCita, FormActividad, FormCompletar, FormContacto, FormPedido } from "../formularios";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -101,6 +101,7 @@ export default async function FichaContactoPage({ params }: { params: Promise<{ 
                     {a.nota && ` · ${a.nota}`}
                   </span>
                   <FormCompletar actividadId={a.id} contactoId={id} />
+                  <EditarCita contactoId={id} cita={{ clase: "actividad", id: a.id, tipo: a.tipo, fechaProgramada: a.fechaProgramada, nota: a.nota }} />
                 </div>
               ))}
             </div>

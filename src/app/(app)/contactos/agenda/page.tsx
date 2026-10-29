@@ -5,7 +5,7 @@ import { agenda } from "@/server/contactos";
 import { nombreContacto, fecha, hoyIso, hora } from "@/lib/formato";
 import { ETIQUETA_ACTIVIDAD, type TipoActividad } from "@/domain/contactos";
 import { Telefono } from "../chips";
-import { FormCompletar } from "../formularios";
+import { EditarCita, FormCompletar } from "../formularios";
 
 export const metadata = { title: "Agenda · Colombia Automotores" };
 
@@ -17,6 +17,7 @@ type Item = {
   tipo: TipoActividad | "RECONTACTO";
   detalle: string;
   actividadId: number | null;
+  cita: React.ComponentProps<typeof EditarCita>["cita"];
 };
 
 type Busqueda = { q?: string; tipo?: string; desde?: string; hasta?: string };
@@ -64,6 +65,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       tipo: a.tipo,
       detalle: `${ETIQUETA_ACTIVIDAD[a.tipo]}${a.nota ? ` · ${a.nota}` : ""}`,
       actividadId: a.id,
+      cita: { clase: "actividad" as const, id: a.id, tipo: a.tipo, fechaProgramada: a.fechaProgramada, nota: a.nota },
     })),
     ...proximos.map((c) => ({
       clave: `c${c.id}`,
@@ -73,6 +75,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       tipo: "RECONTACTO" as const,
       detalle: `Volver a contactar${c.productoInteres ? ` · busca ${c.productoInteres}` : ""}`,
       actividadId: null,
+      cita: { clase: "proximo" as const, dia: c.proximoContacto! },
     })),
   ].sort((x, y) => (x.dia + (x.hora ?? "99")).localeCompare(y.dia + (y.hora ?? "99")));
   const items = todos.filter((i) => coincide(i, sp));
@@ -158,6 +161,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
                   <span className="text-sm text-suave">{i.detalle}</span>
                 </div>
                 <FormCompletar actividadId={i.actividadId} contactoId={i.contacto.id} />
+                <EditarCita contactoId={i.contacto.id} cita={i.cita} />
               </article>
             ))}
           </section>

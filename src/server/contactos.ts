@@ -284,6 +284,60 @@ export async function completarActividad(usuarioId: number, actividadId: number,
   });
 }
 
+/** Busca una actividad pendiente: las ya hechas son historial y no se editan ni se borran. */
+async function actividadPendiente(t: Tx, actividadId: number) {
+  const a = await t.query.actividades.findFirst({ where: eq(s.actividades.id, actividadId) });
+  if (!a) throw new ErrorNegocio("La cita no existe");
+  if (a.realizadaEn) throw new ErrorNegocio("La cita ya está hecha: queda en el historial y no se puede cambiar");
+  return a;
+}
+
+/** HU-2.3: edita una cita agendada (tipo, fecha y hora, nota). */
+export async function editarActividad(
+  usuarioId: number,
+  actividadId: number,
+  d: { tipo: TipoActividad; fechaProgramada: Date; nota: string | null },
+) {
+  await db.transaction(async (t) => {
+    const a = await actividadPendiente(t, actividadId);
+    const [despues] = await t.update(s.actividades).set(d).where(eq(s.actividades.id, actividadId)).returning();
+    const campos = (x: typeof a) => ({ tipo: x.tipo, fechaProgramada: x.fechaProgramada, nota: x.nota });
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: a.contactoId, accion: "MODIFICAR",
+      antes: campos(a), despues: campos(despues),
+      descripcion: `Editó la cita de ${a.tipo.toLowerCase()}`,
+    });
+  });
+}
+
+/** HU-2.3: borra una cita agendada que ya no va. El historial guarda cómo era. */
+export async function eliminarActividad(usuarioId: number, actividadId: number) {
+  await db.transaction(async (t) => {
+    const a = await actividadPendiente(t, actividadId);
+    await t.delete(s.actividades).where(eq(s.actividades.id, actividadId));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: a.contactoId, accion: "ELIMINAR",
+      antes: { tipo: a.tipo, fechaProgramada: a.fechaProgramada, nota: a.nota },
+      descripcion: `Eliminó la cita de ${a.tipo.toLowerCase()}${a.nota ? `: ${a.nota.slice(0, 80)}` : ""}`,
+    });
+  });
+}
+
+/** Cambia o quita (null) la fecha de "volver a contactar" del contacto. */
+export async function cambiarProximoContacto(usuarioId: number, contactoId: number, proximoContacto: string | null) {
+  await db.transaction(async (t) => {
+    const c = await t.query.contactos.findFirst({ where: eq(s.contactos.id, contactoId) });
+    if (!c) throw new ErrorNegocio("El contacto no existe");
+    if (c.proximoContacto === proximoContacto) return;
+    await t.update(s.contactos).set({ proximoContacto }).where(eq(s.contactos.id, contactoId));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: contactoId, accion: proximoContacto ? "MODIFICAR" : "ELIMINAR",
+      antes: { proximoContacto: c.proximoContacto }, despues: { proximoContacto },
+      descripcion: proximoContacto ? "Cambió la fecha de volver a contactar" : "Quitó el volver a contactar",
+    });
+  });
+}
+
 /** Resuelve el "próximo contacto" sin actividad agendada: registra el contacto hecho y reprograma. */
 export async function resolverProximo(usuarioId: number, contactoId: number, nota: string | null, proximoContacto: string | null) {
   await agregarActividad(usuarioId, contactoId, { tipo: "LLAMADA", fechaProgramada: new Date(), realizada: true, nota, proximoContacto });
