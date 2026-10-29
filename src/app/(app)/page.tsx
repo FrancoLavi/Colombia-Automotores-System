@@ -114,7 +114,7 @@ export default async function InicioPage() {
         <section className="tarjeta flex flex-col" aria-label="Agenda de hoy">
           <div className="flex items-center justify-between pb-2">
             <h2 className="text-lg font-semibold">Agenda de hoy</h2>
-            <Link href="/contactos/agenda" className="text-sm font-semibold">
+            <Link href="/contactos/agenda?rango=mes" className="text-sm font-semibold">
               Ver todo
             </Link>
           </div>

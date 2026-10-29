@@ -17,11 +17,26 @@ type Item = {
   actividadId: number | null;
 };
 
-export default async function AgendaPage() {
+/** Suma meses a un día "AAAA-MM-DD" (31/01 + 1 mes = 28/02 o 29/02, no 03/03). */
+function sumarMeses(dia: string, meses: number) {
+  const [a, m, d] = dia.split("-").map(Number);
+  const ultimoDelMes = new Date(Date.UTC(a, m - 1 + meses + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(a, m - 1 + meses, Math.min(d, ultimoDelMes))).toISOString().slice(0, 10);
+}
+
+/** "lunes 03/11/2026": el día de la semana ayuda a ubicarse en una agenda de un mes. */
+function diaConSemana(dia: string) {
+  const semana = new Date(`${dia}T12:00:00Z`).toLocaleDateString("es-AR", { weekday: "long", timeZone: "UTC" });
+  return `${semana.charAt(0).toUpperCase()}${semana.slice(1)} ${fecha(dia)}`;
+}
+
+export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ rango?: string }> }) {
   await requerirUsuario();
+  const mes = (await searchParams).rango === "mes";
   const hoy = hoyIso();
   const manana = hoyIso(new Date(Date.now() + 86_400_000));
-  const { actividades, proximos } = await agenda(manana);
+  const hasta = mes ? sumarMeses(hoy, 1) : manana;
+  const { actividades, proximos } = await agenda(hasta);
 
   const items: Item[] = [
     ...actividades.map(({ a, contacto }) => ({
@@ -46,6 +61,12 @@ export default async function AgendaPage() {
     { titulo: "Atrasados", items: items.filter((i) => i.dia < hoy), clase: "text-aviso-texto" },
     { titulo: `Hoy · ${fecha(hoy)}`, items: items.filter((i) => i.dia === hoy), clase: "" },
     { titulo: `Mañana · ${fecha(manana)}`, items: items.filter((i) => i.dia === manana), clase: "" },
+    // Con el rango de un mes, del pasado mañana en adelante va un grupo por día.
+    ...[...new Set(items.filter((i) => i.dia > manana).map((i) => i.dia))].map((dia) => ({
+      titulo: diaConSemana(dia),
+      items: items.filter((i) => i.dia === dia),
+      clase: "",
+    })),
   ];
 
   return (
@@ -53,8 +74,18 @@ export default async function AgendaPage() {
       <Link href="/contactos" className="text-sm font-semibold">
         ← Volver a contactos
       </Link>
-      <h1 className="text-3xl font-bold">Agenda</h1>
-      {items.length === 0 && <p className="tarjeta text-suave">No hay nada agendado para hoy ni mañana.</p>}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">Agenda</h1>
+          <p className="mt-1 text-suave">{mes ? `De hoy al ${fecha(hasta)}` : "Hoy y mañana"}</p>
+        </div>
+        <Link href={mes ? "/contactos/agenda" : "/contactos/agenda?rango=mes"} className="btn-secundario">
+          {mes ? "Ver solo hoy y mañana" : "Ver el próximo mes"}
+        </Link>
+      </div>
+      {items.length === 0 && (
+        <p className="tarjeta text-suave">{mes ? "No hay nada agendado de acá a un mes." : "No hay nada agendado para hoy ni mañana."}</p>
+      )}
       {grupos
         .filter((g) => g.items.length)
         .map((g) => (
