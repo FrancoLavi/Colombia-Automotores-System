@@ -96,12 +96,18 @@ export function compraSaleDeCaja(a: { tipoIngreso: TipoIngreso; financista: Tipo
 }
 
 /**
- * K10: lo que el inversor puso de su bolsillo en un auto, y que hay que devolverle al venderlo:
- * el valor de compra, sin los gastos (los puso el salón). Una permuta o una consignación no le
- * costaron nada, así que no hay capital que devolver.
+ * K10: lo que es del inversor en un auto suyo, y que hay que devolverle al venderlo: el valor
+ * de compra, sin los gastos (esos los pone el salón, R1).
+ *
+ * Cuenta igual si el auto entró por permuta. El usado que se toma en parte de pago de un auto
+ * del inversor se le acredita a él al valor de toma: es plata suya que volvía de esa venta y
+ * quedó puesta en otro auto, no una compra del salón. Si el usado fuera del salón, al cargarlo
+ * se le pone al salón como financista y no cuenta acá.
+ *
+ * La consignación no cuenta: ese auto no es de nadie del salón (K3).
  */
 export function capitalDelInversor(a: { tipoIngreso: TipoIngreso; financista: TipoParticipe; valorCompraArs: number }): number {
-  return a.tipoIngreso === "COMPRA" && a.financista === "INVERSOR" ? r2(a.valorCompraArs) : 0;
+  return a.tipoIngreso !== "CONSIGNACION" && a.financista === "INVERSOR" ? r2(a.valorCompraArs) : 0;
 }
 
 export interface PiezasPatrimonio {

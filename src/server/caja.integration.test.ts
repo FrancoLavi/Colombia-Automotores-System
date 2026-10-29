@@ -46,8 +46,10 @@ describe("patrimonio a lo largo de una venta", () => {
     // K10: al inversor se le deben los 10 M que puso más sus 825.000 de ganancia.
     expect(p.deudaInversores).toBe(10_825_000);
     expect(p.total).toBe(31_900_000);
-    // K11: 20 M iniciales + 1,9 M de ganancia − 825.000 del inversor
-    expect(p.salon).toBe(21_075_000);
+    // El Fiesta entró por permuta a nombre del inversor, así que sus 4 M también son de él (K10).
+    expect(p.stockInversores).toBe(4_000_000);
+    // K11: 20 M iniciales + 1,9 M de ganancia − 825.000 del inversor − sus 4 M del Fiesta
+    expect(p.salon).toBe(17_075_000);
   });
 
   it("devolverle el capital y la ganancia al inversor no cambia lo que es del salón", async () => {
@@ -61,7 +63,8 @@ describe("patrimonio a lo largo de una venta", () => {
     expect(p.deudaInversores).toBe(0);
     expect(p.aCobrar).toBe(0);
     expect(p.total).toBe(21_075_000);
-    expect(p.salon).toBe(21_075_000); // pagada la deuda, todo el patrimonio es del salón
+    // Pagada la deuda, lo único ajeno que queda es el Fiesta del inversor.
+    expect(p.salon).toBe(17_075_000);
     // La devolución quedó registrada aparte del pago de la ganancia.
     const { movimientos } = await caja.movimientos({});
     expect(movimientos.find((x) => x.m.categoria === "DEVOLUCION_CAPITAL")!.m.importe).toBe(10_000_000);
@@ -71,9 +74,9 @@ describe("patrimonio a lo largo de una venta", () => {
 
   it("subcaja del inversor: lo que puso y lo que cobró", async () => {
     const inv = (await caja.subcajas()).find((x) => x.participe.tipo === "INVERSOR")!;
-    // Le queda el Fiesta, que vino por permuta: no lo pagó él, así que no cuenta como capital suyo.
+    // Le queda el Fiesta, que vino por permuta de su propia venta: es capital suyo al valor de toma.
     expect(inv.autos.map((a) => a.dominio)).toEqual(["OPQ214"]);
-    expect(inv.capital).toBe(0);
+    expect(inv.capital).toBe(4_000_000);
     expect(inv.capitalPorCobrar).toBe(0);
     expect(inv.cobrado).toBe(825_000);
     expect(inv.pendiente).toBe(0);
