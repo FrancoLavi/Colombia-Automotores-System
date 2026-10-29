@@ -74,12 +74,13 @@ describe("la plata del inversor no es del salón (K9–K11)", () => {
     expect(compraSaleDeCaja({ tipoIngreso: "CONSIGNACION", financista: "SALON" })).toBe(false);
   });
 
-  it("el capital a devolver es el valor de compra, y solo si el inversor lo compró", () => {
+  it("el capital del inversor es el valor de compra de sus autos, sin los gastos", () => {
     const auto = { valorCompraArs: 10_000_000, tipoIngreso: "COMPRA" as const, financista: "INVERSOR" as const };
     expect(capitalDelInversor(auto)).toBe(10_000_000);
     expect(capitalDelInversor({ ...auto, financista: "SALON" })).toBe(0);
-    // Una permuta o una consignación no le costaron plata al inversor.
-    expect(capitalDelInversor({ ...auto, tipoIngreso: "PERMUTA" })).toBe(0);
+    // Un usado tomado en parte de pago de un auto suyo también es capital suyo, al valor de toma.
+    expect(capitalDelInversor({ ...auto, tipoIngreso: "PERMUTA" })).toBe(10_000_000);
+    // La consignación no es de nadie del salón.
     expect(capitalDelInversor({ ...auto, tipoIngreso: "CONSIGNACION" })).toBe(0);
   });
 
