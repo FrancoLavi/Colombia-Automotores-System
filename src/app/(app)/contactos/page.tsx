@@ -38,8 +38,8 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
           <p className="mt-1 text-suave">Todo el que consulta se carga como dato. Después pasa a preventa y a cliente.</p>
         </div>
         <div className="flex flex-wrap gap-2.5">
-          <Link href="/contactos/agenda" className="btn-secundario">
-            Agenda de hoy{enAgenda ? ` · ${enAgenda}` : ""}
+          <Link href="/contactos/agenda?rango=mes" className="btn-secundario">
+            Agenda{enAgenda ? ` · ${enAgenda}` : ""}
           </Link>
           <Link href="/contactos/pedidos" className="btn-secundario">
             Pedidos · {pedidos.length}
