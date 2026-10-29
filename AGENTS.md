@@ -13,12 +13,13 @@ Sistema de gestión interno para el salón de autos usados Colombia Automotores:
 npm run dev           # http://localhost:3000
 npm test              # vitest: tests de dominio e integración (PGlite en memoria)
 npm run lint
+npm run typecheck   # tsc: el build de Next no mira los tests ni los scripts
 npm run build
 npm run db:generate   # nueva migración a partir de src/db/schema.ts
 npm run db:migrate    # aplica migraciones (PGlite local en ./.data/pglite o DATABASE_URL)
 npm run db:seed       # datos base + usuario inicial desde .env.local
 ```
-Antes de dar una tarea por terminada: `npm test`, `npm run lint` y `npm run build` tienen que pasar. Lo mismo corre en CI en cada PR.
+Antes de dar una tarea por terminada: `npm test`, `npm run lint`, `npm run typecheck` y `npm run build` tienen que pasar. Lo mismo corre en CI en cada PR.
 
 ## Arquitectura (capas)
 | Capa | Carpeta | Qué va |
