@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fechaHora } from "@/lib/formato";
 import { requerirUsuario } from "@/lib/auth";
 import { FormFiltros } from "@/components/filtros";
 import { datosConfiguracion, historialGlobal } from "@/server/configuracion";
@@ -86,7 +87,7 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Pr
                 const cambios = a.cambios ? Object.entries(a.cambios).filter(([k]) => !["id", "creadoEn"].includes(k)) : [];
                 return (
                   <tr key={a.id}>
-                    <td className="num">{a.fecha.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</td>
+                    <td className="num">{fechaHora(a.fecha)}</td>
                     <td>{usuario ?? "Sistema"}</td>
                     <td>{ruta ? <Link href={ruta}>{e.texto}</Link> : (e?.texto ?? a.entidad)}</td>
                     <td className="max-w-xl whitespace-normal">

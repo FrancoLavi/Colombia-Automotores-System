@@ -4,7 +4,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { fichaOperacion } from "@/server/ventas";
 import { datosFormulario } from "@/server/vehiculos";
-import { nombreContacto, fecha, porcentaje, usd } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje, usd, fechaHora } from "@/lib/formato";
 import { ETIQUETA_PAGO, ABIERTAS, CONCEPTOS_GASTO_VENTA, numeroOperacion } from "@/domain/ventas";
 import { alarmaEntrega, diaArgentina, horaArgentina } from "@/domain/entregas";
 import { capitalDelInversor } from "@/domain/caja";
@@ -385,7 +385,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
         <h2 className="pb-2 text-lg font-semibold">Historial</h2>
         {f.historial.map(({ a, usuario }) => (
           <div key={a.id} className="flex flex-wrap gap-x-4 border-t border-linea py-2 text-sm">
-            <span className="num min-w-36 text-apagado">{a.fecha.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</span>
+            <span className="num min-w-36 text-apagado">{fechaHora(a.fecha)}</span>
             <span>
               <b>{usuario ?? "Sistema"}</b> · {a.descripcion ?? a.accion.toLowerCase()}
             </span>

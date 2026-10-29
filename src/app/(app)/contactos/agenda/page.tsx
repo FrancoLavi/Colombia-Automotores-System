@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { agenda } from "@/server/contactos";
-import { nombreContacto, fecha, hoyIso } from "@/lib/formato";
+import { nombreContacto, fecha, hoyIso, hora } from "@/lib/formato";
 import { ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { Telefono } from "../chips";
 import { FormCompletar } from "../formularios";
@@ -27,7 +27,7 @@ export default async function AgendaPage() {
     ...actividades.map(({ a, contacto }) => ({
       clave: `a${a.id}`,
       dia: hoyIso(a.fechaProgramada),
-      hora: a.fechaProgramada.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+      hora: hora(a.fechaProgramada),
       contacto,
       detalle: `${ETIQUETA_ACTIVIDAD[a.tipo]}${a.nota ? ` · ${a.nota}` : ""}`,
       actividadId: a.id,

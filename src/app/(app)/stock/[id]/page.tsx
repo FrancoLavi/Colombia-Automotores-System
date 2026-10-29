@@ -8,7 +8,7 @@ import { datosFormulario, fichaVehiculo } from "@/server/vehiculos";
 import { interesadosEnAuto } from "@/server/contactos";
 import { operacionAbiertaDeVehiculo } from "@/server/ventas";
 import { Telefono } from "../../contactos/chips";
-import { nombreContacto, fecha, numero, porcentaje, usd } from "@/lib/formato";
+import { nombreContacto, fecha, numero, porcentaje, usd, fechaHora } from "@/lib/formato";
 import { BotonQuitar, ChipAlerta, ChipEstado, Ayuda } from "@/components/ui";
 import { eliminarGastoAccion, quitarArchivoAccion } from "../actions";
 import {
@@ -265,7 +265,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
         {f.historial.map(({ a, usuario }) => (
           <div key={a.id} className="flex flex-wrap gap-x-4 border-t border-linea py-2 text-sm">
             <span className="num min-w-36 text-apagado">
-              {a.fecha.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+              {fechaHora(a.fecha)}
             </span>
             <span>
               <b>{usuario ?? "Sistema"}</b> · {a.descripcion ?? a.accion.toLowerCase()}

@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
-import { hoyIso } from "@/lib/formato";
+import { hoyIso, fechaHora } from "@/lib/formato";
 import { cobertura, costoTotal, deudasPorVenta, liquidar, margenUsd, precioSugerido, r2 } from "@/domain/negocio";
 import { capitalDelInversor } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
@@ -469,7 +469,7 @@ export async function entregarOperacion(usuarioId: number, id: number, fechaEntr
     await cambiarEstadoVehiculo(t, op.vehiculoId, "ENTREGADO", usuarioId, `Entregado (${numeroOperacion(id)})`);
     await auditar(t, {
       usuarioId, entidad: ENTIDAD, entidadId: id, accion: "CAMBIO_ESTADO", antes: { estado: op.estado }, despues: { estado: "ENTREGADA", fechaEntrega },
-      descripcion: `Entregado el ${fechaEntrega.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`,
+      descripcion: `Entregado el ${fechaHora(fechaEntrega)}`,
     });
   });
 }
