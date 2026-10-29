@@ -146,3 +146,48 @@ describe("devolución del capital al inversor (K10)", () => {
     expect(deudasPorVenta(l, { financista: "SALON", capitalInversor: 0 })).toEqual([]);
   });
 });
+
+describe("el usado que se lleva el inversor va a cuenta de su capital (K12)", () => {
+  // El caso que trajo el cliente: Amarok de Mariano, compra 31,3 M y 500.000 de gastos del salón.
+  // Se vende en 34 M y se toma un Cruze de 16,5 M que queda a nombre de Mariano.
+  const capitalInversor = 31_300_000;
+  const costo = 31_800_000;
+  const l = liquidar({ costo, precio: 34_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+  const usado = 16_500_000;
+
+  it("le devuelve el capital menos el valor de toma del usado", () => {
+    expect(deudasPorVenta(l, { financista: "INVERSOR", capitalInversor, capitalReinvertido: usado })).toEqual([
+      { tipo: "CAPITAL", destino: "INVERSOR", importe: 14_800_000 },
+      { tipo: "GANANCIA", destino: "INVERSOR", importe: l.parteInversor },
+      { tipo: "GANANCIA", destino: "SALON", importe: l.parteSalon },
+    ]);
+  });
+
+  it("entre el auto y la plata, el inversor recupera justo lo que había puesto", () => {
+    const deudas = deudasPorVenta(l, { financista: "INVERSOR", capitalInversor, capitalReinvertido: usado });
+    const capital = deudas.find((d) => d.tipo === "CAPITAL")!.importe;
+    expect(capital + usado).toBe(capitalInversor);
+  });
+
+  it("al salón le queda su parte de la ganancia y nada más", () => {
+    const deudas = deudasPorVenta(l, { financista: "INVERSOR", capitalInversor, capitalReinvertido: usado });
+    const aPagar = deudas.filter((d) => d.destino === "INVERSOR").reduce((a, d) => a + d.importe, 0);
+    // De los 34 M, 16,5 M entraron como auto: por caja entran 17,5 M. El salón puso 500.000 de gastos.
+    const enPlata = 34_000_000 - usado;
+    expect(enPlata - aPagar - 500_000).toBe(l.parteSalon);
+  });
+
+  it("si el usado queda a nombre del salón, el capital se devuelve completo", () => {
+    // El salón se queda el auto, así que la plata del inversor sale toda de la caja.
+    expect(deudasPorVenta(l, { financista: "INVERSOR", capitalInversor, capitalReinvertido: 0 })[0]).toEqual({
+      tipo: "CAPITAL",
+      destino: "INVERSOR",
+      importe: capitalInversor,
+    });
+  });
+
+  it("si el usado vale más que el capital, la diferencia la reintegra", () => {
+    const deudas = deudasPorVenta(l, { financista: "INVERSOR", capitalInversor, capitalReinvertido: 35_000_000 });
+    expect(deudas.find((d) => d.tipo === "CAPITAL")).toEqual({ tipo: "CAPITAL", destino: "INVERSOR", importe: -3_700_000 });
+  });
+});

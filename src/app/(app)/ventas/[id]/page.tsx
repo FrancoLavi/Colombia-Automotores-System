@@ -8,6 +8,7 @@ import { nombreContacto, fecha, porcentaje, usd, fechaHora } from "@/lib/formato
 import { ETIQUETA_PAGO, ABIERTAS, CONCEPTOS_GASTO_VENTA, numeroOperacion } from "@/domain/ventas";
 import { alarmaEntrega, diaArgentina, horaArgentina } from "@/domain/entregas";
 import { capitalDelInversor } from "@/domain/caja";
+import { r2 } from "@/domain/negocio";
 import { Ayuda, BotonQuitar, ChipAlerta, ChipEstado } from "@/components/ui";
 import { Telefono } from "../../contactos/chips";
 import { ChipOperacion } from "../chip";
@@ -57,6 +58,9 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
   const l = f.liquidacion ?? f.prevista;
   // K10: al cerrar, al inversor se le devuelve el capital que puso además de su parte (R3).
   const capital = capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: f.financista?.tipo ?? "SALON", valorCompraArs: v.valorCompraArs });
+  // K12: si se lleva un usado de esta venta, va a cuenta del capital y se le devuelve menos plata.
+  const capitalEnPlata = r2(capital - f.capitalReinvertido);
+  const usadosACuenta = f.pagos.filter((x) => x.permuta && f.financista?.tipo === "INVERSOR" && x.permuta.participeId === f.financista.id);
   const pctCaja = f.total ? (f.cobertura.caja / f.total) * 100 : 0;
   const pctCobrar = f.total ? (f.cobertura.aCobrar / f.total) * 100 : 0;
   const pctPermuta = f.total ? (f.cobertura.permuta / f.total) * 100 : 0;
@@ -299,11 +303,34 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             <h2 className="text-lg font-semibold">Reparto</h2>
             {/* K10: al inversor se le devuelve el capital que puso, además de su parte. */}
             {capital !== 0 && (
-              <div className="flex justify-between gap-3 rounded-lg bg-info-fondo p-3.5">
-                <span>
-                  <b>{f.financista?.nombre}</b> · capital que puso
-                </span>
-                <span className="num">{m(capital)}</span>
+              <div className="flex flex-col gap-2 rounded-lg bg-info-fondo p-3.5">
+                <div className="flex justify-between gap-3">
+                  <span>
+                    <b>{f.financista?.nombre}</b> · capital que puso
+                  </span>
+                  <span className="num">{m(capital)}</span>
+                </div>
+                {/* K12: el usado que se lleva es capital suyo que queda en otro auto, no plata. */}
+                {usadosACuenta.map(({ permuta: u }) => (
+                  <div key={u!.id} className="flex justify-between gap-3 border-t border-borde pt-2 text-sm">
+                    <span>
+                      se lleva el {u!.marca} {u!.modelo} a cuenta
+                      <Ayuda>
+                        El usado quedó a nombre de {f.financista?.nombre} al valor de toma, así que es capital suyo puesto en ese auto. Se descuenta de la plata que
+                        se le devuelve: si no, cobraría dos veces lo mismo.
+                      </Ayuda>
+                    </span>
+                    <span className="num">−{m(u!.valorCompraArs)}</span>
+                  </div>
+                ))}
+                {f.capitalReinvertido !== 0 && (
+                  <div className="flex justify-between gap-3 border-t border-borde pt-2">
+                    <span>
+                      <b>{f.financista?.nombre}</b> · se le devuelve en plata
+                    </span>
+                    <span className="num">{m(capitalEnPlata)}</span>
+                  </div>
+                )}
               </div>
             )}
             {l.regla !== "SALON_TOTAL" && (

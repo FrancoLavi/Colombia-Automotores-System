@@ -84,12 +84,21 @@ export interface DeudaVenta {
  * Al inversor se le devuelve el capital que puso —el valor de compra del auto, sin los gastos,
  * que los puso el salón (K9)— además de su parte de la ganancia (R3). Si la venta dio pérdida,
  * su parte es negativa y la reintegra: cobra el capital menos su mitad de la pérdida.
+ *
+ * K12: si en esta venta se tomó un usado en parte de pago y quedó a nombre del inversor, ese
+ * valor ya es capital suyo puesto en el auto nuevo: se descuenta de la devolución en plata. Sin
+ * esto cobraría dos veces lo mismo —el auto y la plata— y el salón quedaría corto por el valor
+ * de toma. Si el usado vale más que el capital que tenía puesto, la diferencia se la queda
+ * debiendo al salón y la devolución sale negativa: la reintegra, igual que una pérdida.
  */
-export function deudasPorVenta(l: Liquidacion, input: { financista: TipoParticipe; capitalInversor: number }): DeudaVenta[] {
+export function deudasPorVenta(
+  l: Liquidacion,
+  input: { financista: TipoParticipe; capitalInversor: number; capitalReinvertido?: number },
+): DeudaVenta[] {
   const deudas: DeudaVenta[] = [];
   if (input.financista === "INVERSOR") {
-    const capital = r2(input.capitalInversor);
-    if (capital > 0) deudas.push({ tipo: "CAPITAL", destino: "INVERSOR", importe: capital });
+    const capital = r2(input.capitalInversor - (input.capitalReinvertido ?? 0));
+    if (capital !== 0) deudas.push({ tipo: "CAPITAL", destino: "INVERSOR", importe: capital });
     if (l.parteInversor !== 0) deudas.push({ tipo: "GANANCIA", destino: "INVERSOR", importe: l.parteInversor });
   }
   if (l.parteSalon !== 0) deudas.push({ tipo: "GANANCIA", destino: "SALON", importe: l.parteSalon });

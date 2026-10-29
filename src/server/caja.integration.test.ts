@@ -43,13 +43,15 @@ describe("patrimonio a lo largo de una venta", () => {
     const p = await caja.patrimonio();
     expect(p.stock).toBe(4_000_000); // ahora cuenta el Fiesta
     expect(p.aCobrar).toBe(3_000_000);
-    // K10: al inversor se le deben los 10 M que puso más sus 825.000 de ganancia.
-    expect(p.deudaInversores).toBe(10_825_000);
+    // K10/K12: de los 10 M que puso, 4 M se los llevó en el Fiesta: en plata se le deben 6 M,
+    // más sus 825.000 de ganancia.
+    expect(p.deudaInversores).toBe(6_825_000);
     expect(p.total).toBe(31_900_000);
     // El Fiesta entró por permuta a nombre del inversor, así que sus 4 M también son de él (K10).
     expect(p.stockInversores).toBe(4_000_000);
-    // K11: 20 M iniciales + 1,9 M de ganancia − 825.000 del inversor − sus 4 M del Fiesta
-    expect(p.salon).toBe(17_075_000);
+    // K11: al salón le quedan sus 20 M iniciales más su parte de la ganancia, y nada más.
+    // El Fiesta y los 6 M que faltan devolverle son del inversor, cada cosa contada una sola vez.
+    expect(p.salon).toBe(21_075_000);
   });
 
   it("devolverle el capital y la ganancia al inversor no cambia lo que es del salón", async () => {
@@ -62,12 +64,12 @@ describe("patrimonio a lo largo de una venta", () => {
     const p = await caja.patrimonio();
     expect(p.deudaInversores).toBe(0);
     expect(p.aCobrar).toBe(0);
-    expect(p.total).toBe(21_075_000);
+    expect(p.total).toBe(25_075_000);
     // Pagada la deuda, lo único ajeno que queda es el Fiesta del inversor.
-    expect(p.salon).toBe(17_075_000);
-    // La devolución quedó registrada aparte del pago de la ganancia.
+    expect(p.salon).toBe(21_075_000);
+    // La devolución quedó registrada aparte del pago de la ganancia, y por los 6 M en plata (K12).
     const { movimientos } = await caja.movimientos({});
-    expect(movimientos.find((x) => x.m.categoria === "DEVOLUCION_CAPITAL")!.m.importe).toBe(10_000_000);
+    expect(movimientos.find((x) => x.m.categoria === "DEVOLUCION_CAPITAL")!.m.importe).toBe(6_000_000);
     expect(movimientos.find((x) => x.m.categoria === "PAGO_INVERSOR")!.m.importe).toBe(825_000);
     expect((await ven.fichaOperacion(op))!.pagos.find((x) => x.p.tipo === "CREDITO")!.p.estado).toBe("COBRADO");
   });

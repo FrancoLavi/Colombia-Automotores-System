@@ -51,9 +51,12 @@ describe("venta completa: seña + permuta + crédito + efectivo", () => {
     expect(f.v.estado).toBe("VENDIDO");
     expect(f.contacto.etapa).toBe("CLIENTE");
     expect(f.liquidacion).toMatchObject({ regla: "INVERSOR_BASE", costo: 11_000_000, ganancia: 1_900_000, parteInversor: 825_000, parteSalon: 1_075_000, costoUsd: 7_333.33 });
-    // K10: además del reparto R3, al inversor se le devuelven los 10 M que puso.
-    expect(f.distribuciones.map((d) => d.d.importe).sort()).toEqual([10_000_000, 1_075_000, 825_000]);
-    expect(f.distribuciones.filter((d) => d.d.tipo === "CAPITAL").map((d) => d.d.importe)).toEqual([10_000_000]);
+    // K10: además del reparto R3, al inversor se le devuelven los 10 M que puso. Pero el Fiesta
+    // de la permuta quedó a nombre suyo, así que 4 M de esos 10 ya se los llevó en auto (K12):
+    // en plata se le devuelven 6 M. Si no, cobraría dos veces y la caja del salón quedaría corta.
+    expect(f.distribuciones.map((d) => d.d.importe).sort()).toEqual([1_075_000, 6_000_000, 825_000]);
+    expect(f.distribuciones.filter((d) => d.d.tipo === "CAPITAL").map((d) => d.d.importe)).toEqual([6_000_000]);
+    expect(f.capitalReinvertido).toBe(4_000_000);
     const ctas = await db.select().from(s.cuentasPendientes).where(eq(s.cuentasPendientes.operacionId, op));
     expect(ctas).toHaveLength(1);
     expect(ctas[0]).toMatchObject({ tipo: "A_COBRAR", origen: "CREDITO_BANCARIO", saldo: 3_000_000 });
@@ -74,6 +77,23 @@ describe("venta completa: seña + permuta + crédito + efectivo", () => {
     expect(f.liquidacion!.ganancia).toBe(1_900_000); // la liquidación quedó congelada
     const gastos = await db.select().from(s.gastos).where(eq(s.gastos.vehiculoId, auto));
     expect(gastos.find((g) => g.descripcion === "Multa vieja")!.extraordinario).toBe(true);
+  });
+});
+
+describe("K12: el usado a cuenta del capital solo si queda a nombre del inversor", () => {
+  it("usado del salón: al inversor se le devuelve todo el capital en plata", async () => {
+    const auto = await autoDisponible("FF666FF");
+    const cliente = await con.crearContacto(U, { ...contacto, nombre: "Rita", telefono: "2915550199" });
+    const op = await ven.crearOperacion(U, { contactoId: cliente, vehiculoId: auto, precioVenta: 12_000_000, observaciones: null });
+    // El usado lo toma el salón para sí: paga con él parte del auto del inversor.
+    await ven.tomarUsado(U, op, { ...base, dominio: "RST456", marca: "Chevrolet", modelo: "Onix", anio: 2018, participeId: SALON, monedaCompra: "ARS", valorCompra: 5_000_000, tcIngreso: 1_500 });
+    await ven.agregarPago(U, op, { tipo: "EFECTIVO", importe: 7_000_000, fecha: "2026-10-12", medio: "EFECTIVO", banco: null, vence: null, cobradoAhora: true });
+    await ven.cerrarOperacion(U, op, 1_550);
+
+    const f = (await ven.fichaOperacion(op))!;
+    expect(f.capitalReinvertido).toBe(0);
+    // El auto se lo queda el salón, así que la plata del inversor sale entera de la caja.
+    expect(f.distribuciones.filter((d) => d.d.tipo === "CAPITAL").map((d) => d.d.importe)).toEqual([10_000_000]);
   });
 });
 

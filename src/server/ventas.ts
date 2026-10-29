@@ -114,7 +114,20 @@ export async function fichaOperacion(id: number) {
     db.query.contactos.findFirst({ where: eq(s.contactos.id, op.contactoId) }),
     db.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, op.vehiculoId) }),
     db
-      .select({ p: s.pagosOperacion, permuta: { id: s.vehiculos.id, marca: s.vehiculos.marca, modelo: s.vehiculos.modelo, anio: s.vehiculos.anio, dominio: s.vehiculos.dominio, estado: s.vehiculos.estado } })
+      .select({
+        p: s.pagosOperacion,
+        permuta: {
+          id: s.vehiculos.id,
+          marca: s.vehiculos.marca,
+          modelo: s.vehiculos.modelo,
+          anio: s.vehiculos.anio,
+          dominio: s.vehiculos.dominio,
+          estado: s.vehiculos.estado,
+          tipoIngreso: s.vehiculos.tipoIngreso,
+          participeId: s.vehiculos.participeId,
+          valorCompraArs: s.vehiculos.valorCompraArs,
+        },
+      })
       .from(s.pagosOperacion)
       .leftJoin(s.vehiculos, eq(s.vehiculos.id, s.pagosOperacion.vehiculoPermutaId))
       .where(eq(s.pagosOperacion.operacionId, id))
@@ -146,6 +159,17 @@ export async function fichaOperacion(id: number) {
   const tcRef = op.tcVenta ?? tc?.valor ?? null;
   const usd = tcRef ? margenUsd(op.precioVenta, costo, v.tcIngreso, tcRef, p.umbralMargenUsd) : null;
   const total = totalOperacion(op.precioVenta, gastosVenta);
+  // K12: los usados de esta venta que quedaron a nombre del inversor van a cuenta de su capital.
+  const capitalReinvertido = r2(
+    pagos.reduce(
+      (a, { permuta: u }) =>
+        a +
+        (u && financista?.tipo === "INVERSOR" && u.participeId === financista.id
+          ? capitalDelInversor({ tipoIngreso: u.tipoIngreso, financista: "INVERSOR", valorCompraArs: u.valorCompraArs })
+          : 0),
+      0,
+    ),
+  );
 
   return {
     op,
@@ -161,6 +185,7 @@ export async function fichaOperacion(id: number) {
     liquidacion: liq ?? null,
     distribuciones,
     prevista,
+    capitalReinvertido,
     usd,
     tcRef,
     historial,
@@ -376,10 +401,23 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
       .returning();
 
     const salon = (await t.query.participes.findFirst({ where: eq(s.participes.tipo, "SALON") }))!;
+    // K12: los usados que se tomaron en esta venta y quedaron a nombre del inversor son capital
+    // suyo que no sale de la caja: se descuenta de la devolución para no pagarle dos veces.
+    const usadosDelInversor =
+      financista.tipo === "INVERSOR"
+        ? await t
+            .select({ tipoIngreso: s.vehiculos.tipoIngreso, valorCompraArs: s.vehiculos.valorCompraArs })
+            .from(s.vehiculos)
+            .where(and(eq(s.vehiculos.operacionOrigenId, id), eq(s.vehiculos.participeId, financista.id)))
+        : [];
     // K10: al inversor se le devuelve el capital que puso (K9) además de su parte de la ganancia.
     const deudas = deudasPorVenta(l, {
       financista: financista.tipo,
       capitalInversor: capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: financista.tipo, valorCompraArs: v.valorCompraArs }),
+      capitalReinvertido: usadosDelInversor.reduce(
+        (a, x) => a + capitalDelInversor({ tipoIngreso: x.tipoIngreso, financista: financista.tipo, valorCompraArs: x.valorCompraArs }),
+        0,
+      ),
     });
     if (deudas.length) {
       await t.insert(s.distribuciones).values(
