@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
-import { coincidePedido, etapasManuales, normalizarTelefono, pedidoVacio, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
+import { coincidePedido, describirPedido, etapasManuales, normalizarTelefono, pedidoVacio, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
 import { ErrorNegocio } from "./errores";
 import { listarStock } from "./vehiculos";
 
@@ -354,9 +354,13 @@ export interface DatosPedido {
   notas: string | null;
 }
 
-export async function crearPedido(usuarioId: number, contactoId: number, p: DatosPedido) {
+function validarPedido(p: DatosPedido) {
   if (pedidoVacio(p)) throw new ErrorNegocio("Completá al menos la marca, el modelo, el año o el presupuesto");
   if (p.anioDesde && p.anioHasta && p.anioDesde > p.anioHasta) throw new ErrorNegocio("El año desde es mayor que el año hasta");
+}
+
+export async function crearPedido(usuarioId: number, contactoId: number, p: DatosPedido) {
+  validarPedido(p);
   await db.transaction(async (t) => {
     const [ped] = await t.insert(s.pedidos).values({ ...p, contactoId }).returning();
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: contactoId, accion: "CREAR", despues: ped, descripcion: "Pedido registrado" });
@@ -371,6 +375,33 @@ export async function cambiarEstadoPedido(usuarioId: number, pedidoId: number, e
     await auditar(t, {
       usuarioId, entidad: ENTIDAD, entidadId: p.contactoId, accion: "CAMBIO_ESTADO",
       antes: { pedido: p.estado }, despues: { pedido: estado }, descripcion: `Pedido ${estado.toLowerCase()}`,
+    });
+  });
+}
+
+/** HU-2.4: corrige lo que busca el contacto (marca, modelo, años, presupuesto, notas). */
+export async function editarPedido(usuarioId: number, pedidoId: number, d: DatosPedido) {
+  validarPedido(d);
+  await db.transaction(async (t) => {
+    const antes = await t.query.pedidos.findFirst({ where: eq(s.pedidos.id, pedidoId) });
+    if (!antes) throw new ErrorNegocio("El pedido no existe");
+    const [despues] = await t.update(s.pedidos).set(d).where(eq(s.pedidos.id, pedidoId)).returning();
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: antes.contactoId, accion: "MODIFICAR", antes, despues,
+      descripcion: `Editó el pedido: ${describirPedido(despues)}`,
+    });
+  });
+}
+
+/** HU-2.4: borra un pedido cargado por error. El historial guarda cómo era. */
+export async function eliminarPedido(usuarioId: number, pedidoId: number) {
+  await db.transaction(async (t) => {
+    const p = await t.query.pedidos.findFirst({ where: eq(s.pedidos.id, pedidoId) });
+    if (!p) throw new ErrorNegocio("El pedido no existe");
+    await t.delete(s.pedidos).where(eq(s.pedidos.id, pedidoId));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: p.contactoId, accion: "ELIMINAR", antes: p,
+      descripcion: `Eliminó el pedido: ${describirPedido(p)}`,
     });
   });
 }

@@ -62,3 +62,47 @@ describe("HU-2.3: editar y eliminar citas de la agenda", () => {
     expect(await historial(contacto)).toContainEqual(expect.objectContaining({ accion: "ELIMINAR", descripcion: "Quitó el volver a contactar" }));
   });
 });
+
+describe("HU-2.4: editar y eliminar pedidos", () => {
+  let contacto = 0;
+  const base = { marca: "Toyota", modelo: "Hilux", anioDesde: 2017, anioHasta: null, presupuestoMax: null, notas: null };
+
+  beforeAll(async () => {
+    contacto = await con.crearContacto(U, { ...baseContacto, nombre: "Pedidos", telefono: "2915550400" });
+  });
+
+  async function pedido(notas: string) {
+    await con.crearPedido(U, contacto, { ...base, notas });
+    const [p] = await db.select().from(s.pedidos).where(eq(s.pedidos.notas, notas));
+    return p.id;
+  }
+
+  it("edita lo que busca y lo deja en el historial (T1)", async () => {
+    const id = await pedido("Doble cabina");
+    await con.editarPedido(U, id, { marca: "Ford", modelo: "Ranger", anioDesde: 2018, anioHasta: 2022, presupuestoMax: 28_000_000, notas: "4x4" });
+
+    expect(await db.query.pedidos.findFirst({ where: eq(s.pedidos.id, id) })).toMatchObject({
+      marca: "Ford", modelo: "Ranger", anioDesde: 2018, anioHasta: 2022, presupuestoMax: 28_000_000, notas: "4x4",
+    });
+    expect(await historial(contacto)).toContainEqual(
+      expect.objectContaining({ accion: "MODIFICAR", cambios: expect.objectContaining({ marca: ["Toyota", "Ford"] }) }),
+    );
+  });
+
+  it("valida igual que al cargarlo", async () => {
+    const id = await pedido("Para validar");
+    const vacio = { marca: null, modelo: null, anioDesde: null, anioHasta: null, presupuestoMax: null, notas: null };
+    await expect(con.editarPedido(U, id, vacio)).rejects.toThrow(/Completá al menos/);
+    await expect(con.editarPedido(U, id, { ...base, anioDesde: 2022, anioHasta: 2018 })).rejects.toThrow(/año desde/);
+  });
+
+  it("elimina un pedido y el historial guarda cuál era", async () => {
+    const id = await pedido("Cargado por error");
+    await con.eliminarPedido(U, id);
+
+    expect(await db.query.pedidos.findFirst({ where: eq(s.pedidos.id, id) })).toBeUndefined();
+    expect(await historial(contacto)).toContainEqual(
+      expect.objectContaining({ accion: "ELIMINAR", descripcion: "Eliminó el pedido: Toyota Hilux · desde 2017" }),
+    );
+  });
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
@@ -399,6 +399,148 @@ export function FormPedido({ contactoId, marcas }: { contactoId: number; marcas:
         <BotonEnviar className="btn-primario ml-auto">Registrar pedido</BotonEnviar>
       </div>
     </form>
+  );
+}
+
+export interface ValoresPedido {
+  id: number;
+  marca: string | null;
+  modelo: string | null;
+  anioDesde: number | null;
+  anioHasta: number | null;
+  presupuestoMax: number | null;
+  notas: string | null;
+}
+
+/** HU-2.4: formulario para corregir o eliminar un pedido. `alCerrar` se llama al guardar o cancelar. */
+function FormEditarPedido({ contactoId, pedido, marcas, alCerrar }: { contactoId: number; pedido: ValoresPedido; marcas: string[]; alCerrar: (mensaje?: string) => void }) {
+  const lista = useId();
+  const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
+    const res = await a.editarPedidoAccion(pedido.id, contactoId, prev, fd);
+    if (res.ok) alCerrar(res.mensaje);
+    return res;
+  }, INICIAL);
+  const [borrando, iniciar] = useTransition();
+  const [errorBorrar, setErrorBorrar] = useState<string>();
+
+  const eliminar = () => {
+    if (!confirm("¿Eliminar este pedido? No se puede deshacer (queda registrado en el historial).")) return;
+    iniciar(async () => {
+      const res = await a.eliminarPedidoAccion(pedido.id, contactoId);
+      setErrorBorrar(res.ok ? undefined : res.error);
+    });
+  };
+
+  return (
+    <form action={enviar} className="flex flex-col gap-3 rounded-lg bg-fondo p-3 text-left">
+      <datalist id={lista}>
+        {marcas.map((m) => (
+          <option key={m} value={m} />
+        ))}
+      </datalist>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <label className="campo">
+          Marca
+          <input name="marca" list={lista} defaultValue={pedido.marca ?? ""} />
+        </label>
+        <label className="campo">
+          Modelo
+          <input name="modelo" defaultValue={pedido.modelo ?? ""} placeholder="Amarok, Hilux…" />
+        </label>
+        <label className="campo">
+          Año desde
+          <input name="anioDesde" inputMode="numeric" defaultValue={pedido.anioDesde ?? ""} />
+        </label>
+        <label className="campo">
+          Año hasta
+          <input name="anioHasta" inputMode="numeric" defaultValue={pedido.anioHasta ?? ""} />
+        </label>
+        <label className="campo">
+          Presupuesto máx. ($)
+          <InputMoneda name="presupuestoMax" defaultValue={pedido.presupuestoMax} />
+        </label>
+        <label className="campo sm:col-span-2 lg:col-span-5">
+          Notas
+          <input name="notas" defaultValue={pedido.notas ?? ""} placeholder="Color, caja automática, etc." />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <BotonEnviar className="btn-primario">Guardar</BotonEnviar>
+        <button type="button" className="btn-secundario" onClick={() => alCerrar()}>
+          Cancelar
+        </button>
+        <button type="button" className="btn ml-auto text-sm text-aviso-texto" onClick={eliminar} disabled={borrando}>
+          {borrando ? "Eliminando…" : "Eliminar"}
+        </button>
+      </div>
+      {(r.error || errorBorrar) && <span className="text-sm text-aviso-texto">{r.error ?? errorBorrar}</span>}
+    </form>
+  );
+}
+
+/** Botón "Editar" que despliega el formulario del pedido (ficha del contacto). */
+export function EditarPedido({ contactoId, pedido, marcas }: { contactoId: number; pedido: ValoresPedido; marcas: string[] }) {
+  const [abierto, setAbierto] = useState(false);
+  const [aviso, setAviso] = useState<string>();
+  if (abierto)
+    return (
+      <FormEditarPedido
+        contactoId={contactoId}
+        pedido={pedido}
+        marcas={marcas}
+        alCerrar={(m) => {
+          setAviso(m);
+          setAbierto(false);
+        }}
+      />
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button type="button" className="btn min-h-11 border border-borde bg-superficie px-3 text-xs" onClick={() => setAbierto(true)}>
+        Editar
+      </button>
+      {aviso && <span className="text-sm text-ok-texto">{aviso}</span>}
+    </div>
+  );
+}
+
+/**
+ * Fila de la tabla de pedidos con su botón "Editar". El formulario se abre en una ventana encima:
+ * la tabla puede ser más ancha que la pantalla y adentro quedaría cortado.
+ */
+export function FilaPedido({ contactoId, pedido, marcas, children }: { contactoId: number; pedido: ValoresPedido; marcas: string[]; children: React.ReactNode }) {
+  const dialogo = useRef<HTMLDialogElement>(null);
+  const [abierto, setAbierto] = useState(false);
+  const cerrar = () => {
+    dialogo.current?.close();
+    setAbierto(false);
+  };
+  return (
+    <tr>
+      {children}
+      <td>
+        <button
+          type="button"
+          className="btn min-h-11 border border-borde bg-superficie px-3 text-xs"
+          onClick={() => {
+            setAbierto(true);
+            dialogo.current?.showModal();
+          }}
+        >
+          Editar
+        </button>
+        <dialog
+          ref={dialogo}
+          onClose={() => setAbierto(false)}
+          aria-label="Editar pedido"
+          className="m-auto w-[min(56rem,calc(100vw-2rem))] whitespace-normal rounded-xl border border-borde bg-superficie p-4 text-tinta backdrop:bg-black/40"
+        >
+          <h2 className="pb-3 text-lg font-semibold">Editar pedido</h2>
+          {/* Se monta al abrir, así cada vez arranca con los valores guardados. */}
+          {abierto && <FormEditarPedido contactoId={contactoId} pedido={pedido} marcas={marcas} alCerrar={cerrar} />}
+        </dialog>
+      </td>
+    </tr>
   );
 }
 

@@ -4,9 +4,11 @@ import { Vacio } from "@/components/ilustraciones";
 import { FormFiltros } from "@/components/filtros";
 import { vistaMoneda } from "@/lib/moneda";
 import { pedidosAbiertos } from "@/server/contactos";
+import { marcasUsadas } from "@/server/vehiculos";
 import { nombreContacto, fecha } from "@/lib/formato";
 import { describirPedido } from "@/domain/contactos";
 import { Telefono } from "../chips";
+import { FilaPedido } from "../formularios";
 
 export const metadata = { title: "Pedidos · Colombia Automotores" };
 
@@ -35,7 +37,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
   await requerirUsuario();
   const sp = await searchParams;
   const { m } = await vistaMoneda();
-  const todos = await pedidosAbiertos();
+  const [todos, marcasStock] = await Promise.all([pedidosAbiertos(), marcasUsadas()]);
   const pedidos = todos.filter((p) => coincide(p, sp));
   const conStock = pedidos.filter((p) => p.coincidencias.length);
   const filtrando = Boolean(sp.q || sp.marca || sp.stock);
@@ -102,11 +104,12 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
                 <th>Teléfono</th>
                 <th>Desde</th>
                 <th>En stock que coinciden</th>
+                <th aria-label="Acciones" />
               </tr>
             </thead>
             <tbody>
               {pedidos.map((p) => (
-                <tr key={p.id}>
+                <FilaPedido key={p.id} contactoId={p.contacto.id} pedido={p} marcas={marcasStock}>
                   <td className="whitespace-normal">
                     <b>{describirPedido(p)}</b>
                     {p.notas && <div className="text-xs text-apagado">{p.notas}</div>}
@@ -133,7 +136,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
                       <span className="text-apagado">—</span>
                     )}
                   </td>
-                </tr>
+                </FilaPedido>
               ))}
             </tbody>
           </table>

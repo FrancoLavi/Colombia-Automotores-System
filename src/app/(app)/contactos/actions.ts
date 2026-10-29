@@ -166,17 +166,40 @@ export async function quitarProximoAccion(contactoId: number): Promise<Resultado
   return r;
 }
 
+function datosPedido(fd: FormData): svc.DatosPedido {
+  return {
+    marca: texto(fd, "marca"),
+    modelo: texto(fd, "modelo"),
+    anioDesde: entero(fd, "anioDesde"),
+    anioHasta: entero(fd, "anioHasta"),
+    presupuestoMax: importe(fd, "presupuestoMax"),
+    notas: texto(fd, "notas"),
+  };
+}
+
+export async function editarPedidoAccion(pedidoId: number, contactoId: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await svc.editarPedido(u.id, pedidoId, datosPedido(fd));
+    return "Pedido actualizado.";
+  });
+  revalidatePath(`/contactos/${contactoId}`);
+  revalidatePath("/contactos/pedidos");
+  return r;
+}
+
+export async function eliminarPedidoAccion(pedidoId: number, contactoId: number): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(() => svc.eliminarPedido(u.id, pedidoId));
+  revalidatePath(`/contactos/${contactoId}`);
+  revalidatePath("/contactos/pedidos");
+  return r;
+}
+
 export async function pedidoAccion(contactoId: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    await svc.crearPedido(u.id, contactoId, {
-      marca: texto(fd, "marca"),
-      modelo: texto(fd, "modelo"),
-      anioDesde: entero(fd, "anioDesde"),
-      anioHasta: entero(fd, "anioHasta"),
-      presupuestoMax: importe(fd, "presupuestoMax"),
-      notas: texto(fd, "notas"),
-    });
+    await svc.crearPedido(u.id, contactoId, datosPedido(fd));
     return "Pedido registrado.";
   });
   revalidatePath(`/contactos/${contactoId}`);
