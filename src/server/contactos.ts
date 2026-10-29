@@ -1,8 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
-import { coincidePedido, etapasManuales, normalizarTelefono, pedidoVacio, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
+import { coincidePedido, describirPedido, etapasManuales, normalizarTelefono, pedidoVacio, ETIQUETA_ETAPA, type Etapa, type Origen, type TipoActividad } from "@/domain/contactos";
 import { ErrorNegocio } from "./errores";
 import { listarStock } from "./vehiculos";
 
@@ -82,6 +82,7 @@ export async function listarContactos(f: {
         sql`${s.contactos.usadoMarca} ilike ${q}`,
         sql`${s.contactos.usadoModelo} ilike ${q}`,
         sql`${s.contactos.localidad} ilike ${q}`,
+        sql`${s.contactos.email} ilike ${q}`,
         digitos.length >= 4 ? sql`regexp_replace(coalesce(${s.contactos.telefono}, ''), '\\D', '', 'g') like ${"%" + digitos + "%"}` : sql`false`,
       )!,
     );
@@ -156,21 +157,26 @@ export async function interesadosEnAuto(auto: { marca: string; modelo: string; v
 
 /**
  * HU-2.3: agenda. Actividades programadas sin realizar hasta `hasta` (incluye atrasadas)
- * y contactos cuyo "próximo contacto" cae en el rango.
+ * y contactos cuyo "próximo contacto" cae en el rango. Sin `hasta`, trae todo lo pendiente.
  */
-export async function agenda(hasta: string) {
-  const finDia = new Date(`${hasta}T23:59:59`);
+export async function agenda(hasta?: string) {
+  const finDia = hasta ? new Date(`${hasta}T23:59:59`) : null;
   const [actividades, proximos] = await Promise.all([
     db
       .select({ a: s.actividades, contacto: { id: s.contactos.id, nombre: s.contactos.nombre, apellido: s.contactos.apellido, telefono: s.contactos.telefono } })
       .from(s.actividades)
       .innerJoin(s.contactos, eq(s.contactos.id, s.actividades.contactoId))
-      .where(and(isNull(s.actividades.realizadaEn), lte(s.actividades.fechaProgramada, finDia)))
+      .where(and(isNull(s.actividades.realizadaEn), finDia ? lte(s.actividades.fechaProgramada, finDia) : undefined))
       .orderBy(asc(s.actividades.fechaProgramada)),
     db
       .select()
       .from(s.contactos)
-      .where(and(lte(s.contactos.proximoContacto, hasta), ne(s.contactos.etapa, "DESCARTADO")))
+      .where(
+        and(
+          hasta ? lte(s.contactos.proximoContacto, hasta) : isNotNull(s.contactos.proximoContacto),
+          ne(s.contactos.etapa, "DESCARTADO"),
+        ),
+      )
       .orderBy(asc(s.contactos.proximoContacto)),
   ]);
   // Si un contacto ya tiene una actividad pendiente, no se repite por su "próximo contacto".
@@ -279,6 +285,60 @@ export async function completarActividad(usuarioId: number, actividadId: number,
   });
 }
 
+/** Busca una actividad pendiente: las ya hechas son historial y no se editan ni se borran. */
+async function actividadPendiente(t: Tx, actividadId: number) {
+  const a = await t.query.actividades.findFirst({ where: eq(s.actividades.id, actividadId) });
+  if (!a) throw new ErrorNegocio("La cita no existe");
+  if (a.realizadaEn) throw new ErrorNegocio("La cita ya está hecha: queda en el historial y no se puede cambiar");
+  return a;
+}
+
+/** HU-2.3: edita una cita agendada (tipo, fecha y hora, nota). */
+export async function editarActividad(
+  usuarioId: number,
+  actividadId: number,
+  d: { tipo: TipoActividad; fechaProgramada: Date; nota: string | null },
+) {
+  await db.transaction(async (t) => {
+    const a = await actividadPendiente(t, actividadId);
+    const [despues] = await t.update(s.actividades).set(d).where(eq(s.actividades.id, actividadId)).returning();
+    const campos = (x: typeof a) => ({ tipo: x.tipo, fechaProgramada: x.fechaProgramada, nota: x.nota });
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: a.contactoId, accion: "MODIFICAR",
+      antes: campos(a), despues: campos(despues),
+      descripcion: `Editó la cita de ${a.tipo.toLowerCase()}`,
+    });
+  });
+}
+
+/** HU-2.3: borra una cita agendada que ya no va. El historial guarda cómo era. */
+export async function eliminarActividad(usuarioId: number, actividadId: number) {
+  await db.transaction(async (t) => {
+    const a = await actividadPendiente(t, actividadId);
+    await t.delete(s.actividades).where(eq(s.actividades.id, actividadId));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: a.contactoId, accion: "ELIMINAR",
+      antes: { tipo: a.tipo, fechaProgramada: a.fechaProgramada, nota: a.nota },
+      descripcion: `Eliminó la cita de ${a.tipo.toLowerCase()}${a.nota ? `: ${a.nota.slice(0, 80)}` : ""}`,
+    });
+  });
+}
+
+/** Cambia o quita (null) la fecha de "volver a contactar" del contacto. */
+export async function cambiarProximoContacto(usuarioId: number, contactoId: number, proximoContacto: string | null) {
+  await db.transaction(async (t) => {
+    const c = await t.query.contactos.findFirst({ where: eq(s.contactos.id, contactoId) });
+    if (!c) throw new ErrorNegocio("El contacto no existe");
+    if (c.proximoContacto === proximoContacto) return;
+    await t.update(s.contactos).set({ proximoContacto }).where(eq(s.contactos.id, contactoId));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: contactoId, accion: proximoContacto ? "MODIFICAR" : "ELIMINAR",
+      antes: { proximoContacto: c.proximoContacto }, despues: { proximoContacto },
+      descripcion: proximoContacto ? "Cambió la fecha de volver a contactar" : "Quitó el volver a contactar",
+    });
+  });
+}
+
 /** Resuelve el "próximo contacto" sin actividad agendada: registra el contacto hecho y reprograma. */
 export async function resolverProximo(usuarioId: number, contactoId: number, nota: string | null, proximoContacto: string | null) {
   await agregarActividad(usuarioId, contactoId, { tipo: "LLAMADA", fechaProgramada: new Date(), realizada: true, nota, proximoContacto });
@@ -295,9 +355,13 @@ export interface DatosPedido {
   notas: string | null;
 }
 
-export async function crearPedido(usuarioId: number, contactoId: number, p: DatosPedido) {
+function validarPedido(p: DatosPedido) {
   if (pedidoVacio(p)) throw new ErrorNegocio("Completá al menos la marca, el modelo, el año o el presupuesto");
   if (p.anioDesde && p.anioHasta && p.anioDesde > p.anioHasta) throw new ErrorNegocio("El año desde es mayor que el año hasta");
+}
+
+export async function crearPedido(usuarioId: number, contactoId: number, p: DatosPedido) {
+  validarPedido(p);
   await db.transaction(async (t) => {
     const [ped] = await t.insert(s.pedidos).values({ ...p, contactoId }).returning();
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: contactoId, accion: "CREAR", despues: ped, descripcion: "Pedido registrado" });
@@ -312,6 +376,33 @@ export async function cambiarEstadoPedido(usuarioId: number, pedidoId: number, e
     await auditar(t, {
       usuarioId, entidad: ENTIDAD, entidadId: p.contactoId, accion: "CAMBIO_ESTADO",
       antes: { pedido: p.estado }, despues: { pedido: estado }, descripcion: `Pedido ${estado.toLowerCase()}`,
+    });
+  });
+}
+
+/** HU-2.4: corrige lo que busca el contacto (marca, modelo, años, presupuesto, notas). */
+export async function editarPedido(usuarioId: number, pedidoId: number, d: DatosPedido) {
+  validarPedido(d);
+  await db.transaction(async (t) => {
+    const antes = await t.query.pedidos.findFirst({ where: eq(s.pedidos.id, pedidoId) });
+    if (!antes) throw new ErrorNegocio("El pedido no existe");
+    const [despues] = await t.update(s.pedidos).set(d).where(eq(s.pedidos.id, pedidoId)).returning();
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: antes.contactoId, accion: "MODIFICAR", antes, despues,
+      descripcion: `Editó el pedido: ${describirPedido(despues)}`,
+    });
+  });
+}
+
+/** HU-2.4: borra un pedido cargado por error. El historial guarda cómo era. */
+export async function eliminarPedido(usuarioId: number, pedidoId: number) {
+  await db.transaction(async (t) => {
+    const p = await t.query.pedidos.findFirst({ where: eq(s.pedidos.id, pedidoId) });
+    if (!p) throw new ErrorNegocio("El pedido no existe");
+    await t.delete(s.pedidos).where(eq(s.pedidos.id, pedidoId));
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: p.contactoId, accion: "ELIMINAR", antes: p,
+      descripcion: `Eliminó el pedido: ${describirPedido(p)}`,
     });
   });
 }

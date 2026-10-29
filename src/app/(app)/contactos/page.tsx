@@ -39,7 +39,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
         </div>
         <div className="flex flex-wrap gap-2.5">
           <Link href="/contactos/agenda" className="btn-secundario">
-            Agenda de hoy{enAgenda ? ` · ${enAgenda}` : ""}
+            Agenda{enAgenda ? ` · ${enAgenda}` : ""}
           </Link>
           <Link href="/contactos/pedidos" className="btn-secundario">
             Pedidos · {pedidos.length}
@@ -76,7 +76,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
         {sp.etapa && <input type="hidden" name="etapa" value={sp.etapa} />}
         <label className="campo lg:col-span-2">
           Buscar
-          <input type="search" name="q" defaultValue={sp.q} placeholder="Nombre, teléfono, localidad o qué busca" />
+          <input type="search" name="q" defaultValue={sp.q} placeholder="Nombre, teléfono, mail, localidad o qué busca" />
         </label>
         <label className="campo">
           Origen

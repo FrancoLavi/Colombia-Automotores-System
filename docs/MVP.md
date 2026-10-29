@@ -80,8 +80,8 @@ Sea **C** el costo total en $, **P** el precio de venta y **G = P − C** la gan
 ### M2 · Contactos y agenda
 - **HU-2.1** Cargar un dato en menos de 30 segundos: nombre, teléfono, origen, **qué busca** (marca, modelo, años y presupuesto: se guarda como pedido, HU-2.4), **usado a entregar** (marca, modelo y año, más un detalle libre), calificación crediticia (monto y **banco elegido de una lista configurable**, con opción "Otro"), observaciones y próximo contacto. El próximo contacto **no es obligatorio**.
 - **HU-2.2** Ver el embudo (datos, preventa, clientes) y filtrar por texto, origen, **marca y modelo** (lo que busca o lo que entrega), **banco que lo califica** y **monto que califica desde**.
-- **HU-2.3** Registrar actividades (llamada, WhatsApp, visita) y ver la **agenda del día**.
-- **HU-2.4** Registrar **pedidos** (marca, modelo, rango de años, presupuesto) y ver **qué autos del stock coinciden**.
+- **HU-2.3** Registrar actividades (llamada, WhatsApp, visita) y ver la **agenda**: todo lo pendiente, con búsqueda por nombre, teléfono o nota, tipo y fechas. Una cita pendiente se puede **editar** (tipo, fecha, hora y nota) o **eliminar**, y el "volver a contactar" cambiar de fecha o quitar; todo queda en la auditoría (T1). Las ya hechas son historial y no se tocan.
+- **HU-2.4** Registrar **pedidos** (marca, modelo, rango de años, presupuesto) y ver **qué autos del stock coinciden**. Un pedido se puede **editar** (marca, modelo, años, presupuesto y notas) o **eliminar**, desde la ficha del contacto o desde la lista de pedidos; todo queda en la auditoría (T1).
 - **HU-2.5** Importar contactos desde Excel o CSV.
 - **HU-2.6** No se puede guardar un **seguimiento sin nota** ni un **pedido en blanco**: un pedido necesita al menos marca, modelo, año o presupuesto.
 

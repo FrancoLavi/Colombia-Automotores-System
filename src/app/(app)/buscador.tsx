@@ -13,7 +13,7 @@ const ACCIONES: Item[] = [
   { tipo: "accion", titulo: "Cargar un contacto", detalle: "Contactos", href: "/contactos" },
   { tipo: "accion", titulo: "Registrar un movimiento de caja", detalle: "Caja", href: "/caja" },
   { tipo: "accion", titulo: "Ver el calendario de entregas", detalle: "Entregas", href: "/ventas/entregas" },
-  { tipo: "accion", titulo: "Agenda de hoy", detalle: "Contactos", href: "/contactos/agenda" },
+  { tipo: "accion", titulo: "Agenda", detalle: "Contactos", href: "/contactos/agenda" },
 ];
 
 const GRUPO: Record<Item["tipo"], string> = { accion: "Accesos rápidos", auto: "Autos", contacto: "Contactos", venta: "Ventas" };
