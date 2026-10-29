@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      # El build de Next no mira los tests ni los scripts: sin esto, un error de tipos ahí pasa.
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
         env:
