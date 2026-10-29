@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
+import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
@@ -37,11 +38,22 @@ export function AccionesEstado({ id, transiciones }: { id: number; transiciones:
         Motivo (opcional)
         <input name="motivo" />
       </label>
-      {transiciones.map((t) => (
-        <button key={t} name="estado" value={t} className="btn border border-aviso-texto text-aviso-texto hover:bg-aviso-fondo">
-          {t === "POR_INGRESAR" ? "Volver a por ingresar" : t === "BAJA" ? "Dar de baja" : `Marcar ${ETIQUETA_ESTADO[t].toLowerCase()}`}
-        </button>
-      ))}
+      {transiciones.map((t) => {
+        const texto = t === "POR_INGRESAR" ? "Volver a por ingresar" : t === "BAJA" ? "Dar de baja" : `Marcar ${ETIQUETA_ESTADO[t].toLowerCase()}`;
+        return (
+          <BotonConfirmar
+            key={t}
+            name="estado"
+            value={t}
+            peligro={t !== "POR_INGRESAR"}
+            className="btn border border-aviso-texto text-aviso-texto hover:bg-aviso-fondo"
+            titulo={`¿${texto}?`}
+            detalle={`El auto pasa a ${ETIQUETA_ESTADO[t].toLowerCase()}. Queda en el historial con el motivo que escribiste.`}
+          >
+            {texto}
+          </BotonConfirmar>
+        );
+      })}
       <Mensaje r={r} />
     </form>
   );

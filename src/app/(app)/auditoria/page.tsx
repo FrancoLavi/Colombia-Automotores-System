@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { FormFiltros } from "@/components/filtros";
 import { datosConfiguracion, historialGlobal } from "@/server/configuracion";
 
 export const metadata = { title: "Historial de cambios · Colombia Automotores" };
@@ -28,7 +29,7 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Pr
         <h1 className="text-3xl font-bold">Historial de cambios</h1>
         <p className="mt-1 text-suave">Quién hizo qué y cuándo: altas, modificaciones, cambios de estado y anulaciones.</p>
       </header>
-      <form method="get" className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
+      <FormFiltros className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <label className="campo">
           Usuario
           <select name="usuario" defaultValue={sp.usuario ?? ""}>
@@ -64,7 +65,7 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Pr
           <input type="search" name="q" defaultValue={sp.q} placeholder="Texto del cambio" />
         </label>
         <button className="btn-secundario self-end">Filtrar</button>
-      </form>
+      </FormFiltros>
       <section className="tarjeta overflow-x-auto p-0">
         {filas.length === 0 ? (
           <p className="p-6 text-suave">No hay cambios con estos filtros.</p>

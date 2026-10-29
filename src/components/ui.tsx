@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import type { Resultado } from "@/lib/form";
+import { Dialogo } from "./dialogo";
 import { ETIQUETA_ESTADO, type EstadoVehiculo, type Severidad } from "@/domain/stock";
 
 const COLOR_ESTADO: Record<EstadoVehiculo, string> = {
@@ -62,6 +63,7 @@ export function BotonEnviar({ children, className = "btn-primario", pendiente = 
 export function BotonQuitar({ etiqueta, accion, soloIcono = false }: { etiqueta: string; accion: () => Promise<Resultado>; soloIcono?: boolean }) {
   const [pendiente, iniciar] = useTransition();
   const [error, setError] = useState("");
+  const [abierto, setAbierto] = useState(false);
   const verbo = etiqueta.split(" ")[0]; // "Quitar pago" → "Quitar", "Eliminar gasto" → "Eliminar"
   return (
     <span className="inline-flex items-center gap-2">
@@ -71,18 +73,55 @@ export function BotonQuitar({ etiqueta, accion, soloIcono = false }: { etiqueta:
         title={etiqueta}
         disabled={pendiente}
         className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg text-apagado hover:bg-aviso-fondo hover:text-aviso-texto ${soloIcono ? "min-w-11 justify-center" : "px-2.5 text-sm"}`}
-        onClick={() => {
-          if (!confirm(`¿${etiqueta}?`)) return;
+        onClick={() => setAbierto(true)}
+      >
+        <span aria-hidden="true">✕</span>
+        {pendiente ? "…" : !soloIcono && verbo}
+      </button>
+      <Dialogo
+        abierto={abierto}
+        titulo={`¿${etiqueta}?`}
+        confirmar={verbo}
+        peligro
+        onCerrar={() => setAbierto(false)}
+        onConfirmar={() =>
           iniciar(async () => {
             const r = await accion();
             setError(r.error ?? "");
-          });
-        }}
+          })
+        }
       >
-        <span aria-hidden="true">✕</span>
-        {!soloIcono && verbo}
-      </button>
+        Queda registrado en el historial de cambios.
+      </Dialogo>
       {error && <span className="text-xs text-aviso-texto">{error}</span>}
+    </span>
+  );
+}
+
+/**
+ * Explicación corta de un término del negocio ("ganancia base", "margen USD"…), al lado del término.
+ * Se abre al pasar el mouse, al enfocar con teclado o al tocarlo en el celular.
+ */
+export function Ayuda({ children, etiqueta = "Qué es esto" }: { children: React.ReactNode; etiqueta?: string }) {
+  const [abierta, setAbierta] = useState(false);
+  return (
+    <span className="group relative inline-flex align-middle" onMouseLeave={() => setAbierta(false)}>
+      <button
+        type="button"
+        aria-label={etiqueta}
+        aria-expanded={abierta}
+        onClick={() => setAbierta(!abierta)}
+        onBlur={() => setAbierta(false)}
+        className="ml-1 inline-flex size-5 items-center justify-center rounded-full border border-campo-borde text-[11px] font-bold leading-none text-apagado hover:border-acento hover:text-acento"
+      >
+        ?
+      </button>
+      <span
+        role="tooltip"
+        className={`${abierta ? "block" : "hidden"} absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-lg bg-invertido px-3 py-2 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-invertido-texto shadow-lg group-hover:block`}
+      >
+        {children}
+      </span>
     </span>
   );
 }

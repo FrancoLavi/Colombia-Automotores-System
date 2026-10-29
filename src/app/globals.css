@@ -145,3 +145,30 @@ h1, h2, h3 {
     @apply font-mono;
   }
 }
+
+/* Barra de "cargando" de loading.tsx: va y viene de izquierda a derecha. */
+@keyframes cargando {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+/* Foco visible y consistente al navegar con teclado. En la capa base para que las
+   utilidades (focus-visible:outline-none, el anillo de .campo) lo puedan reemplazar. */
+@layer base {
+  :where(a, button, select, input, textarea, summary):focus-visible {
+    outline: 2px solid var(--color-acento);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
