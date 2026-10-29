@@ -9,13 +9,12 @@ import { fichaContacto } from "@/server/contactos";
 import { marcasUsadas } from "@/server/vehiculos";
 import { operacionesDeContacto } from "@/server/ventas";
 import { ChipOperacion } from "../../ventas/chip";
-import { nombreContacto, fecha } from "@/lib/formato";
+import { nombreContacto, fecha, fechaHora } from "@/lib/formato";
 import { describirPedido, ETIQUETA_ACTIVIDAD } from "@/domain/contactos";
 import { ChipEstado } from "@/components/ui";
 import { ChipEtapa, ChipOrigen, Telefono } from "../chips";
 import { AccionesEtapa, BotonesPedido, FormActividad, FormCompletar, FormContacto, FormPedido } from "../formularios";
 
-const fechaHora = (d: Date) => d.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const c = await db.query.contactos.findFirst({ where: eq(s.contactos.id, Number((await params).id)) });

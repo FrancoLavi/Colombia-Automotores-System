@@ -23,15 +23,39 @@ export function formateadorMoneda(enDolares: boolean, tc: number | null) {
  */
 export const nombreContacto = (c: { nombre: string; apellido?: string | null }) => `${c.nombre} ${c.apellido ?? ""}`.trim().toUpperCase();
 
+/**
+ * Todo se muestra y se calcula en hora de Argentina. El servidor de producción corre en UTC:
+ * sin fijar la zona, las horas salen tres horas adelantadas y, pasadas las nueve de la noche,
+ * además con el día cambiado. En desarrollo no se nota porque la máquina ya está en -03.
+ */
+export const ZONA = "America/Argentina/Buenos_Aires";
+
 /** "2026-10-14" → "14/10/2026" */
 export function fecha(iso: string | Date | null | undefined) {
   if (!iso) return "—";
-  const d = typeof iso === "string" ? new Date(iso.length === 10 ? `${iso}T00:00:00` : iso) : iso;
-  return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Un "2026-10-14" ya es un día, sin hora: se muestra tal cual. Pasarlo por una zona lo correría.
+  if (typeof iso === "string" && iso.length === 10) {
+    const [a, m, d] = iso.split("-");
+    return `${d}/${m}/${a}`;
+  }
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: ZONA });
 }
 
-/** Fecha de hoy en formato ISO local (AAAA-MM-DD). */
+/** "29/10/26, 2:44 p. m." — fecha y hora en Argentina, para historiales y agendas. */
+export function fechaHora(d: Date | null | undefined) {
+  if (!d) return "—";
+  return d.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "numeric", minute: "2-digit", timeZone: ZONA });
+}
+
+/** "2:44 p. m." — solo la hora, en Argentina. */
+export function hora(d: Date | null | undefined) {
+  if (!d) return "—";
+  return d.toLocaleTimeString("es-AR", { hour: "numeric", minute: "2-digit", timeZone: ZONA });
+}
+
+/** Fecha de hoy en Argentina, en formato ISO (AAAA-MM-DD). */
 export function hoyIso(d = new Date()) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  // en-CA da justo "AAAA-MM-DD".
+  return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }

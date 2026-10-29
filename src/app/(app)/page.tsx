@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { tablero } from "@/server/dashboard";
-import { nombreContacto, fecha, porcentaje } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje, hora } from "@/lib/formato";
 import { avance, nombreMes } from "@/domain/dashboard";
 import { ChipAlerta } from "@/components/ui";
 import { TarjetaEnlace } from "@/components/tarjeta";
@@ -28,7 +28,7 @@ export default async function InicioPage() {
   const agendaItems = [
     ...t.agenda.actividades.map(({ a, contacto }) => ({
       clave: `a${a.id}`,
-      hora: a.fechaProgramada.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+      hora: hora(a.fechaProgramada),
       contacto,
       detalle: a.nota ?? a.tipo.toLowerCase(),
     })),

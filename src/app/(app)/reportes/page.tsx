@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import * as rep from "@/server/reportes";
-import { nombreContacto, fecha, porcentaje } from "@/lib/formato";
+import { nombreContacto, fecha, porcentaje, fechaHora } from "@/lib/formato";
 import { nombreMes } from "@/domain/dashboard";
 import { ETIQUETA_CATEGORIA } from "@/domain/caja";
 import { ETIQUETA_ESTADO } from "@/domain/stock";
@@ -333,7 +333,7 @@ async function Autos({ anio, m }: { anio: number; m: Fmt }) {
         {movimientos.length === 0 && <p className="text-sm text-apagado">Sin movimientos.</p>}
         {movimientos.map(({ a, usuario, auto }) => (
           <div key={a.id} className="flex flex-wrap gap-x-4 border-t border-linea py-2 text-sm">
-            <span className="num min-w-36 text-apagado">{a.fecha.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</span>
+            <span className="num min-w-36 text-apagado">{fechaHora(a.fecha)}</span>
             <Link href={`/stock/${auto.id}`} className="min-w-48 text-tinta">
               {auto.marca} {auto.modelo} <span className="num text-apagado">{auto.dominio}</span>
             </Link>
