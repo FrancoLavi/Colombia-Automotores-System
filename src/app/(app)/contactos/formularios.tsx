@@ -58,6 +58,10 @@ export function FormContacto({ id, inicial, rapido, bancos = [], marcas = [] }: 
           <input name="telefono" type="tel" defaultValue={inicial?.telefono ?? ""} placeholder="291 555-0142" />
         </label>
         <label className="campo">
+          Mail
+          <input name="email" type="email" defaultValue={inicial?.email ?? ""} placeholder="nombre@gmail.com" />
+        </label>
+        <label className="campo">
           De dónde vino
           <select name="origen" defaultValue={inicial?.origen ?? "WHATSAPP"}>
             {(Object.keys(ETIQUETA_ORIGEN) as Origen[]).map((o) => (
@@ -154,16 +158,12 @@ export function FormContacto({ id, inicial, rapido, bancos = [], marcas = [] }: 
               <input name="dniCuit" defaultValue={inicial?.dniCuit ?? ""} />
             </label>
             <label className="campo">
-              Mail
-              <input name="email" type="email" defaultValue={inicial?.email ?? ""} />
-            </label>
-            <label className="campo">
               Localidad
               <input name="localidad" defaultValue={inicial?.localidad ?? ""} />
             </label>
           </>
         )}
-        <label className={`campo ${rapido ? "sm:col-span-2 lg:col-span-3" : "sm:col-span-2 lg:col-span-4"}`}>
+        <label className="campo sm:col-span-2 lg:col-span-4">
           Observaciones
           <input name="observaciones" defaultValue={inicial?.observaciones ?? ""} />
         </label>
