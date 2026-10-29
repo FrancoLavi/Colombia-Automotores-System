@@ -80,7 +80,7 @@ async function Ganancias({ anio, m }: { anio: number; m: Fmt }) {
   return (
     <section className="tarjeta flex flex-col gap-3 p-0">
       <p className="px-4 pt-4 text-sm text-suave">Lo efectivamente pagado o retirado de cada venta, según el mes del pago.</p>
-      <div className="overflow-x-auto">
+      <div className="tabla-scroll">
         <table className="tabla">
           <thead>
             <tr>
@@ -158,7 +158,7 @@ async function Personas({ anio, m }: { anio: number; m: Fmt }) {
       </section>
       <section className="tarjeta flex flex-col p-0">
         <h2 className="p-4 pb-2 text-lg font-semibold">Detalle</h2>
-        <div className="overflow-x-auto">
+        <div className="tabla-scroll">
           <table className="tabla">
             <thead>
               <tr>
@@ -192,7 +192,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
   const tot = porMes.reduce((a, x) => ({ u: a.u + x.unidades, f: a.f + x.facturado, g: a.g + x.ganancia, s: a.s + x.salon, i: a.i + x.inversores }), { u: 0, f: 0, g: 0, s: 0, i: 0 });
   return (
     <>
-      <section className="tarjeta overflow-x-auto p-0">
+      <section className="tarjeta tabla-scroll p-0">
         <table className="tabla">
           <thead>
             <tr>
@@ -233,7 +233,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
         {ventas.length === 0 ? (
           <Vacio>No hay ventas cerradas en {anio}.</Vacio>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="tabla-scroll">
             <table className="tabla">
               <thead>
                 <tr>
@@ -288,7 +288,7 @@ async function Autos({ anio, m }: { anio: number; m: Fmt }) {
         {autos.length === 0 ? (
           <Vacio>No hubo movimiento de autos en {anio}.</Vacio>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="tabla-scroll">
             <table className="tabla">
               <thead>
                 <tr>
@@ -331,17 +331,19 @@ async function Autos({ anio, m }: { anio: number; m: Fmt }) {
       <section className="tarjeta flex flex-col">
         <h2 className="pb-2 text-lg font-semibold">Cambios de estado y ubicación</h2>
         {movimientos.length === 0 && <p className="text-sm text-apagado">Sin movimientos.</p>}
-        {movimientos.map(({ a, usuario, auto }) => (
-          <div key={a.id} className="flex flex-wrap gap-x-4 border-t border-linea py-2 text-sm">
-            <span className="num min-w-36 text-apagado">{fechaHora(a.fecha)}</span>
-            <Link href={`/stock/${auto.id}`} className="min-w-48 text-tinta">
-              {auto.marca} {auto.modelo} <span className="num text-apagado">{auto.dominio}</span>
-            </Link>
-            <span>
-              {a.descripcion} <span className="text-apagado">· {usuario ?? "Sistema"}</span>
-            </span>
-          </div>
-        ))}
+        <div className="tabla-scroll">
+          {movimientos.map(({ a, usuario, auto }) => (
+            <div key={a.id} className="flex flex-wrap gap-x-4 border-t border-linea py-2 text-sm">
+              <span className="num min-w-36 text-apagado">{fechaHora(a.fecha)}</span>
+              <Link href={`/stock/${auto.id}`} className="min-w-48 text-tinta">
+                {auto.marca} {auto.modelo} <span className="num text-apagado">{auto.dominio}</span>
+              </Link>
+              <span>
+                {a.descripcion} <span className="text-apagado">· {usuario ?? "Sistema"}</span>
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
     </>
   );
@@ -352,7 +354,7 @@ async function Movimientos({ anio, m }: { anio: number; m: Fmt }) {
   const total = (f: (x: (typeof meses)[number]) => number) => meses.reduce((a, x) => a + f(x), 0);
   return (
     <>
-      <section className="tarjeta overflow-x-auto p-0">
+      <section className="tarjeta tabla-scroll p-0">
         <table className="tabla">
           <thead>
             <tr>
@@ -388,7 +390,7 @@ async function Movimientos({ anio, m }: { anio: number; m: Fmt }) {
       {categorias.length > 0 && (
         <section className="tarjeta flex flex-col p-0">
           <h2 className="p-4 pb-2 text-lg font-semibold">Por tipo de movimiento</h2>
-          <div className="overflow-x-auto">
+          <div className="tabla-scroll">
             <table className="tabla">
               <thead>
                 <tr>
