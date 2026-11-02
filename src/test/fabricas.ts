@@ -17,6 +17,15 @@ export const baseContacto = {
   calificacionBanco: null, productoInteres: null, usadoMarca: null, usadoModelo: null, usadoAnio: null, usadoAEntregar: null, observaciones: null, proximoContacto: null,
 };
 
+/** Le da los papeles y el peritaje a un auto ya cargado y lo habilita para la venta. */
+export async function habilitar(id: number) {
+  const docs = await db.select().from(s.documentosVehiculo).where(eq(s.documentosVehiculo.vehiculoId, id));
+  for (const doc of docs) await veh.registrarDocumento(U, id, doc.id, "RECIBIDO", null);
+  await veh.guardarPeritaje(U, id, { fecha: "2026-10-02", perito: null, resultado: "APTO", reparacionEstimada: null, observaciones: null });
+  await veh.habilitarVenta(U, id);
+  return id;
+}
+
 /** Auto comprado (pagado por banco), con papeles y peritaje, habilitado para la venta. */
 export async function autoDisponible(dominio: string, d: Partial<veh.DatosVehiculo> = {}, pago: veh.PagoCompra = { modo: "PAGADO", medio: "BANCO" }) {
   const id = await veh.crearVehiculo(
@@ -24,11 +33,7 @@ export async function autoDisponible(dominio: string, d: Partial<veh.DatosVehicu
     { ...baseAuto, dominio, marca: "Volkswagen", modelo: "Amarok", anio: 2019, tipoIngreso: "COMPRA", participeId: INVERSOR, monedaCompra: "ARS", valorCompra: 10_000_000, tcIngreso: 1_500, ...d },
     pago,
   );
-  const docs = await db.select().from(s.documentosVehiculo).where(eq(s.documentosVehiculo.vehiculoId, id));
-  for (const doc of docs) await veh.registrarDocumento(U, id, doc.id, "RECIBIDO", null);
-  await veh.guardarPeritaje(U, id, { fecha: "2026-10-02", perito: null, resultado: "APTO", reparacionEstimada: null, observaciones: null });
-  await veh.habilitarVenta(U, id);
-  return id;
+  return habilitar(id);
 }
 
 export const saldoCaja = async () =>
