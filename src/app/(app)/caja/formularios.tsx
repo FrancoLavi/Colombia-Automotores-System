@@ -141,7 +141,20 @@ export function FormAnular({ id }: { id: number }) {
   );
 }
 
-export function FormPagarGanancia({ id, importe, etiqueta, socios }: { id: number; importe: number; etiqueta: string; socios?: Persona[] }) {
+export function FormPagarGanancia({
+  id,
+  importe,
+  etiqueta,
+  socios,
+  capital = false,
+}: {
+  id: number;
+  importe: number;
+  etiqueta: string;
+  socios?: Persona[];
+  /** K10: devolución del capital del inversor (no es ganancia). */
+  capital?: boolean;
+}) {
   const [r, enviar] = useActionState(a.pagarGananciaAccion.bind(null, id), INICIAL);
   if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Pagado</span>;
   return (
@@ -164,7 +177,15 @@ export function FormPagarGanancia({ id, importe, etiqueta, socios }: { id: numbe
         className="btn-secundario"
         pendiente="…"
         titulo={importe < 0 ? `¿Registrar el reintegro de ${pesos(-importe)}?` : `¿${etiqueta} ${pesos(importe)}?`}
-        detalle={importe < 0 ? "La pérdida que le toca al inversor entra a la caja." : "Sale de la caja por el medio elegido y la ganancia queda marcada como pagada."}
+        detalle={
+          importe < 0
+            ? capital
+              ? "El inversor se llevó en usados más de lo que tenía puesto: la diferencia entra a la caja."
+              : "La pérdida que le toca al inversor entra a la caja."
+            : capital
+              ? "Sale de la caja por el medio elegido: se le devuelve al inversor lo que puso para comprar el auto. No cuenta como ganancia."
+              : "Sale de la caja por el medio elegido y la ganancia queda marcada como pagada."
+        }
       >
         {importe < 0 ? "Registrar reintegro" : etiqueta}
       </BotonConfirmar>

@@ -3,7 +3,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { subcajas } from "@/server/caja";
 import { usd } from "@/lib/formato";
-import { ChipEstado } from "@/components/ui";
+import { ChipEstado, Ayuda } from "@/components/ui";
 import { NavPatrimonio } from "../../caja/nav";
 
 export const metadata = { title: "Inversores · Colombia Automotores" };
@@ -30,13 +30,19 @@ export default async function InversoresPage() {
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Puesto en autos</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-apagado">
+                  Puesto en autos
+                  <Ayuda>Lo que pagó por los autos que siguen en stock (el valor de compra). Los gastos de esos autos los pone el salón.</Ayuda>
+                </div>
                 <div className="num text-xl">{m(f.capital)}</div>
                 <div className="num text-xs text-apagado">{usd(f.capitalUsd)} al dólar de compra</div>
               </div>
               {/* K10: capital de autos ya vendidos que todavía no se le devolvió. */}
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-apagado">Capital por cobrar</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-apagado">
+                  Capital por cobrar
+                  <Ayuda>De los autos ya vendidos, lo que puso y todavía no se le devolvió. Se paga desde Caja y no cuenta como ganancia.</Ayuda>
+                </div>
                 <div className={`num text-xl ${f.capitalPorCobrar ? "text-aviso-texto" : ""}`}>{m(f.capitalPorCobrar)}</div>
               </div>
               <div>

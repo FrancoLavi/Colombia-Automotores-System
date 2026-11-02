@@ -3,7 +3,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { listarCuentas, patrimonio, subcajas } from "@/server/caja";
 import { usd } from "@/lib/formato";
-import { ChipEstado } from "@/components/ui";
+import { Ayuda, ChipEstado } from "@/components/ui";
 import { TarjetaEnlace } from "@/components/tarjeta";
 import { IlustracionPatrimonio, Vacio } from "@/components/ilustraciones";
 import { NavPatrimonio } from "../caja/nav";
@@ -47,7 +47,10 @@ export default async function PatrimonioPage() {
           <span className="text-[13px] text-apagado">Todo lo que hay, sea de quien sea</span>
         </div>
         <div className="tarjeta flex flex-col gap-1.5 border-tinta">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Del salón</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">
+            Del salón
+            <Ayuda>Del patrimonio total se resta lo que es de los inversores: lo que pusieron en los autos que siguen en stock y lo que se les debe por autos vendidos. Lo que queda es del salón (y ahí entran los gastos que el salón les puso a esos autos, que recupera al venderlos).</Ayuda>
+          </span>
           <span className={`num text-3xl ${p.salon < 0 ? "text-aviso-texto" : ""}`}>{m(p.salon)}</span>
           <span className="text-[13px] text-apagado">
             {p.total - p.salon === 0 ? "No hay plata de inversores" : `${m(p.total - p.salon)} son de los inversores`}
