@@ -30,7 +30,7 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Pr
         <h1 className="text-3xl font-bold">Historial de cambios</h1>
         <p className="mt-1 text-suave">Quién hizo qué y cuándo: altas, modificaciones, cambios de estado y anulaciones.</p>
       </header>
-      <FormFiltros className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
+      <FormFiltros plegable className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <label className="campo">
           Usuario
           <select name="usuario" defaultValue={sp.usuario ?? ""}>

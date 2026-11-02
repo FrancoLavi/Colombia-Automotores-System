@@ -72,7 +72,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
         ))}
       </nav>
 
-      <FormFiltros className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <FormFiltros plegable className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         {sp.etapa && <input type="hidden" name="etapa" value={sp.etapa} />}
         <label className="campo lg:col-span-2">
           Buscar
@@ -118,7 +118,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
           <input name="montoMin" inputMode="numeric" defaultValue={sp.montoMin} placeholder="10.000.000" />
         </label>
         <div className="flex items-end gap-2">
-          <button className="btn-secundario">Buscar</button>
+          <button className="btn-secundario">Filtrar</button>
           {(sp.q || sp.origen || sp.banco || sp.marca || sp.modelo || sp.montoMin) && (
             <Link href={sp.etapa ? `/contactos?etapa=${sp.etapa}` : "/contactos"} className="btn text-sm text-acento">
               Limpiar
