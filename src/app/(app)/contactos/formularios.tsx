@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useId, useRef, useState, useTransition } from "react";
+import { Dialogo } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
@@ -286,14 +287,13 @@ export function EditarCita({ contactoId, cita }: { contactoId: number; cita: Cit
   const [borrando, iniciar] = useTransition();
   const [errorBorrar, setErrorBorrar] = useState<string>();
 
-  const eliminar = () => {
-    const que = cita.clase === "actividad" ? "esta cita" : "el volver a contactar";
-    if (!confirm(`¿Eliminar ${que}? No se puede deshacer (queda registrado en el historial).`)) return;
+  const [confirmando, setConfirmando] = useState(false);
+  const que = cita.clase === "actividad" ? "esta cita" : "el volver a contactar";
+  const eliminar = () =>
     iniciar(async () => {
       const res = cita.clase === "actividad" ? await a.eliminarCitaAccion(cita.id, contactoId) : await a.quitarProximoAccion(contactoId);
       setErrorBorrar(res.ok ? undefined : res.error);
     });
-  };
 
   if (!abierto)
     return (
@@ -345,10 +345,13 @@ export function EditarCita({ contactoId, cita }: { contactoId: number; cita: Cit
         <button type="button" className="btn-secundario" onClick={() => setAbierto(false)}>
           Cancelar
         </button>
-        <button type="button" className="btn ml-auto text-sm text-aviso-texto" onClick={eliminar} disabled={borrando}>
+        <button type="button" className="btn ml-auto text-sm text-aviso-texto" onClick={() => setConfirmando(true)} disabled={borrando}>
           {borrando ? "Eliminando…" : "Eliminar"}
         </button>
       </div>
+      <Dialogo abierto={confirmando} titulo={`¿Eliminar ${que}?`} confirmar="Eliminar" peligro onConfirmar={eliminar} onCerrar={() => setConfirmando(false)}>
+        No se puede deshacer. Queda registrado en el historial de cambios.
+      </Dialogo>
       {(r.error || errorBorrar) && <span className="text-sm text-aviso-texto">{r.error ?? errorBorrar}</span>}
     </form>
   );
@@ -423,13 +426,13 @@ function FormEditarPedido({ contactoId, pedido, marcas, alCerrar }: { contactoId
   const [borrando, iniciar] = useTransition();
   const [errorBorrar, setErrorBorrar] = useState<string>();
 
-  const eliminar = () => {
-    if (!confirm("¿Eliminar este pedido? No se puede deshacer (queda registrado en el historial).")) return;
+  const [confirmando, setConfirmando] = useState(false);
+  const que = "este pedido";
+  const eliminar = () =>
     iniciar(async () => {
       const res = await a.eliminarPedidoAccion(pedido.id, contactoId);
       setErrorBorrar(res.ok ? undefined : res.error);
     });
-  };
 
   return (
     <form action={enviar} className="flex flex-col gap-3 rounded-lg bg-fondo p-3 text-left">
@@ -469,10 +472,13 @@ function FormEditarPedido({ contactoId, pedido, marcas, alCerrar }: { contactoId
         <button type="button" className="btn-secundario" onClick={() => alCerrar()}>
           Cancelar
         </button>
-        <button type="button" className="btn ml-auto text-sm text-aviso-texto" onClick={eliminar} disabled={borrando}>
+        <button type="button" className="btn ml-auto text-sm text-aviso-texto" onClick={() => setConfirmando(true)} disabled={borrando}>
           {borrando ? "Eliminando…" : "Eliminar"}
         </button>
       </div>
+      <Dialogo abierto={confirmando} titulo={`¿Eliminar ${que}?`} confirmar="Eliminar" peligro onConfirmar={eliminar} onCerrar={() => setConfirmando(false)}>
+        No se puede deshacer. Queda registrado en el historial de cambios.
+      </Dialogo>
       {(r.error || errorBorrar) && <span className="text-sm text-aviso-texto">{r.error ?? errorBorrar}</span>}
     </form>
   );
