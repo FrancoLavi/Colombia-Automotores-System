@@ -120,7 +120,8 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="tarjeta flex flex-col">
+        {/* #gastos: desde Caja se llega acá para corregir el gasto que generó un movimiento. */}
+        <section id="gastos" className="tarjeta flex scroll-mt-4 flex-col">
           <h2 className="pb-2 text-lg font-semibold">Costo real</h2>
           <Fila
             etiqueta={

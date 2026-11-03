@@ -2,17 +2,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { Ayuda } from "@/components/ui";
+import { FilaEnlace, FormFiltros } from "@/components/filtros";
 import { vistaMoneda } from "@/lib/moneda";
+import { leerNumero } from "@/lib/form";
 import { detalleSaldo, patrimonio, pendientesPorPagar } from "@/server/caja";
 import { fecha } from "@/lib/formato";
-import { ETIQUETA_CATEGORIA, type Medio } from "@/domain/caja";
+import { r2 } from "@/domain/negocio";
+import { ETIQUETA_CATEGORIA, type FiltroDetalle, type Medio } from "@/domain/caja";
 import { Vacio } from "@/components/ilustraciones";
 
 // HU-5.2: al tocar una tarjeta de Caja, de dónde sale ese saldo, movimiento por movimiento.
 const VISTAS: Record<string, { titulo: string; medio?: Medio; bajada: string }> = {
-  efectivo: { titulo: "Efectivo", medio: "EFECTIVO", bajada: "Todos los movimientos en efectivo desde el principio, del más viejo al más nuevo." },
-  banco: { titulo: "Banco", medio: "BANCO", bajada: "Todos los movimientos del banco desde el principio, del más viejo al más nuevo." },
-  total: { titulo: "Total en caja", bajada: "Todos los movimientos, en efectivo y en banco, desde el principio, del más viejo al más nuevo." },
+  efectivo: { titulo: "Efectivo", medio: "EFECTIVO", bajada: "Todos los movimientos en efectivo desde el principio, del más nuevo al más viejo." },
+  banco: { titulo: "Banco", medio: "BANCO", bajada: "Todos los movimientos del banco desde el principio, del más nuevo al más viejo." },
+  total: { titulo: "Total en caja", bajada: "Todos los movimientos, en efectivo y en banco, desde el principio, del más nuevo al más viejo." },
   salon: { titulo: "Del salón", bajada: "De la plata que hay en caja, cuánto es del salón y cuánto se les debe a los inversores (K11)." },
 };
 
@@ -21,9 +24,25 @@ export async function generateMetadata({ params }: { params: Promise<{ ver: stri
   return { title: `${v?.titulo ?? "Saldo"} · Caja · Colombia Automotores` };
 }
 
-export default async function DetalleSaldoPage({ params }: { params: Promise<{ ver: string }> }) {
+type Busqueda = { desde?: string; hasta?: string; categoria?: string; q?: string; min?: string; max?: string };
+
+/** Pasa los filtros de la URL al dominio. Un importe que no se entiende se ignora. */
+function leerFiltro(sp: Busqueda): FiltroDetalle {
+  const n = (v?: string) => (v?.trim() ? (leerNumero(v.trim()) ?? undefined) : undefined);
+  return {
+    desde: sp.desde ? new Date(`${sp.desde}T00:00:00-03:00`) : undefined,
+    hasta: sp.hasta ? new Date(`${sp.hasta}T23:59:59.999-03:00`) : undefined,
+    categoria: sp.categoria || undefined,
+    q: sp.q,
+    min: n(sp.min),
+    max: n(sp.max),
+  };
+}
+
+export default async function DetalleSaldoPage({ params, searchParams }: { params: Promise<{ ver: string }>; searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
   const { ver } = await params;
+  const sp = await searchParams;
   const vista = VISTAS[ver];
   if (!vista) notFound();
   const { m } = await vistaMoneda();
@@ -49,33 +68,74 @@ export default async function DetalleSaldoPage({ params }: { params: Promise<{ v
           ))}
         </nav>
       </header>
-      {ver === "salon" ? <DelSalon m={m} /> : <Movimientos m={m} medio={vista.medio} />}
+      {ver === "salon" ? <DelSalon m={m} /> : <Movimientos m={m} medio={vista.medio} sp={sp} />}
     </div>
   );
 }
 
 type Moneda = (v: number) => string;
 
-async function Movimientos({ m, medio }: { m: Moneda; medio?: Medio }) {
-  const d = await detalleSaldo(medio);
+async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Busqueda }) {
+  const d = await detalleSaldo(medio, leerFiltro(sp));
+  const filtrado = Object.values(sp).some((v) => v?.trim());
   const saldo = medio === "EFECTIVO" ? d.saldos.efectivo : medio === "BANCO" ? d.saldos.banco : d.saldos.total;
-  const ingresos = d.resumen.reduce((a, c) => a + c.ingresos, 0);
-  const egresos = d.resumen.reduce((a, c) => a + c.egresos, 0);
+  const ingresos = r2(d.resumen.reduce((a, c) => a + c.ingresos, 0));
+  const egresos = r2(d.resumen.reduce((a, c) => a + c.egresos, 0));
+  const neto = r2(ingresos - egresos);
 
   return (
     <>
+      <section aria-label="Filtros" className="tarjeta flex flex-col gap-3 p-0 pb-4">
+        <FormFiltros plegable claseBarra="mx-4 max-md:mt-4" className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-6">
+          <label className="campo">
+            Desde
+            <input type="date" name="desde" defaultValue={sp.desde} />
+          </label>
+          <label className="campo">
+            Hasta
+            <input type="date" name="hasta" defaultValue={sp.hasta} />
+          </label>
+          <label className="campo">
+            Tipo
+            <select name="categoria" defaultValue={sp.categoria ?? ""}>
+              <option value="">Todos</option>
+              {Object.entries(ETIQUETA_CATEGORIA).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="campo">
+            Concepto
+            <input type="search" name="q" defaultValue={sp.q} placeholder="Ej: gestoría, Peugeot" />
+          </label>
+          <label className="campo">
+            Importe desde ($)
+            <input name="min" inputMode="numeric" defaultValue={sp.min} placeholder="0" />
+          </label>
+          <label className="campo">
+            Importe hasta ($)
+            <input name="max" inputMode="numeric" defaultValue={sp.max} placeholder="Sin tope" />
+          </label>
+        </FormFiltros>
+      </section>
+
       <section className="tarjeta flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold">
-            Resumen por tipo
-            <Ayuda>Cuánto entró y salió por cada tipo de movimiento. La suma de todo da el saldo actual. Los movimientos anulados no cuentan.</Ayuda>
+            {filtrado ? "Resumen de lo filtrado" : "Resumen por tipo"}
+            <Ayuda>
+              Cuánto entró y salió por cada tipo de movimiento. Sin filtros, la suma de todo da el saldo actual. Con filtros, suma solo lo que se ve. Los movimientos
+              anulados no cuentan.
+            </Ayuda>
           </h2>
           <span className="text-sm">
             Saldo actual <b className={`num text-xl ${saldo < 0 ? "text-aviso-texto" : ""}`}>{m(saldo)}</b>
           </span>
         </div>
         {d.resumen.length === 0 ? (
-          <p className="text-sm text-apagado">Todavía no hay movimientos.</p>
+          <p className="text-sm text-apagado">{filtrado ? "Ningún movimiento coincide con los filtros." : "Todavía no hay movimientos."}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="tabla">
@@ -99,11 +159,11 @@ async function Movimientos({ m, medio }: { m: Moneda; medio?: Medio }) {
                   </tr>
                 ))}
                 <tr className="border-t-2 border-tinta font-semibold">
-                  <td>Total</td>
+                  <td>{filtrado ? "Total de lo filtrado" : "Total"}</td>
                   <td />
                   <td className="num text-right text-ok-texto">+ {m(ingresos)}</td>
                   <td className="num text-right text-aviso-texto">− {m(egresos)}</td>
-                  <td className={`num text-right ${saldo < 0 ? "text-aviso-texto" : ""}`}>{m(saldo)}</td>
+                  <td className={`num text-right ${neto < 0 ? "text-aviso-texto" : ""}`}>{m(neto)}</td>
                 </tr>
               </tbody>
             </table>
@@ -115,13 +175,13 @@ async function Movimientos({ m, medio }: { m: Moneda; medio?: Medio }) {
         <h2 className="px-4 pt-4 text-lg font-semibold">
           Movimiento por movimiento
           <Ayuda>
-            La columna Saldo muestra cómo quedó la plata después de cada movimiento. El de la última fila es el saldo actual. Tocá el concepto para ir a la venta o al
-            auto que lo generó.
+            Los más nuevos arriba. La columna Saldo muestra cómo quedó la plata después de cada movimiento, contando toda la historia aunque haya filtros: el de la
+            primera fila sin filtros es el saldo actual. Tocá una fila para ver el movimiento, ir al trámite que lo generó y corregirlo o anularlo.
           </Ayuda>
         </h2>
         <div className="overflow-x-auto">
           {d.movimientos.length === 0 ? (
-            <Vacio>Todavía no hay movimientos.</Vacio>
+            <Vacio>{filtrado ? "Ningún movimiento coincide con los filtros." : "Todavía no hay movimientos."}</Vacio>
           ) : (
             <table className="tabla">
               <thead>
@@ -135,11 +195,12 @@ async function Movimientos({ m, medio }: { m: Moneda; medio?: Medio }) {
                   <th className="text-right">Salió</th>
                   <th className="text-right">Saldo</th>
                   <th>Cargó</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
                 {d.movimientos.map((x) => (
-                  <tr key={x.id} className={x.anulado ? "text-apagado line-through" : ""}>
+                  <FilaEnlace key={x.id} href={`/caja/movimiento/${x.id}`} className={x.anulado ? "text-apagado line-through" : ""}>
                     <td className="num">{fecha(x.fecha)}</td>
                     <td>{ETIQUETA_CATEGORIA[x.categoria]}</td>
                     <td className="max-w-md whitespace-normal">
@@ -152,7 +213,12 @@ async function Movimientos({ m, medio }: { m: Moneda; medio?: Medio }) {
                     <td className="num text-right text-aviso-texto">{x.sentido === "EGRESO" ? `− ${m(x.importe)}` : ""}</td>
                     <td className={`num text-right font-semibold ${x.saldo < 0 ? "text-aviso-texto" : ""}`}>{m(x.saldo)}</td>
                     <td>{x.usuario}</td>
-                  </tr>
+                    <td>
+                      <Link href={`/caja/movimiento/${x.id}`} className="whitespace-nowrap text-sm no-underline">
+                        Ver →
+                      </Link>
+                    </td>
+                  </FilaEnlace>
                 ))}
               </tbody>
             </table>

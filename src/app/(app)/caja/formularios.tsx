@@ -118,6 +118,63 @@ export function FormMovimiento({ participes, personas }: { participes: { id: num
   );
 }
 
+/** Corrige un movimiento cargado a mano (fecha, medio, importe, concepto y persona). */
+export function FormEditarMovimiento({
+  mov,
+  personas,
+}: {
+  mov: { id: number; fecha: Date; medio: "EFECTIVO" | "BANCO"; importe: number; concepto: string; personaId: number | null; categoria: string };
+  personas: Persona[];
+}) {
+  const [r, enviar] = useActionState(a.editarMovimientoAccion.bind(null, mov.id), INICIAL);
+  const dia = hoyIso(mov.fecha);
+  const conPersona = ["SUELDO", "RETIRO_SOCIO", "APORTE"].includes(mov.categoria);
+  return (
+    <form action={enviar} className="flex flex-col gap-3">
+      <input type="hidden" name="fechaOriginal" value={dia} />
+      <input type="hidden" name="fechaHora" value={mov.fecha.toISOString()} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="campo">
+          Fecha
+          <input type="date" name="fecha" defaultValue={dia} required />
+        </label>
+        <label className="campo">
+          Medio
+          <select name="medio" defaultValue={mov.medio}>
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="BANCO">Banco</option>
+          </select>
+        </label>
+        <label className="campo">
+          Importe ($)
+          <InputMoneda name="importe" defaultValue={mov.importe} required />
+        </label>
+        {conPersona && (
+          <label className="campo">
+            {mov.categoria === "SUELDO" ? "A quién *" : "Socio o empleado"}
+            <select name="personaId" defaultValue={mov.personaId ?? ""} required={mov.categoria === "SUELDO"}>
+              <option value="">—</option>
+              {personas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} ({p.rol === "SOCIO" ? "socio" : "empleado"})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label className="campo sm:col-span-2">
+          Concepto *
+          <input name="concepto" defaultValue={mov.concepto} required />
+        </label>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <Mensaje r={r} />
+        <BotonEnviar className="btn-primario ml-auto">Guardar cambios</BotonEnviar>
+      </div>
+    </form>
+  );
+}
+
 export function FormAnular({ id }: { id: number }) {
   const [r, enviar] = useActionState(a.anularAccion.bind(null, id), INICIAL);
   const [abierto, setAbierto] = useState(false);

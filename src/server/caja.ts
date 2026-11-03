@@ -8,7 +8,9 @@ import {
   capitalDelInversor,
   conSaldoAcumulado,
   cuentaEnPatrimonio,
+  esEditable,
   esManual,
+  filtrarDetalle,
   exigePersona,
   patrimonioSalon,
   patrimonioTotal,
@@ -18,6 +20,7 @@ import {
   MANUALES,
   PIDEN_PERSONA,
   type CategoriaManual,
+  type FiltroDetalle,
   type Medio,
   type Sentido,
 } from "@/domain/caja";
@@ -66,7 +69,7 @@ export async function movimientos(f: FiltrosMovimientos) {
  * HU-5.2: de dónde sale un saldo. Todos los movimientos desde el principio (sin el filtro por mes de
  * la planilla), del más viejo al más nuevo, con el saldo acumulado: el último es el de la tarjeta.
  */
-export async function detalleSaldo(medio?: Medio) {
+export async function detalleSaldo(medio?: Medio, filtro: FiltroDetalle = {}) {
   const filas = await db
     .select({ m: s.movimientosCaja, usuario: s.usuarios.nombre, persona: s.personas.nombre })
     .from(s.movimientosCaja)
@@ -75,7 +78,64 @@ export async function detalleSaldo(medio?: Medio) {
     .where(medio ? eq(s.movimientosCaja.medio, medio) : undefined)
     .orderBy(asc(s.movimientosCaja.fecha), asc(s.movimientosCaja.id));
   const movs = filas.map((x) => ({ ...x.m, usuario: x.usuario, persona: x.persona }));
-  return { movimientos: conSaldoAcumulado(movs), resumen: resumenPorCategoria(movs), saldos: saldos(movs) };
+  // El saldo se acumula sobre todo; el filtro solo elige qué filas mostrar. Los más nuevos, arriba.
+  const filtrados = filtrarDetalle(conSaldoAcumulado(movs), filtro);
+  return { movimientos: filtrados.reverse(), resumen: resumenPorCategoria(filtrados), saldos: saldos(movs) };
+}
+
+/** Un movimiento con todo lo que hace falta para entenderlo y llegar al trámite que lo generó. */
+export async function fichaMovimiento(id: number) {
+  const [x] = await db
+    .select({ m: s.movimientosCaja, usuario: s.usuarios.nombre, persona: s.personas.nombre, participe: s.participes.nombre })
+    .from(s.movimientosCaja)
+    .leftJoin(s.usuarios, eq(s.usuarios.id, s.movimientosCaja.usuarioId))
+    .leftJoin(s.personas, eq(s.personas.id, s.movimientosCaja.personaId))
+    .leftJoin(s.participes, eq(s.participes.id, s.movimientosCaja.participeId))
+    .where(eq(s.movimientosCaja.id, id));
+  if (!x) return null;
+  const m = x.m;
+  const auto = m.vehiculoId ? await db.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, m.vehiculoId) }) : null;
+  const nombreAuto = auto ? `${auto.marca} ${auto.modelo} ${auto.anio}${auto.dominio ? ` (${auto.dominio})` : ""}` : "";
+  const gasto = await db.query.gastos.findFirst({
+    where: m.cuentaPendienteId ? sql`${s.gastos.movimientoId} = ${id} or ${s.gastos.cuentaPendienteId} = ${m.cuentaPendienteId}` : eq(s.gastos.movimientoId, id),
+  });
+  const cuenta = m.cuentaPendienteId ? await db.query.cuentasPendientes.findFirst({ where: eq(s.cuentasPendientes.id, m.cuentaPendienteId) }) : null;
+
+  // De dónde salió, del origen más concreto al más general. Ahí es donde se corrige.
+  let origen: { texto: string; href: string; ayuda: string } | null = null;
+  if (gasto && auto) {
+    origen = { texto: `Gasto del auto ${nombreAuto}`, href: `/stock/${auto.id}#gastos`, ayuda: "En la ficha del auto podés eliminar el gasto: el movimiento se anula solo." };
+  } else if (m.operacionId) {
+    origen = { texto: `Venta ${numeroOperacion(m.operacionId)}${nombreAuto ? ` · ${nombreAuto}` : ""}`, href: `/ventas/${m.operacionId}`, ayuda: "Los cobros, señas y pagos de una venta se corrigen desde la venta." };
+  } else if (cuenta) {
+    origen = { texto: `Cuenta ${cuenta.tipo === "A_COBRAR" ? "a cobrar" : "a pagar"} con ${cuenta.contraparte}`, href: "/caja/cuentas", ayuda: "Los cobros y pagos de cuentas pendientes se corrigen desde Cuentas pendientes." };
+  } else if (auto) {
+    origen = { texto: `Auto ${nombreAuto}`, href: `/stock/${auto.id}`, ayuda: "Lo generó la compra o el ingreso del auto: se corrige desde su ficha." };
+  }
+  return { ...m, usuario: x.usuario, persona: x.persona, participe: x.participe, origen, manual: esManual(m.categoria), editable: esEditable(m.categoria) && !m.anulado };
+}
+
+/** Corrige un movimiento cargado a mano. Los que generó otra operación se corrigen desde su origen. */
+export async function editarMovimiento(
+  usuarioId: number,
+  id: number,
+  d: { medio: Medio; importe: number; concepto: string; fecha: Date; personaId: number | null },
+) {
+  if (!(d.importe > 0)) throw new ErrorNegocio("El importe debe ser mayor a cero");
+  await db.transaction(async (t) => {
+    const m = await t.query.movimientosCaja.findFirst({ where: eq(s.movimientosCaja.id, id) });
+    if (!m) throw new ErrorNegocio("El movimiento no existe");
+    if (m.anulado) throw new ErrorNegocio("El movimiento está anulado");
+    if (!esEditable(m.categoria)) {
+      throw new ErrorNegocio(
+        m.categoria === "TRANSFERENCIA_INTERNA" ? "Un pase entre efectivo y banco no se edita: anulalo y cargalo de nuevo" : "Este movimiento lo generó otra operación: corregilo desde su origen",
+      );
+    }
+    if (exigePersona(m.categoria) && !d.personaId) throw new ErrorNegocio("Indicá a quién corresponde el sueldo");
+    const personaId = (PIDEN_PERSONA as readonly string[]).includes(m.categoria) ? d.personaId : null;
+    const [despues] = await t.update(s.movimientosCaja).set({ ...d, personaId }).where(eq(s.movimientosCaja.id, id)).returning();
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes: m, despues, descripcion: `Movimiento corregido: ${d.concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
+  });
 }
 
 export async function crearMovimiento(

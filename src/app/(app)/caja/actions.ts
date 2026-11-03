@@ -11,7 +11,9 @@ import * as svc from "@/server/caja";
 const MEDIOS = ["EFECTIVO", "BANCO"] as const;
 
 function revalidar() {
-  for (const p of ["/caja", "/caja/cuentas", "/patrimonio", "/patrimonio/inversores", "/reportes", "/", "/ventas"]) revalidatePath(p);
+  // "layout": también el detalle de cada saldo y la ficha de cada movimiento.
+  revalidatePath("/caja", "layout");
+  for (const p of ["/patrimonio", "/patrimonio/inversores", "/reportes", "/", "/ventas"]) revalidatePath(p);
 }
 
 /** Fecha del formulario con la hora actual (para ordenar bien los movimientos del día). */
@@ -41,6 +43,23 @@ export async function movimientoAccion(_: Resultado, fd: FormData): Promise<Resu
       personaId: texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null,
     });
     return "Movimiento registrado.";
+  });
+  revalidar();
+  return r;
+}
+
+export async function editarMovimientoAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await svc.editarMovimiento(u.id, id, {
+      medio: opcion(fd, "medio", MEDIOS),
+      importe: importeRequerido(fd, "importe", "Importe"),
+      concepto: requerido(fd, "concepto", "Concepto"),
+      // Si no cambió el día, conserva la hora original para que no se mueva de lugar en la planilla.
+      fecha: fechaIso(fd, "fecha") === texto(fd, "fechaOriginal") ? new Date(requerido(fd, "fechaHora", "Fecha")) : fechaConHora(fd),
+      personaId: texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null,
+    });
+    return "Movimiento corregido.";
   });
   revalidar();
   return r;

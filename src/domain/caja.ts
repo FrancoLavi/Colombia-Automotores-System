@@ -39,6 +39,8 @@ export const MANUALES = {
 export type CategoriaManual = keyof typeof MANUALES;
 
 export const esManual = (categoria: string) => categoria in MANUALES || categoria === "TRANSFERENCIA_INTERNA";
+/** Un movimiento cargado a mano se puede corregir; un pase entre medios no (son dos movimientos): se anula y se carga de nuevo. */
+export const esEditable = (categoria: string) => categoria in MANUALES;
 
 /** Movimientos que se atribuyen a un socio o empleado: el sueldo la exige; retiros y aportes la admiten. */
 export const PIDEN_PERSONA = ["SUELDO", "RETIRO_SOCIO", "APORTE"] as const;
@@ -68,6 +70,33 @@ export function conSaldoAcumulado<T extends MovimientoSaldo>(movs: T[]): (T & { 
     if (!m.anulado) saldo = r2(saldo + (m.sentido === "INGRESO" ? m.importe : -m.importe));
     return { ...m, saldo };
   });
+}
+
+export interface FiltroDetalle {
+  desde?: Date;
+  hasta?: Date;
+  categoria?: string;
+  /** Busca en el concepto, sin importar mayúsculas ni acentos. */
+  q?: string;
+  /** Rango de importe, en pesos. */
+  min?: number;
+  max?: number;
+}
+
+const sinAcentos = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Filtra los movimientos del detalle de un saldo. Se aplica después de acumular, así el saldo de cada fila sigue siendo el real. */
+export function filtrarDetalle<T extends MovimientoSaldo & { fecha: Date; categoria: string; concepto: string }>(movs: T[], f: FiltroDetalle): T[] {
+  const q = f.q?.trim() ? sinAcentos(f.q.trim()) : null;
+  return movs.filter(
+    (m) =>
+      (!f.desde || m.fecha >= f.desde) &&
+      (!f.hasta || m.fecha <= f.hasta) &&
+      (!f.categoria || m.categoria === f.categoria) &&
+      (!q || sinAcentos(m.concepto).includes(q)) &&
+      (f.min == null || m.importe >= f.min) &&
+      (f.max == null || m.importe <= f.max),
+  );
 }
 
 /** Cuánto entró y salió por cada tipo de movimiento (sin anulados), de mayor a menor peso. */

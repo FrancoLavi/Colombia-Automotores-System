@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { conSaldoAcumulado, cuentaEnPatrimonio, esManual, resumenPorCategoria, saldos, valorStock } from "./caja";
+import { conSaldoAcumulado, cuentaEnPatrimonio, esManual, filtrarDetalle, resumenPorCategoria, saldos, valorStock } from "./caja";
 
 describe("detalle de un saldo", () => {
   const movs = [
@@ -13,6 +13,16 @@ describe("detalle de un saldo", () => {
     const filas = conSaldoAcumulado(movs);
     expect(filas.map((f) => f.saldo)).toEqual([1_000_000, 800_000, 800_000, 749_999.5]);
     expect(filas.at(-1)!.saldo).toBe(saldos(movs).efectivo);
+  });
+
+  it("filtra por fecha, tipo, concepto y rango de importe", () => {
+    const fechados = movs.map((m, i) => ({ ...m, fecha: new Date(`2026-10-0${i + 1}T12:00:00`), concepto: ["Caja inicial", "Gestoría Peugeot", "Luz", "Alistaje"][i] }));
+    const ids = (f: Parameters<typeof filtrarDetalle>[1]) => filtrarDetalle(fechados, f).map((m) => m.concepto);
+    expect(ids({ desde: new Date("2026-10-02T00:00:00"), hasta: new Date("2026-10-03T23:59:59") })).toEqual(["Gestoría Peugeot", "Luz"]);
+    expect(ids({ categoria: "GASTO_VEHICULO" })).toEqual(["Gestoría Peugeot", "Alistaje"]);
+    expect(ids({ q: "gestoria" })).toEqual(["Gestoría Peugeot"]);
+    expect(ids({ min: 100_000, max: 500_000 })).toEqual(["Gestoría Peugeot"]);
+    expect(ids({})).toHaveLength(4);
   });
 
   it("agrupa por tipo sin contar anulados", () => {

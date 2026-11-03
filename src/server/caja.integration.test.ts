@@ -123,3 +123,36 @@ describe("movimientos y cuentas manuales", () => {
     await expect(caja.crearMovimiento(U, { categoria: "GASTO_SALON", sentido: null, medio: "EFECTIVO", importe: 0, concepto: "x", fecha: new Date(), participeId: null })).rejects.toThrow(/mayor a cero/);
   });
 });
+
+describe("detalle de saldos y ficha de cada movimiento", () => {
+  it("el detalle va de lo más nuevo a lo más viejo, filtra sin cambiar el saldo de cada fila y cierra con la tarjeta", async () => {
+    const d = await caja.detalleSaldo("EFECTIVO");
+    const p = await caja.patrimonio();
+    expect(d.movimientos[0].saldo).toBe(p.caja.efectivo);
+    const fechas = d.movimientos.map((x) => x.fecha.getTime());
+    expect(fechas).toEqual([...fechas].sort((a, b) => b - a));
+    const soloGastos = await caja.detalleSaldo("EFECTIVO", { categoria: "GASTO_VEHICULO" });
+    expect(soloGastos.movimientos.every((x) => x.categoria === "GASTO_VEHICULO")).toBe(true);
+    for (const x of soloGastos.movimientos) expect(x.saldo).toBe(d.movimientos.find((y) => y.id === x.id)!.saldo);
+  });
+
+  it("lleva al trámite que lo generó y solo deja corregir lo cargado a mano", async () => {
+    const { movimientos } = await caja.detalleSaldo();
+    const gasto = movimientos.find((x) => x.categoria === "GASTO_VEHICULO" && !x.anulado)!;
+    const f = (await caja.fichaMovimiento(gasto.id))!;
+    expect(f.origen?.href).toMatch(/^\/stock\/\d+#gastos$/);
+    expect(f.editable).toBe(false);
+    await expect(caja.editarMovimiento(U, gasto.id, { medio: "EFECTIVO", importe: 1, concepto: "x", fecha: new Date(), personaId: null })).rejects.toThrow(/desde su origen/);
+
+    await caja.transferenciaInterna(U, { desde: "BANCO", importe: 1_000, fecha: new Date(), concepto: null });
+    const pase = (await caja.detalleSaldo(undefined, { categoria: "TRANSFERENCIA_INTERNA" })).movimientos.find((x) => !x.anulado)!;
+    await expect(caja.editarMovimiento(U, pase.id, { medio: "EFECTIVO", importe: 1, concepto: "x", fecha: new Date(), personaId: null })).rejects.toThrow(/anulalo/);
+
+    const inicial = movimientos.find((x) => x.concepto === "Saldo inicial")!;
+    expect((await caja.fichaMovimiento(inicial.id))!.origen).toBeNull();
+    const antes = (await caja.patrimonio()).caja.efectivo;
+    await caja.editarMovimiento(U, inicial.id, { medio: "EFECTIVO", importe: inicial.importe + 500_000, concepto: "Saldo inicial corregido", fecha: inicial.fecha, personaId: null });
+    expect((await caja.patrimonio()).caja.efectivo).toBe(antes + 500_000);
+    expect((await caja.fichaMovimiento(inicial.id))!.concepto).toBe("Saldo inicial corregido");
+  });
+});

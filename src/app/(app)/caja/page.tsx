@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { Ayuda } from "@/components/ui";
-import { FormFiltros } from "@/components/filtros";
+import { FilaEnlace, FormFiltros } from "@/components/filtros";
 import { vistaMoneda } from "@/lib/moneda";
 import { movimientos, patrimonio, pendientesPorPagar } from "@/server/caja";
 import { datosFormulario } from "@/server/vehiculos";
@@ -192,7 +192,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
               </thead>
               <tbody>
                 {mov.movimientos.map(({ m: x, usuario, manual }) => (
-                  <tr key={x.id} className={x.anulado ? "text-apagado line-through" : ""}>
+                  <FilaEnlace key={x.id} href={`/caja/movimiento/${x.id}`} className={x.anulado ? "text-apagado line-through" : ""}>
                     <td className="num">{fecha(x.fecha)}</td>
                     <td>{ETIQUETA_CATEGORIA[x.categoria]}</td>
                     <td className="max-w-md whitespace-normal">
@@ -206,8 +206,13 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
                       {m(x.importe)}
                     </td>
                     <td>{usuario}</td>
-                    <td>{manual && !x.anulado && <FormAnular id={x.id} />}</td>
-                  </tr>
+                    <td className="whitespace-nowrap">
+                      <Link href={`/caja/movimiento/${x.id}`} className="text-sm no-underline">
+                        Ver →
+                      </Link>
+                      {manual && !x.anulado && <FormAnular id={x.id} />}
+                    </td>
+                  </FilaEnlace>
                 ))}
               </tbody>
             </table>
