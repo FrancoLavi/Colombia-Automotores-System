@@ -50,6 +50,13 @@
       "when": 1793228406326,
       "tag": "0006_capital_inversor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793713764404,
+      "tag": "0007_seguridad_acceso",
+      "breakpoints": true
     }
   ]
 }

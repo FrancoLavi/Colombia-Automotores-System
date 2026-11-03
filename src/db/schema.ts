@@ -88,6 +88,21 @@ export const usuarios = pgTable("usuarios", {
   rol: rolEnum("rol").notNull().default("ADMIN"),
   participeId: integer("participe_id").references(() => participes.id),
   activo: boolean("activo").notNull().default(true),
+  // T4: subirla invalida todas las sesiones abiertas (cambio de contraseña, "cerrar en todos los dispositivos").
+  versionSesion: integer("version_sesion").notNull().default(0),
+  // T4: bloqueo temporal tras varios intentos fallidos de ingreso.
+  intentosFallidos: integer("intentos_fallidos").notNull().default(0),
+  bloqueadoHasta: timestamp("bloqueado_hasta", { withTimezone: true }),
+  creadoEn: creadoEn(),
+});
+
+/** T4: links de recuperación de contraseña. Se guarda solo el hash del token; el token viaja una vez por mail. */
+export const recuperaciones = pgTable("recuperaciones", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  vence: timestamp("vence", { withTimezone: true }).notNull(),
+  usadoEn: timestamp("usado_en", { withTimezone: true }),
   creadoEn: creadoEn(),
 });
 
