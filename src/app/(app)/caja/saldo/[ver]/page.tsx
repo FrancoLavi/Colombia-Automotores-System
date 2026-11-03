@@ -8,15 +8,16 @@ import { leerNumero } from "@/lib/form";
 import { detalleSaldo, patrimonio, pendientesPorPagar } from "@/server/caja";
 import { fecha } from "@/lib/formato";
 import { r2 } from "@/domain/negocio";
-import { ETIQUETA_CATEGORIA, type FiltroDetalle, type Medio } from "@/domain/caja";
+import { esEditable, ETIQUETA_CATEGORIA, type FiltroDetalle, type Medio } from "@/domain/caja";
 import { Vacio } from "@/components/ilustraciones";
+import { Icono, InsigniaMovimiento, type NombreIcono } from "@/components/iconos-caja";
 
 // HU-5.2: al tocar una tarjeta de Caja, de dónde sale ese saldo, movimiento por movimiento.
-const VISTAS: Record<string, { titulo: string; medio?: Medio; bajada: string }> = {
-  efectivo: { titulo: "Efectivo", medio: "EFECTIVO", bajada: "Todos los movimientos en efectivo desde el principio, del más nuevo al más viejo." },
-  banco: { titulo: "Banco", medio: "BANCO", bajada: "Todos los movimientos del banco desde el principio, del más nuevo al más viejo." },
-  total: { titulo: "Total en caja", bajada: "Todos los movimientos, en efectivo y en banco, desde el principio, del más nuevo al más viejo." },
-  salon: { titulo: "Del salón", bajada: "De la plata que hay en caja, cuánto es del salón y cuánto se les debe a los inversores (K11)." },
+const VISTAS: Record<string, { titulo: string; icono: NombreIcono; medio?: Medio; bajada: string }> = {
+  efectivo: { titulo: "Efectivo", icono: "efectivo", medio: "EFECTIVO", bajada: "Todos los movimientos en efectivo desde el principio, del más nuevo al más viejo." },
+  banco: { titulo: "Banco", icono: "banco", medio: "BANCO", bajada: "Todos los movimientos del banco desde el principio, del más nuevo al más viejo." },
+  total: { titulo: "Total en caja", icono: "total", bajada: "Todos los movimientos, en efectivo y en banco, desde el principio, del más nuevo al más viejo." },
+  salon: { titulo: "Del salón", icono: "salon", bajada: "De la plata que hay en caja, cuánto es del salón y cuánto se les debe a los inversores (K11)." },
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ ver: string }> }) {
@@ -53,7 +54,12 @@ export default async function DetalleSaldoPage({ params, searchParams }: { param
         <Link href="/caja" className="text-sm">
           ← Volver a Caja
         </Link>
-        <h1 className="text-3xl font-bold">{vista.titulo}</h1>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-info-fondo text-info-texto">
+            <Icono nombre={vista.icono} className="size-7" />
+          </span>
+          <h1 className="text-3xl font-bold">{vista.titulo}</h1>
+        </div>
         <p className="max-w-2xl text-suave">{vista.bajada}</p>
         <nav aria-label="Otros saldos" className="flex flex-wrap gap-2.5">
           {Object.entries(VISTAS).map(([k, v]) => (
@@ -61,12 +67,29 @@ export default async function DetalleSaldoPage({ params, searchParams }: { param
               key={k}
               href={`/caja/saldo/${k}`}
               aria-current={k === ver ? "page" : undefined}
-              className={`chip px-3.5 py-2 text-[13px] ${k === ver ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
+              className={`chip inline-flex flex-row items-center gap-1.5 px-3.5 py-2 text-[13px] ${k === ver ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
             >
+              <Icono nombre={v.icono} className="size-4" />
               {v.titulo}
             </Link>
           ))}
         </nav>
+        {ver !== "salon" && (
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-apagado">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-3 rounded-full bg-ok-fondo ring-1 ring-ok-texto" /> Entró plata
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-3 rounded-full bg-aviso-fondo ring-1 ring-aviso-texto" /> Salió plata
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Icono nombre="lapiz" className="size-3.5" /> Se puede corregir desde Caja
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Icono nombre="candado" className="size-3.5" /> Se corrige en el trámite que lo generó
+            </span>
+          </p>
+        )}
       </header>
       {ver === "salon" ? <DelSalon m={m} /> : <Movimientos m={m} medio={vista.medio} sp={sp} />}
     </div>
@@ -151,7 +174,12 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
               <tbody>
                 {d.resumen.map((c) => (
                   <tr key={c.categoria}>
-                    <td>{ETIQUETA_CATEGORIA[c.categoria] ?? c.categoria}</td>
+                    <td>
+                      <span className="flex items-center gap-2.5">
+                        <InsigniaMovimiento categoria={c.categoria} sentido={c.neto >= 0 ? "INGRESO" : "EGRESO"} />
+                        {ETIQUETA_CATEGORIA[c.categoria] ?? c.categoria}
+                      </span>
+                    </td>
                     <td className="num text-right">{c.cantidad}</td>
                     <td className="num text-right text-ok-texto">{c.ingresos ? `+ ${m(c.ingresos)}` : ""}</td>
                     <td className="num text-right text-aviso-texto">{c.egresos ? `− ${m(c.egresos)}` : ""}</td>
@@ -202,7 +230,12 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
                 {d.movimientos.map((x) => (
                   <FilaEnlace key={x.id} href={`/caja/movimiento/${x.id}`} className={x.anulado ? "text-apagado line-through" : ""}>
                     <td className="num">{fecha(x.fecha)}</td>
-                    <td>{ETIQUETA_CATEGORIA[x.categoria]}</td>
+                    <td>
+                      <span className="flex items-center gap-2.5 no-underline">
+                        <InsigniaMovimiento categoria={x.categoria} sentido={x.sentido} anulado={x.anulado} />
+                        {ETIQUETA_CATEGORIA[x.categoria]}
+                      </span>
+                    </td>
                     <td className="max-w-md whitespace-normal">
                       {x.operacionId ? <Link href={`/ventas/${x.operacionId}`}>{x.concepto}</Link> : x.vehiculoId ? <Link href={`/stock/${x.vehiculoId}`}>{x.concepto}</Link> : x.concepto}
                       {x.anulado && <span className="block text-xs no-underline">Anulado{x.motivoAnulacion ? `: ${x.motivoAnulacion}` : ""} · no cuenta en el saldo</span>}
@@ -214,8 +247,13 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
                     <td className={`num text-right font-semibold ${x.saldo < 0 ? "text-aviso-texto" : ""}`}>{m(x.saldo)}</td>
                     <td>{x.usuario}</td>
                     <td>
-                      <Link href={`/caja/movimiento/${x.id}`} className="whitespace-nowrap text-sm no-underline">
-                        Ver →
+                      <Link
+                        href={`/caja/movimiento/${x.id}`}
+                        className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm no-underline"
+                        title={esEditable(x.categoria) ? "Se puede corregir desde Caja" : "Se corrige en el trámite que lo generó"}
+                      >
+                        <Icono nombre={esEditable(x.categoria) ? "lapiz" : "candado"} className="size-4 text-apagado" />
+                        Ver
                       </Link>
                     </td>
                   </FilaEnlace>
