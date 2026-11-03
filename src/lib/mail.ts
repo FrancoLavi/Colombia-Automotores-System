@@ -25,7 +25,8 @@ export async function enviarMail(m: Mail): Promise<void> {
     port: puerto,
     // 465 va cifrado de entrada; 587 arranca en claro y pasa a cifrado (STARTTLS).
     secure: puerto === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    // Google muestra la contraseña de aplicación en grupos ("abcd efgh …"): los espacios no son parte de la clave.
+    auth: { user: process.env.SMTP_USER, pass: host === "smtp.gmail.com" ? process.env.SMTP_PASS.replace(/\s+/g, "") : process.env.SMTP_PASS },
   });
   await transporte.sendMail({
     from: process.env.MAIL_FROM || `Colombia Automotores <${process.env.SMTP_USER}>`,
