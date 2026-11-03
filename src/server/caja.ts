@@ -403,6 +403,31 @@ export async function patrimonio() {
 }
 
 /**
+ * Desglose de cada número de Patrimonio (K3, K11): los autos uno por uno con su costo, las cuentas
+ * abiertas y lo que se les debe a los inversores, para poder rehacer cada total a mano.
+ */
+export async function desglosePatrimonio() {
+  const [p, autos, cuentas, pendientes, participes] = await Promise.all([
+    patrimonio(),
+    stockConCosto(),
+    listarCuentas({}),
+    pendientesPorPagar(),
+    db.select({ id: s.participes.id, nombre: s.participes.nombre }).from(s.participes),
+  ]);
+  const nombre = (id: number | null) => participes.find((x) => x.id === id)?.nombre ?? "Salón";
+  return {
+    p,
+    autos: autos
+      .filter((a) => a.enPatrimonio)
+      .map((a) => ({ ...a, dueno: nombre(a.participeId), gastos: r2(a.costo - a.valorCompraArs), delSalon: r2(a.costo - a.capitalInversor) })),
+    consignados: autos.filter((a) => a.tipoIngreso === "CONSIGNACION").length,
+    aCobrar: cuentas.filter((c) => c.c.tipo === "A_COBRAR"),
+    aPagar: cuentas.filter((c) => c.c.tipo === "A_PAGAR"),
+    deInversores: pendientes.filter((g) => g.participe.tipo === "INVERSOR"),
+  };
+}
+
+/**
  * K6: subcaja por inversor (y por el salón con fondos propios).
  * El inversor ve lo que puso él: el valor de compra de sus autos, sin los gastos que puso el
  * salón (K9). Los autos del salón, en cambio, valen el costo completo.

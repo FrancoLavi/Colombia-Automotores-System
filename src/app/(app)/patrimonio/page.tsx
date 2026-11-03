@@ -7,6 +7,7 @@ import { Ayuda, ChipEstado } from "@/components/ui";
 import { TarjetaEnlace } from "@/components/tarjeta";
 import { IlustracionPatrimonio, Vacio } from "@/components/ilustraciones";
 import { NavPatrimonio } from "../caja/nav";
+import { Icono, type NombreIcono } from "@/components/iconos-caja";
 
 export const metadata = { title: "Patrimonio · Colombia Automotores" };
 
@@ -41,33 +42,39 @@ export default async function PatrimonioPage() {
       </header>
 
       <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="tarjeta flex flex-col gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Patrimonio total</span>
+        <TarjetaEnlace href="/patrimonio/desglose/total" pie="Ver qué lo compone" className="gap-1.5">
+          <Titulo icono="total">Patrimonio total</Titulo>
           <span className="num text-3xl">{m(p.total)}</span>
           <span className="text-[13px] text-apagado">Todo lo que hay, sea de quien sea</span>
-        </div>
-        <div className="tarjeta flex flex-col gap-1.5 border-tinta">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">
-            Del salón
-            <Ayuda>Del patrimonio total se resta lo que es de los inversores: lo que pusieron en los autos que siguen en stock y lo que se les debe por autos vendidos. Lo que queda es del salón (y ahí entran los gastos que el salón les puso a esos autos, que recupera al venderlos).</Ayuda>
+        </TarjetaEnlace>
+        {/* La ayuda queda por encima del enlace que cubre la tarjeta, para que se pueda abrir. */}
+        <div className="tarjeta relative flex flex-col gap-1.5 border-tinta transition-colors hover:bg-fondo">
+          <span className="relative z-10">
+            <Titulo icono="salon" tono="ok">
+              Del salón
+              <Ayuda>Del patrimonio total se resta lo que es de los inversores: lo que pusieron en los autos que siguen en stock y lo que se les debe por autos vendidos. Lo que queda es del salón (y ahí entran los gastos que el salón les puso a esos autos, que recupera al venderlos).</Ayuda>
+            </Titulo>
           </span>
           <span className={`num text-3xl ${p.salon < 0 ? "text-aviso-texto" : ""}`}>{m(p.salon)}</span>
           <span className="text-[13px] text-apagado">
-            {p.total - p.salon === 0 ? "No hay plata de inversores" : `${m(p.total - p.salon)} son de los inversores`}
+            {p.total - p.salon === 0 ? "Nada es de inversores" : `${m(p.total - p.salon)} son de los inversores`}
           </span>
+          <Link href="/patrimonio/desglose/salon" className="mt-auto pt-0.5 text-sm font-semibold text-acento no-underline after:absolute after:inset-0">
+            Ver qué lo compone →
+          </Link>
         </div>
-        <div className="tarjeta flex flex-col gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Invertido en autos</span>
+        <TarjetaEnlace href="/patrimonio/desglose/autos" pie="Ver auto por auto" className="gap-1.5">
+          <Titulo icono="auto">Invertido en autos</Titulo>
           <span className="num text-3xl">{m(p.stock)}</span>
           <span className="text-[13px] text-apagado">
             {p.autosEnStock} {p.autosEnStock === 1 ? "auto" : "autos"} al costo
             {p.stockInversores > 0 && ` · ${m(p.stockInversores)} de inversores`}
           </span>
-        </div>
-        <TarjetaEnlace href="/caja" pie="Ver caja" className="gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Líquido (caja)</span>
+        </TarjetaEnlace>
+        <TarjetaEnlace href="/patrimonio/desglose/liquido" pie="Ver qué lo compone" className="gap-1.5">
+          <Titulo icono="efectivo">Disponible en caja</Titulo>
           <span className={`num text-3xl ${p.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(p.caja.total)}</span>
-          <span className="text-[13px] text-apagado">{p.deudaInversores > 0 ? `Del salón ${m(p.cajaSalon)}` : "Toda del salón"}</span>
+          <span className="text-[13px] text-apagado">{p.deudaInversores > 0 ? `Del salón ${m(p.cajaSalon)}` : "Todo del salón"}</span>
         </TarjetaEnlace>
       </section>
 
@@ -128,7 +135,7 @@ export default async function PatrimonioPage() {
       </section>
 
       <section className="tarjeta flex flex-col p-0">
-        <h2 className="p-4 pb-2 text-lg font-semibold">Plata invertida en autos</h2>
+        <h2 className="p-4 pb-2 text-lg font-semibold">Capital invertido en autos</h2>
         {conAutos.length === 0 ? (
           <Vacio>No hay autos en stock.</Vacio>
         ) : (
@@ -203,5 +210,16 @@ export default async function PatrimonioPage() {
         </section>
       )}
     </div>
+  );
+}
+
+function Titulo({ icono, tono = "info", children }: { icono: NombreIcono; tono?: "info" | "ok"; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-apagado">
+      <span className={`inline-flex size-8 items-center justify-center rounded-lg ${tono === "ok" ? "bg-ok-fondo text-ok-texto" : "bg-info-fondo text-info-texto"}`}>
+        <Icono nombre={icono} className="size-[18px]" />
+      </span>
+      {children}
+    </span>
   );
 }
