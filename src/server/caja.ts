@@ -247,8 +247,8 @@ export async function pendientesPorPagar() {
  * K5/K10: le paga al inversor lo que quedó de una venta: su ganancia o su capital.
  * Si la parte es negativa (venta con pérdida), el inversor la reintegra.
  */
-export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio) {
-  await db.transaction(async (t) => {
+export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio): Promise<number> {
+  return db.transaction(async (t) => {
     const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const d = await t.query.distribuciones.findFirst({ where: eq(s.distribuciones.id, id) });
     if (!d) throw new ErrorNegocio("No existe");
@@ -281,6 +281,7 @@ export async function pagarDistribucion(usuarioId: number, id: number, medio: Me
       usuarioId, entidad: "operacion", entidadId: op.id, accion: "MODIFICAR",
       descripcion: `${reintegro ? "Reintegro" : capital ? "Devolución de capital" : "Pago de ganancia"} a ${p.nombre}: $ ${Math.abs(d.importe).toLocaleString("es-AR")}`,
     });
+    return m.id;
   });
 }
 
@@ -315,8 +316,8 @@ const CATEGORIA_CUENTA: Record<string, Record<string, Categoria>> = {
   A_PAGAR: { CONSIGNANTE: "PAGO_CONSIGNANTE", SALDO_COMPRA: "PAGO_COMPRA", GASTO: "GASTO_VEHICULO", MANUAL: "PAGO_CUENTA", CREDITO_BANCARIO: "PAGO_CUENTA" },
 };
 
-/** HU-5.5/5.6: cobro o pago (total o parcial) de una cuenta pendiente. */
-export async function registrarPagoCuenta(usuarioId: number, cuentaId: number, importe: number, medio: Medio) {
+/** HU-5.5/5.6: cobro o pago (total o parcial) de una cuenta pendiente. Devuelve el movimiento de caja (para su comprobante). */
+export async function registrarPagoCuenta(usuarioId: number, cuentaId: number, importe: number, medio: Medio): Promise<number> {
   if (!(importe > 0)) throw new ErrorNegocio("El importe debe ser mayor a cero");
   const c = await db.query.cuentasPendientes.findFirst({ where: eq(s.cuentasPendientes.id, cuentaId) });
   if (!c || c.estado !== "ABIERTA") throw new ErrorNegocio("La cuenta no está abierta");
@@ -326,11 +327,10 @@ export async function registrarPagoCuenta(usuarioId: number, cuentaId: number, i
   const pago = await db.query.pagosOperacion.findFirst({ where: eq(s.pagosOperacion.cuentaPendienteId, cuentaId) });
   if (pago) {
     if (r2(importe) !== r2(c.saldo)) throw new ErrorNegocio("Los cobros de una venta se registran por el total");
-    await cobrarPagoPendiente(usuarioId, pago.operacionId, pago.id, medio);
-    return;
+    return cobrarPagoPendiente(usuarioId, pago.operacionId, pago.id, medio);
   }
 
-  await db.transaction(async (t) => {
+  return db.transaction(async (t) => {
     const antesFondos = await fotoFondos(t); // K13: para comparar al final
     let categoria = CATEGORIA_CUENTA[c.tipo][c.origen];
     const gasto = c.origen === "GASTO" ? await t.query.gastos.findFirst({ where: eq(s.gastos.cuentaPendienteId, cuentaId) }) : null;
@@ -357,6 +357,7 @@ export async function registrarPagoCuenta(usuarioId: number, cuentaId: number, i
       usuarioId, entidad: ENTIDAD, entidadId: m.id, accion: "CREAR",
       descripcion: `${c.tipo === "A_COBRAR" ? "Cobro" : "Pago"} ${saldo === 0 ? "total" : "parcial"} a ${c.contraparte}: $ ${importe.toLocaleString("es-AR")}`,
     });
+    return m.id;
   });
 }
 
@@ -585,4 +586,17 @@ export async function consignaciones() {
       ganadoConVendidos: r2(filas.filter((f) => f.venta).reduce((t, f) => t + f.paraElSalon, 0)),
     },
   };
+}
+
+/** Lo último que se cobró o pagó desde Cuentas pendientes (cuentas e inversores), para volver a sacar el comprobante. */
+export async function ultimosCobrosYPagos(limite = 15) {
+  return db
+    .select({ m: s.movimientosCaja, auto: AUTO })
+    .from(s.movimientosCaja)
+    .leftJoin(s.vehiculos, eq(s.vehiculos.id, s.movimientosCaja.vehiculoId))
+    .where(
+      sql`(${s.movimientosCaja.cuentaPendienteId} is not null or ${s.movimientosCaja.categoria} in ('PAGO_INVERSOR', 'DEVOLUCION_CAPITAL') or (${s.movimientosCaja.categoria} = 'AJUSTE' and ${s.movimientosCaja.participeId} is not null))`,
+    )
+    .orderBy(desc(s.movimientosCaja.fecha), desc(s.movimientosCaja.id))
+    .limit(limite);
 }

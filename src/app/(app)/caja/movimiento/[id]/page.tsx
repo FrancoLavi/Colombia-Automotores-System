@@ -36,6 +36,11 @@ export default async function MovimientoPage({ params }: { params: Promise<{ id:
             {m(mov.importe)}
           </span>
           {mov.anulado && <span className="chip bg-aviso-fondo text-aviso-texto">Anulado{mov.motivoAnulacion ? `: ${mov.motivoAnulacion}` : ""}</span>}
+          {mov.categoria !== "TRANSFERENCIA_INTERNA" && (
+            <a href={`/caja/movimiento/${mov.id}/comprobante`} target="_blank" rel="noreferrer" className="btn-secundario ml-auto">
+              Comprobante de {ingreso ? "cobro" : "pago"} (PDF)
+            </a>
+          )}
         </p>
       </header>
 

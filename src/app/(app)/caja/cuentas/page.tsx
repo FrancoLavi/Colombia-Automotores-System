@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
-import { listarCuentas, pendientesPorPagar } from "@/server/caja";
+import { listarCuentas, pendientesPorPagar, ultimosCobrosYPagos } from "@/server/caja";
 import { fecha, hoyIso } from "@/lib/formato";
 import { NavCaja } from "../nav";
 import { FormCuenta, FormPagarGanancia, FormPagoCuenta } from "../formularios";
@@ -25,7 +25,12 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
   await requerirUsuario();
   const { m } = await vistaMoneda();
   const filtro = leerFiltroAuto(await searchParams);
-  const [cobrarTodas, pagarTodas, inversoresTodos] = await Promise.all([listarCuentas({ tipo: "A_COBRAR" }), listarCuentas({ tipo: "A_PAGAR" }), pendientesPorPagar()]);
+  const [cobrarTodas, pagarTodas, inversoresTodos, recientes] = await Promise.all([
+    listarCuentas({ tipo: "A_COBRAR" }),
+    listarCuentas({ tipo: "A_PAGAR" }),
+    pendientesPorPagar(),
+    ultimosCobrosYPagos(),
+  ]);
   // Filtro por auto: las cuentas que no son de un auto (ej. una deuda del salón) solo se ven sin filtro.
   const aCobrar = cobrarTodas.filter((x) => coincideAuto(x.auto, filtro));
   const aPagarTodo = pagarTodas.filter((x) => coincideAuto(x.auto, filtro));
@@ -185,6 +190,49 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
         </div>
         <Tabla filas={aPagar} tipo="A_PAGAR" />
       </section>
+
+      {recientes.length > 0 && (
+        <section className="tarjeta flex flex-col p-0">
+          <h2 className="p-4 pb-1 text-lg font-semibold">Últimos cobros y pagos</h2>
+          <p className="px-4 pb-2 text-sm text-apagado">Lo que ya se marcó como cobrado o pagado. De cada uno se puede volver a sacar el comprobante.</p>
+          <div className="relative overflow-x-auto">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Concepto</th>
+                  <ThAuto />
+                  <th>Medio</th>
+                  <th className="text-right">Importe</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {recientes.map(({ m: x, auto }) => (
+                  <tr key={x.id} className={x.anulado ? "text-apagado line-through" : ""}>
+                    <td className="num">{fecha(x.fecha)}</td>
+                    <td>
+                      <span className={`chip ${x.sentido === "INGRESO" ? "bg-ok-fondo text-ok-texto" : "bg-aviso-fondo text-aviso-texto"}`}>{x.sentido === "INGRESO" ? "Cobrado" : "Pagado"}</span>
+                    </td>
+                    <td className="max-w-xs whitespace-normal text-sm">
+                      <Link href={`/caja/movimiento/${x.id}`}>{x.concepto}</Link>
+                    </td>
+                    <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} />
+                    <td>{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>
+                    <td className="num text-right">{m(x.importe)}</td>
+                    <td>
+                      <a href={`/caja/movimiento/${x.id}/comprobante`} target="_blank" rel="noreferrer" className="whitespace-nowrap text-sm font-semibold">
+                        PDF
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <details className="tarjeta">
         <summary className="cursor-pointer text-lg font-semibold">+ Registrar deuda o crédito con un tercero</summary>

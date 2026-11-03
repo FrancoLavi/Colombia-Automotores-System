@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import { BotonConfirmar } from "@/components/dialogo";
+import { ofrecerComprobante } from "@/components/alertas";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje, ErrorLinea } from "@/components/ui";
@@ -210,7 +211,11 @@ export function FormPagarGanancia({
   /** K10: devolución del capital del inversor (no es ganancia). */
   capital?: boolean;
 }) {
-  const [r, enviar] = useActionState(a.pagarGananciaAccion.bind(null, id), INICIAL);
+  const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
+    const res = await a.pagarGananciaAccion(id, prev, fd);
+    if (res.ok && res.id) void ofrecerComprobante(res.id, capital ? "Devolución registrada" : "Pago registrado");
+    return res;
+  }, INICIAL);
   if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Pagado</span>;
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
@@ -277,8 +282,22 @@ export function FormCuenta() {
 }
 
 export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo: number; tipo: "A_COBRAR" | "A_PAGAR"; deVenta: boolean }) {
-  const [r, enviar] = useActionState(a.pagoCuentaAccion.bind(null, id), INICIAL);
-  if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Registrado</span>;
+  const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
+    const res = await a.pagoCuentaAccion(id, prev, fd);
+    if (res.ok && res.id) void ofrecerComprobante(res.id, tipo === "A_COBRAR" ? "Cobro registrado" : "Pago registrado");
+    return res;
+  }, INICIAL);
+  if (r.ok)
+    return (
+      <span className="flex flex-wrap items-center justify-end gap-2">
+        <span className="chip bg-ok-fondo text-ok-texto">{tipo === "A_COBRAR" ? "Cobrado" : "Pagado"}</span>
+        {r.id && (
+          <a href={`/caja/movimiento/${r.id}/comprobante`} target="_blank" rel="noreferrer" className="text-sm font-semibold">
+            Comprobante PDF
+          </a>
+        )}
+      </span>
+    );
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
       <label className="sr-only" htmlFor={`imp-${id}`}>
@@ -297,7 +316,8 @@ export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo
         <option value="BANCO">Banco</option>
       </select>
       <BotonEnviar className="btn-secundario" pendiente="…">
-        {tipo === "A_COBRAR" ? "Cobrar" : "Pagar"}
+        {/* Se marca cuando la plata ya está imputada: entró (cobrado) o salió (pagado). */}
+        {tipo === "A_COBRAR" ? "Cobrado" : "Pagado"}
       </BotonEnviar>
       <ErrorLinea r={r} className="w-full text-right text-xs text-aviso-texto" />
       {!r.error && saldo > 0 && !deVenta && <span className="w-full text-right text-xs text-apagado">Podés registrar un pago parcial (saldo {pesos(saldo)})</span>}

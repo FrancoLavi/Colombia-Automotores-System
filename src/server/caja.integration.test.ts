@@ -5,6 +5,7 @@ import * as veh from "./vehiculos";
 import * as con from "./contactos";
 import * as ven from "./ventas";
 import * as caja from "./caja";
+import { generarComprobante } from "./comprobante-pdf";
 
 beforeAll(prepararBase);
 
@@ -95,7 +96,11 @@ describe("movimientos y cuentas manuales", () => {
     await caja.crearCuenta(U, { tipo: "A_PAGAR", contraparte: "Arias", importe: 1_000_000, vencimiento: null, notas: "Saldo Polo" });
     const antes = (await caja.patrimonio()).total;
     const c = (await caja.listarCuentas({ tipo: "A_PAGAR" })).find((x) => x.c.contraparte === "Arias")!;
-    await caja.registrarPagoCuenta(U, c.c.id, 400_000, "EFECTIVO");
+    const movimiento = await caja.registrarPagoCuenta(U, c.c.id, 400_000, "EFECTIVO");
+    // HU-5.10: el pago tiene su comprobante en PDF.
+    const comp = (await generarComprobante(movimiento, "Prueba"))!;
+    expect(comp.nombre).toBe(`C-${String(movimiento).padStart(6, "0")}.pdf`);
+    expect(Buffer.from(comp.pdf).subarray(0, 4).toString()).toBe("%PDF");
     const despues = (await caja.listarCuentas({ tipo: "A_PAGAR" })).find((x) => x.c.contraparte === "Arias")!;
     expect(despues.c.saldo).toBe(600_000);
     expect((await caja.patrimonio()).total).toBe(antes);

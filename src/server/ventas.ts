@@ -568,8 +568,8 @@ export async function caerOperacion(usuarioId: number, id: number, motivo: strin
 }
 
 /** Cobra un pago que quedó pendiente al cerrar (crédito liquidado por el banco o saldo del cliente). */
-export async function cobrarPagoPendiente(usuarioId: number, id: number, pagoId: number, medio: Medio) {
-  await db.transaction(async (t) => {
+export async function cobrarPagoPendiente(usuarioId: number, id: number, pagoId: number, medio: Medio): Promise<number> {
+  return db.transaction(async (t) => {
     const op = await cargarOperacion(t, id);
     const p = await t.query.pagosOperacion.findFirst({ where: and(eq(s.pagosOperacion.id, pagoId), eq(s.pagosOperacion.operacionId, id)) });
     if (!p || p.estado !== "PENDIENTE" || p.tipo === "PERMUTA") throw new ErrorNegocio("Ese pago no está pendiente de cobro");
@@ -592,6 +592,7 @@ export async function cobrarPagoPendiente(usuarioId: number, id: number, pagoId:
     await t.update(s.pagosOperacion).set({ estado: "COBRADO", movimientoId: m.id }).where(eq(s.pagosOperacion.id, pagoId));
     if (p.cuentaPendienteId) await t.update(s.cuentasPendientes).set({ saldo: 0, estado: "CANCELADA" }).where(eq(s.cuentasPendientes.id, p.cuentaPendienteId));
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", descripcion: `Cobrado: ${ETIQUETA_PAGO[p.tipo].toLowerCase()} $ ${p.importe.toLocaleString("es-AR")}` });
+    return m.id;
   });
 }
 

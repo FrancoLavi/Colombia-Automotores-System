@@ -12,6 +12,8 @@ import { FilaEnlace, FormFiltros } from "@/components/filtros";
 import { AutoEnLinea, CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
 import { hayFiltroAuto, leerFiltroAuto } from "@/domain/autos";
 import { r2 } from "@/domain/negocio";
+import { GraficoBarras } from "@/components/grafico";
+import { marcasDelEje } from "@/lib/grafico";
 import { opcionesDeAutos } from "@/server/caja";
 
 export const metadata = { title: "Reportes · Colombia Automotores" };
@@ -60,7 +62,8 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
   const mes = sp.mes && /^(0[1-9]|1[0-2])$/.test(sp.mes) ? `${anio}-${sp.mes}` : undefined;
   const auto = pestana.porAuto ? leerFiltroAuto(sp) : {};
   const f: Filtros = { mes, auto };
-  const [{ m }, opciones] = await Promise.all([vistaMoneda(), opcionesDeAutos()]);
+  const [{ m, enDolares, tc }, opciones] = await Promise.all([vistaMoneda(), opcionesDeAutos()]);
+  const ej: Fmt = (n) => abreviar(enDolares && tc ? (n ?? 0) / tc : (n ?? 0), enDolares ? "US$" : "$");
   const periodo = mes ? mesLargo(mes) : `todo ${anio}`;
   const Dibujo = DIBUJOS[ver];
 
@@ -123,12 +126,55 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
         {pestana.porAuto && <CamposFiltroAuto valores={auto} marcas={opciones.marcas} modelos={opciones.modelos} id="reporte" />}
       </FormFiltros>
 
-      {ver === "ganancias" && <Ganancias anio={anio} f={f} m={m} />}
-      {ver === "personas" && <Personas anio={anio} f={f} m={m} />}
-      {ver === "ventas" && <Ventas anio={anio} f={f} m={m} />}
-      {ver === "autos" && <Autos anio={anio} f={f} m={m} />}
-      {ver === "movimientos" && <Movimientos anio={anio} f={f} m={m} />}
+      {ver === "ganancias" && <Ganancias anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "personas" && <Personas anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "ventas" && <Ventas anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "autos" && <Autos anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "movimientos" && <Movimientos anio={anio} f={f} m={m} ej={ej} />}
     </div>
+  );
+}
+
+/** "$ 12,5 M", "$ 850 mil": para el eje de los gráficos, donde no entra el monto entero. */
+function abreviar(n: number, signo: string) {
+  const a = Math.abs(n);
+  const num = (x: number) => x.toLocaleString("es-AR", { maximumFractionDigits: 1 });
+  const t = a >= 1_000_000 ? `${num(a / 1_000_000)} M` : a >= 1_000 ? `${num(a / 1_000)} mil` : num(a);
+  return `${n < 0 ? "-" : ""}${signo} ${t}`;
+}
+
+const contar: Fmt = (n) => String(n ?? 0);
+
+/** Arma el gráfico de barras con los montos ya formateados (los textos viajan al navegador, las funciones no). */
+function Grafico({
+  titulo,
+  anio,
+  mes,
+  series,
+  m,
+  ej,
+  etiquetas,
+}: {
+  titulo: string;
+  anio: number;
+  mes?: string;
+  series: { nombre: string; color: 1 | 2 | 3; valores: number[] }[];
+  m: Fmt;
+  ej: Fmt;
+  /** Si no es por mes (ej. por persona). */
+  etiquetas?: string[];
+}) {
+  const meses = rep.mesesDelAnio(anio);
+  const max = Math.max(0, ...series.flatMap((x) => x.valores));
+  return (
+    <GraficoBarras
+      titulo={titulo}
+      etiquetas={etiquetas ?? meses.map(mesCorto)}
+      etiquetasLargas={etiquetas ?? meses.map(mesLargo)}
+      resaltar={mes && !etiquetas ? meses.indexOf(mes) : undefined}
+      series={series.map((x) => ({ ...x, textos: x.valores.map((v) => m(v)) }))}
+      marcas={marcasDelEje(max).map((v) => ({ valor: v, texto: ej(v) }))}
+    />
   );
 }
 
@@ -158,12 +204,24 @@ function BarrasMes({ valores, anio, mes, m, color = "bg-acento/70" }: { valores:
   );
 }
 
-async function Ganancias({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
-  const [g, b] = await Promise.all([rep.gananciasPorDueno(anio, f), rep.balanceSalon(anio, f.mes)]);
+async function Ganancias({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [g, b, delAnio] = await Promise.all([rep.gananciasPorDueno(anio, f), rep.balanceSalon(anio, f.mes), rep.historicoVentas(anio, { auto: f.auto })]);
   const inversores = g.porDueno.filter((d) => d.participe.tipo !== "SALON");
   return (
     <>
       {b && <BalanceSalon b={b} m={m} filtroAuto={hayFiltroAuto(f.auto ?? {})} />}
+
+      <Grafico
+        titulo="Ganancia de las ventas, mes por mes"
+        anio={anio}
+        mes={f.mes}
+        m={m}
+        ej={ej}
+        series={[
+          { nombre: "Salón", color: 1, valores: delAnio.porMes.map((x) => x.salon) },
+          { nombre: "Inversores", color: 2, valores: delAnio.porMes.map((x) => x.inversores) },
+        ]}
+      />
 
       <h2 className="flex items-center gap-2 pt-1 text-lg font-semibold">
         <Icono nombre="inversor" /> Inversores: su ganancia
@@ -389,7 +447,7 @@ function BalanceSalon({ b, m, filtroAuto }: { b: Balance; m: Fmt; filtroAuto: bo
   );
 }
 
-async function Personas({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
+async function Personas({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
   const { resumen, detalle } = await rep.retirosPorPersona(anio, f);
   if (!resumen.length)
     return (
@@ -401,6 +459,17 @@ async function Personas({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
     );
   return (
     <>
+      <Grafico
+        titulo={`Lo que se llevó cada persona${f.mes ? ` en ${mesLargo(f.mes)}` : ` en ${anio}`}`}
+        anio={anio}
+        m={m}
+        ej={ej}
+        etiquetas={resumen.map((r) => r.persona.nombre)}
+        series={[
+          { nombre: "Sueldos", color: 2, valores: resumen.map((r) => r.sueldos) },
+          { nombre: "Retiros", color: 3, valores: resumen.map((r) => r.retiros) },
+        ]}
+      />
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {resumen.map((r) => (
           <div key={r.persona.id} className="tarjeta flex flex-col gap-2">
@@ -455,11 +524,25 @@ async function Personas({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
   );
 }
 
-async function Ventas({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
-  const { ventas, porMes } = await rep.historicoVentas(anio, f);
+async function Ventas({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [{ ventas, porMes }, delAnio] = await Promise.all([rep.historicoVentas(anio, f), rep.historicoVentas(anio, { auto: f.auto })]);
   const tot = porMes.reduce((a, x) => ({ u: a.u + x.unidades, f: a.f + x.facturado, g: a.g + x.ganancia, s: a.s + x.salon, i: a.i + x.inversores }), { u: 0, f: 0, g: 0, s: 0, i: 0 });
   return (
     <>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Grafico titulo="Autos vendidos por mes" anio={anio} mes={f.mes} m={contar} ej={contar} series={[{ nombre: "Autos vendidos", color: 2, valores: delAnio.porMes.map((x) => x.unidades) }]} />
+        <Grafico
+          titulo="Facturado y ganado por mes"
+          anio={anio}
+          mes={f.mes}
+          m={m}
+          ej={ej}
+          series={[
+            { nombre: "Facturado", color: 2, valores: delAnio.porMes.map((x) => x.facturado) },
+            { nombre: "Ganancia", color: 1, valores: delAnio.porMes.map((x) => x.ganancia) },
+          ]}
+        />
+      </div>
       <section className="tarjeta tabla-scroll p-0">
         <table className="tabla">
           <thead>
@@ -545,10 +628,24 @@ async function Ventas({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
   );
 }
 
-async function Autos({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
-  const { autos, movimientos } = await rep.historicoAutos(anio, f);
+async function Autos({ anio, f, m }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [{ autos, movimientos }, delAnio] = await Promise.all([rep.historicoAutos(anio, f), rep.historicoAutos(anio, { auto: f.auto })]);
+  const meses = rep.mesesDelAnio(anio);
+  const porMes = (fechaDe: (a: (typeof delAnio.autos)[number]) => string | null | undefined) =>
+    meses.map((p) => delAnio.autos.filter((a) => fechaDe(a)?.slice(0, 7) === p).length);
   return (
     <>
+      <Grafico
+        titulo="Autos que entraron y que se vendieron"
+        anio={anio}
+        mes={f.mes}
+        m={contar}
+        ej={contar}
+        series={[
+          { nombre: "Entraron", color: 1, valores: porMes((a) => a.v.fechaIngreso) },
+          { nombre: "Se vendieron", color: 2, valores: porMes((a) => a.venta?.fechaCierre) },
+        ]}
+      />
       <section className="tarjeta flex flex-col p-0">
         <h2 className="p-4 pb-2 text-lg font-semibold">Autos que entraron o salieron</h2>
         {autos.length === 0 ? (
@@ -611,11 +708,22 @@ async function Autos({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
   );
 }
 
-async function Movimientos({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
-  const { meses, categorias } = await rep.resumenMensual(anio, f);
+async function Movimientos({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [{ meses, categorias }, delAnio] = await Promise.all([rep.resumenMensual(anio, f), rep.resumenMensual(anio)]);
   const total = (f: (x: (typeof meses)[number]) => number) => meses.reduce((a, x) => a + f(x), 0);
   return (
     <>
+      <Grafico
+        titulo="Lo que entró y lo que salió de la caja"
+        anio={anio}
+        mes={f.mes}
+        m={m}
+        ej={ej}
+        series={[
+          { nombre: "Ingresos", color: 1, valores: delAnio.meses.map((x) => x.ingresos) },
+          { nombre: "Egresos", color: 3, valores: delAnio.meses.map((x) => x.egresos) },
+        ]}
+      />
       <section className="tarjeta tabla-scroll p-0">
         <table className="tabla">
           <thead>

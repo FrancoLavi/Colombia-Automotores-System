@@ -39,3 +39,23 @@ export const aviso = Swal.mixin({
 export function alertaError(texto: string, titulo = "No se pudo hacer") {
   return alerta.fire({ icon: "error", title: titulo, text: texto, confirmButtonText: "Entendido" });
 }
+
+/**
+ * Después de un cobro o un pago: avisa que quedó registrado y ofrece el comprobante en PDF
+ * (HU-5.10). Se llama desde la acción del formulario, así funciona aunque la fila desaparezca.
+ */
+export function ofrecerComprobante(movimientoId: number, titulo: string) {
+  return alerta
+    .fire({
+      icon: "success",
+      title: titulo,
+      text: "¿Querés el comprobante para dárselo o guardarlo?",
+      showCancelButton: true,
+      confirmButtonText: "Ver comprobante PDF",
+      cancelButtonText: "Cerrar",
+      reverseButtons: true,
+    })
+    .then((r) => {
+      if (r.isConfirmed) window.open(`/caja/movimiento/${movimientoId}/comprobante`, "_blank", "noopener");
+    });
+}

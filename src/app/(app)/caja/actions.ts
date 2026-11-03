@@ -76,8 +76,8 @@ export async function anularAccion(id: number, _: Resultado, fd: FormData): Prom
 export async function pagarGananciaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
-    return "Pagado.";
+    const movimiento = await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
+    return { mensaje: "Pagado.", id: movimiento };
   });
   revalidar();
   return r;
@@ -102,8 +102,8 @@ export async function crearCuentaAccion(_: Resultado, fd: FormData): Promise<Res
 export async function pagoCuentaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    await svc.registrarPagoCuenta(u.id, id, importeRequerido(fd, "importe", "Importe"), opcion(fd, "medio", MEDIOS, "EFECTIVO"));
-    return "Registrado.";
+    const movimiento = await svc.registrarPagoCuenta(u.id, id, importeRequerido(fd, "importe", "Importe"), opcion(fd, "medio", MEDIOS, "EFECTIVO"));
+    return { mensaje: "Registrado.", id: movimiento };
   });
   revalidar();
   return r;
