@@ -1,5 +1,6 @@
 import "server-only";
 import bcrypt from "bcryptjs";
+import { problemaPassword } from "@/domain/seguridad";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { auditar } from "@/lib/auditoria";
@@ -91,7 +92,8 @@ export async function crearUsuario(
 ) {
   const email = d.email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ErrorNegocio("Mail inválido");
-  if (d.password.length < 8) throw new ErrorNegocio("La contraseña tiene que tener al menos 8 caracteres");
+  const problema = problemaPassword(d.password);
+  if (problema) throw new ErrorNegocio(problema);
   if (d.rol === "INVERSOR" && !d.participeId) throw new ErrorNegocio("Elegí qué inversor es");
   await db.transaction(async (t) => {
     if (await t.query.usuarios.findFirst({ where: eq(s.usuarios.email, email) })) throw new ErrorNegocio("Ya existe un usuario con ese mail");
@@ -117,14 +119,22 @@ export async function cambiarActivoUsuario(usuarioId: number, id: number, activo
   });
 }
 
+/** Cambia la contraseña y cierra todas las sesiones abiertas de ese usuario (T4). Devuelve el usuario actualizado. */
 export async function cambiarPassword(usuarioId: number, id: number, nueva: string, actual?: string) {
-  if (nueva.length < 8) throw new ErrorNegocio("La contraseña tiene que tener al menos 8 caracteres");
+  const problema = problemaPassword(nueva);
+  if (problema) throw new ErrorNegocio(problema);
   const u = await db.query.usuarios.findFirst({ where: eq(s.usuarios.id, id) });
   if (!u) throw new ErrorNegocio("No existe");
   if (actual !== undefined && !(await bcrypt.compare(actual, u.passwordHash))) throw new ErrorNegocio("La contraseña actual no es correcta");
-  await db.transaction(async (t) => {
-    await t.update(s.usuarios).set({ passwordHash: await bcrypt.hash(nueva, 10) }).where(eq(s.usuarios.id, id));
-    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", descripcion: `Contraseña cambiada (${u.nombre})` });
+  const passwordHash = await bcrypt.hash(nueva, 10);
+  return db.transaction(async (t) => {
+    const [despues] = await t
+      .update(s.usuarios)
+      .set({ passwordHash, versionSesion: u.versionSesion + 1, intentosFallidos: 0, bloqueadoHasta: null })
+      .where(eq(s.usuarios.id, id))
+      .returning();
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", descripcion: `Contraseña cambiada (${u.nombre}); se cerraron sus sesiones abiertas` });
+    return despues;
   });
 }
 

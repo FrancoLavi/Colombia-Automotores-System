@@ -3,13 +3,20 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { COOKIE_SESION, verificarSesion } from "./sesion";
+import { ahoraS } from "@/domain/seguridad";
+import { COOKIE_SESION, firmarSesion, opcionesCookie, verificarSesion } from "./sesion";
 
 export async function usuarioActual() {
   const s = await verificarSesion((await cookies()).get(COOKIE_SESION)?.value);
   if (!s) return null;
   const u = await db.query.usuarios.findFirst({ where: eq(schema.usuarios.id, s.uid) });
-  return u && u.activo ? u : null;
+  // T4: si cambió la contraseña o se cerraron todas las sesiones, esta ya no vale.
+  return u && u.activo && u.versionSesion === s.v ? u : null;
+}
+
+/** Abre (o reabre con la versión nueva) la sesión del usuario en este navegador. */
+export async function guardarSesion(u: { id: number; rol: "ADMIN" | "INVERSOR"; versionSesion: number }, ini: number = ahoraS()) {
+  (await cookies()).set(COOKIE_SESION, await firmarSesion({ uid: u.id, rol: u.rol, v: u.versionSesion, ini }), opcionesCookie());
 }
 
 /**

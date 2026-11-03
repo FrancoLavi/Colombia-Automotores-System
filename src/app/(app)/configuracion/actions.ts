@@ -2,7 +2,10 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { requerirUsuario } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { guardarSesion, requerirUsuario } from "@/lib/auth";
+import { COOKIE_SESION } from "@/lib/sesion";
+import { cerrarTodasLasSesiones } from "@/server/seguridad";
 import { ejecutar } from "@/lib/acciones";
 import { ErrorValidacion, entero, importe, importeRequerido, opcion, requerido, texto, type Resultado } from "@/lib/form";
 import { COOKIE_TEMA, type Tema } from "@/lib/tema";
@@ -109,9 +112,20 @@ export async function miPasswordAccion(_: Resultado, fd: FormData): Promise<Resu
   return ejecutar(async () => {
     const nueva = requerido(fd, "nueva", "Contraseña nueva");
     if (nueva !== texto(fd, "repetir")) throw new ErrorValidacion("Las contraseñas nuevas no coinciden");
-    await cfg.cambiarPassword(u.id, u.id, nueva, requerido(fd, "actual", "Contraseña actual"));
-    return "Contraseña cambiada.";
+    const actualizado = await cfg.cambiarPassword(u.id, u.id, nueva, requerido(fd, "actual", "Contraseña actual"));
+    // T4: el cambio cierra todas las sesiones; esta se reabre con la versión nueva para no echar a quien la cambió.
+    await guardarSesion(actualizado);
+    return "Contraseña cambiada. Se cerraron tus sesiones en otros dispositivos.";
   });
+}
+
+/** T4: cierra la sesión en todos los dispositivos, incluido este. */
+export async function cerrarTodasAccion(): Promise<Resultado> {
+  const u = await requerirUsuario({ permitirInversor: true });
+  const r = await ejecutar(() => cerrarTodasLasSesiones(u.id));
+  if (!r.ok) return r;
+  (await cookies()).delete(COOKIE_SESION);
+  redirect("/login");
 }
 
 export async function documentoAccion(_: Resultado, fd: FormData): Promise<Resultado> {
