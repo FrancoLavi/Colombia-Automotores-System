@@ -5,6 +5,7 @@ import { auditar } from "@/lib/auditoria";
 import { hoyIso } from "@/lib/formato";
 import { costoTotal, compraEnPesos, diasEnStock, margenUsd, precioSugerido } from "@/domain/negocio";
 import { compraSaleDeCaja } from "@/domain/caja";
+import { coincideAuto, opcionesAuto } from "@/domain/autos";
 import {
   alertasVehiculo,
   faltantesParaHabilitar,
@@ -16,6 +17,7 @@ import {
 } from "@/domain/stock";
 
 import { ErrorNegocio } from "./errores";
+import { exigirFondos } from "./fondos";
 import { obtenerParametros } from "./parametros";
 import { dolarDeHoy } from "./dolar";
 export { ErrorNegocio };
@@ -59,6 +61,8 @@ export interface FiltrosStock {
   estado?: string; // "ACTIVOS" (por defecto), "TODOS" o un estado
   ubicacion?: string;
   marca?: string;
+  modelo?: string;
+  patente?: string;
   diasMin?: number;
 }
 
@@ -68,7 +72,6 @@ export async function listarStock(f: FiltrosStock) {
   if (estado === "ACTIVOS") condiciones.push(inArray(s.vehiculos.estado, ["POR_INGRESAR", "DISPONIBLE", "RESERVADO", "VENDIDO"]));
   else if (estado !== "TODOS") condiciones.push(eq(s.vehiculos.estado, estado as EstadoVehiculo));
   if (f.ubicacion) condiciones.push(eq(s.vehiculos.ubicacion, f.ubicacion as Ubicacion));
-  if (f.marca) condiciones.push(eq(s.vehiculos.marca, f.marca));
   if (f.q) {
     const q = `%${f.q.trim()}%`;
     condiciones.push(
@@ -113,12 +116,14 @@ export async function listarStock(f: FiltrosStock) {
     .select({ estado: s.vehiculos.estado, n: sql<number>`count(*)::int` })
     .from(s.vehiculos)
     .groupBy(s.vehiculos.estado);
-  const marcas = await db.selectDistinct({ marca: s.vehiculos.marca }).from(s.vehiculos).orderBy(asc(s.vehiculos.marca));
+  const todos = await db.selectDistinct({ marca: s.vehiculos.marca, modelo: s.vehiculos.modelo, dominio: s.vehiculos.dominio }).from(s.vehiculos);
+  const { marcas, modelos } = opcionesAuto(todos);
 
   return {
-    vehiculos: f.diasMin ? resultado.filter((x) => x.dias >= f.diasMin!) : resultado,
+    vehiculos: resultado.filter((x) => (!f.diasMin || x.dias >= f.diasMin) && coincideAuto(x, f)),
     conteo: Object.fromEntries(conteo.map((c) => [c.estado, c.n])) as Partial<Record<EstadoVehiculo, number>>,
-    marcas: marcas.map((m) => m.marca),
+    marcas,
+    modelos,
     tc,
   };
 }
@@ -316,6 +321,7 @@ export async function crearVehiculo(usuarioId: number, d: DatosVehiculo, pago: P
           participeId,
           usuarioId,
         });
+        await exigirFondos(t);
       } else if (pago.modo === "A_PAGAR") {
         const contacto = d.contactoOrigenId ? await t.query.contactos.findFirst({ where: eq(s.contactos.id, d.contactoOrigenId) }) : null;
         await t.insert(s.cuentasPendientes).values({
@@ -565,6 +571,7 @@ async function insertarGasto(
       })
       .returning();
     movimientoId = m.id;
+    await exigirFondos(t);
   } else {
     const [c] = await t
       .insert(s.cuentasPendientes)

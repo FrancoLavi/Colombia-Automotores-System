@@ -20,11 +20,17 @@ export interface AlertaTablero {
 
 const ORDEN: Record<Severidad, number> = { CRITICA: 0, AVISO: 1, INFO: 2 };
 
-export async function tablero(hoy: Date = new Date()) {
+/**
+ * Tablero de inicio. `mes` ("AAAA-MM") elige de qué mes son los objetivos (vendidos, ganancia,
+ * rotación); sin mes, el actual. Las alertas, la agenda, la caja y el patrimonio son siempre de hoy.
+ */
+export async function tablero(hoy: Date = new Date(), mes?: string) {
   const hoyStr = hoyIso(hoy);
-  const periodo = periodoDe(hoy);
+  const periodo = mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(mes) ? mes : periodoDe(hoy);
   const inicioMes = `${periodo}-01`;
-  const hace12 = hoyIso(new Date(hoy.getFullYear(), hoy.getMonth() - 11, 1));
+  const [a, mm] = periodo.split("-").map(Number);
+  const finMes = hoyIso(new Date(a, mm, 0));
+  const hace12 = [hoyIso(new Date(hoy.getFullYear(), hoy.getMonth() - 11, 1)), inicioMes].sort()[0];
 
   const [cerradas, stock, p, ag, objetivo, tcs, senias, cuentasVencidas, ingresadosAntes] = await Promise.all([
     // Ventas cerradas de los últimos 12 meses con su liquidación.
@@ -67,7 +73,7 @@ export async function tablero(hoy: Date = new Date()) {
       ),
   ]);
 
-  const delMes = cerradas.filter((c) => c.op.fechaCierre && c.op.fechaCierre >= inicioMes);
+  const delMes = cerradas.filter((c) => c.op.fechaCierre && c.op.fechaCierre >= inicioMes && c.op.fechaCierre <= finMes);
   const enStock = stock.vehiculos.filter((v) => ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"].includes(v.estado));
   // Si no hay historia (sistema recién arrancado), se usa el stock actual más lo vendido en el mes.
   const stockInicio = ingresadosAntes[0].n || enStock.length + delMes.length;
@@ -125,6 +131,7 @@ export async function tablero(hoy: Date = new Date()) {
     variacionDolar,
     alertas,
     agenda: ag,
+    esteMes: periodo === periodoDe(hoy),
     ventas12: ventasPorMes(cerradas.map((c) => c.op.fechaCierre!), hoy),
     rotacionModelos: rotacionPorModelo(
       cerradas.map((c) => ({ marca: c.v.marca, modelo: c.v.modelo, dias: diasEnStock(c.v.fechaIngreso, c.v.fechaDisponible, new Date(`${c.op.fechaCierre}T00:00:00`)) })),

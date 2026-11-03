@@ -5,6 +5,7 @@ import { r2 } from "@/domain/negocio";
 import { diasEnStock } from "@/domain/negocio";
 import { periodoDe } from "@/domain/dashboard";
 import { numeroOperacion } from "@/domain/ventas";
+import { coincideAuto, type FiltroAuto } from "@/domain/autos";
 
 /** Rango de un año calendario como fechas ISO y como timestamps. */
 function rangoAnio(anio: number) {
@@ -26,65 +27,93 @@ export async function aniosDisponibles() {
   return Array.from({ length: actual - desde + 1 }, (_, i) => actual - i);
 }
 
-// ---------- Ganancias pagadas por mes ----------
+// ---------- Ganancias del salón y de cada inversor ----------
 
-export async function gananciasPagadasPorMes(anio: number) {
-  const { desdeTs, hastaTs } = rangoAnio(anio);
+export interface FiltrosReporte {
+  /** "AAAA-MM": solo ese mes. Sin mes, todo el año. */
+  mes?: string;
+  auto?: FiltroAuto;
+}
+
+/** Si una fecha (o un período "AAAA-MM") cae en el mes pedido. Sin mes, siempre. */
+export const enMes = (fecha: Date | string | null | undefined, mes?: string) => !mes || (fecha != null && periodoDe(fecha) === mes);
+
+/**
+ * HU-8.1: la ganancia de cada uno (el salón y cada inversor) por las ventas cerradas en el período,
+ * contada en el mes del cierre (R3). Del inversor se ve además cuánto ya cobró y cuánto falta;
+ * la del salón queda en su caja al cerrar (K5). El capital que se le devuelve al inversor no es
+ * ganancia de nadie (K10) y no aparece.
+ */
+export async function gananciasPorDueno(anio: number, f: FiltrosReporte = {}) {
   const filas = await db
     .select({
-      fecha: s.movimientosCaja.fecha,
       importe: s.distribuciones.importe,
+      estado: s.distribuciones.estado,
       participe: { id: s.participes.id, nombre: s.participes.nombre, tipo: s.participes.tipo },
-    })
-    .from(s.distribuciones)
-    .innerJoin(s.movimientosCaja, eq(s.movimientosCaja.id, s.distribuciones.movimientoId))
-    .innerJoin(s.participes, eq(s.participes.id, s.distribuciones.participeId))
-    .where(
-      and(
-        eq(s.distribuciones.estado, "PAGADO"),
-        // La devolución del capital al inversor (K10) no es ganancia de nadie.
-        eq(s.distribuciones.tipo, "GANANCIA"),
-        eq(s.movimientosCaja.anulado, false),
-        gte(s.movimientosCaja.fecha, desdeTs),
-        lte(s.movimientosCaja.fecha, hastaTs),
-      ),
-    );
-  // K5: la ganancia del salón no se paga con un movimiento: queda en su caja al cerrar la venta.
-  // Cuenta en el mes del cierre. (Las ventas viejas la tienen pagada con un retiro: van arriba.)
-  const delSalon = await db
-    .select({
-      fechaCierre: s.operaciones.fechaCierre,
-      importe: s.distribuciones.importe,
-      participe: { id: s.participes.id, nombre: s.participes.nombre, tipo: s.participes.tipo },
+      op: { id: s.operaciones.id, fechaCierre: s.operaciones.fechaCierre },
+      auto: { id: s.vehiculos.id, marca: s.vehiculos.marca, modelo: s.vehiculos.modelo, anio: s.vehiculos.anio, dominio: s.vehiculos.dominio },
     })
     .from(s.distribuciones)
     .innerJoin(s.participes, eq(s.participes.id, s.distribuciones.participeId))
     .innerJoin(s.liquidaciones, eq(s.liquidaciones.id, s.distribuciones.liquidacionId))
     .innerJoin(s.operaciones, eq(s.operaciones.id, s.liquidaciones.operacionId))
+    .innerJoin(s.vehiculos, eq(s.vehiculos.id, s.operaciones.vehiculoId))
     .where(
       and(
-        eq(s.participes.tipo, "SALON"),
-        eq(s.distribuciones.estado, "PAGADO"),
         eq(s.distribuciones.tipo, "GANANCIA"),
-        sql`${s.distribuciones.movimientoId} is null`,
+        inArray(s.operaciones.estado, ["CERRADA", "ENTREGADA"]),
         gte(s.operaciones.fechaCierre, `${anio}-01-01`),
         lte(s.operaciones.fechaCierre, `${anio}-12-31`),
       ),
-    );
-  filas.push(...delSalon.map((x) => ({ fecha: new Date(`${x.fechaCierre}T12:00:00`), importe: x.importe, participe: x.participe })));
-  const participes = [...new Map(filas.map((f) => [f.participe.id, f.participe])).values()].sort((a, b) => (a.tipo === "SALON" ? -1 : b.tipo === "SALON" ? 1 : a.nombre.localeCompare(b.nombre)));
-  const meses = mesesDelAnio(anio).map((periodo) => {
-    const delMes = filas.filter((f) => periodoDe(f.fecha) === periodo);
-    const porParticipe = Object.fromEntries(participes.map((p) => [p.id, r2(delMes.filter((f) => f.participe.id === p.id).reduce((a, f) => a + f.importe, 0))]));
-    return { periodo, porParticipe, total: r2(delMes.reduce((a, f) => a + f.importe, 0)) };
+    )
+    .orderBy(desc(s.operaciones.fechaCierre), desc(s.operaciones.id));
+  const delAuto = filas.filter((x) => coincideAuto(x.auto, f.auto ?? {}));
+  const delPeriodo = delAuto.filter((x) => enMes(x.op.fechaCierre, f.mes));
+  // El salón siempre primero, aunque no haya ganado nada todavía; después cada inversor que tuvo ventas.
+  const salon = await db.query.participes.findFirst({ where: eq(s.participes.tipo, "SALON") });
+  const vistos = new Map(filas.map((x) => [x.participe.id, x.participe]));
+  if (salon) vistos.set(salon.id, { id: salon.id, nombre: salon.nombre, tipo: salon.tipo });
+  const participes = [...vistos.values()].sort((a, b) => (a.tipo === "SALON" ? -1 : b.tipo === "SALON" ? 1 : a.nombre.localeCompare(b.nombre)));
+  const suma = (xs: typeof filas) => r2(xs.reduce((a, x) => a + x.importe, 0));
+
+  const porDueno = participes.map((p) => {
+    const suyas = delPeriodo.filter((x) => x.participe.id === p.id);
+    const esSalon = p.tipo === "SALON";
+    return {
+      participe: p,
+      ventas: suyas.length,
+      total: suma(suyas),
+      // K5: lo del salón ya está en su caja; del inversor, lo que se le pagó y lo que falta.
+      cobrado: esSalon ? suma(suyas) : suma(suyas.filter((x) => x.estado === "PAGADO")),
+      pendiente: esSalon ? 0 : suma(suyas.filter((x) => x.estado === "PENDIENTE")),
+      // Para el gráfico: los 12 meses del año (con el filtro de auto, sin el de mes).
+      porMes: mesesDelAnio(anio).map((periodo) => suma(delAuto.filter((x) => x.participe.id === p.id && periodoDe(x.op.fechaCierre!) === periodo))),
+    };
   });
-  const totales = Object.fromEntries(participes.map((p) => [p.id, r2(meses.reduce((a, m) => a + m.porParticipe[p.id], 0))]));
-  return { participes, meses, totales, total: r2(meses.reduce((a, m) => a + m.total, 0)) };
+
+  // Una fila por venta, con la parte de cada uno.
+  const ventas = [...new Map(delPeriodo.map((x) => [x.op.id, x])).values()].map((x) => {
+    const partes = delPeriodo.filter((y) => y.op.id === x.op.id);
+    return {
+      op: x.op,
+      numero: numeroOperacion(x.op.id),
+      auto: x.auto,
+      partes: Object.fromEntries(partes.map((y) => [y.participe.id, { importe: y.importe, pendiente: y.participe.tipo !== "SALON" && y.estado === "PENDIENTE" }])),
+      total: suma(partes),
+    };
+  });
+  const meses = mesesDelAnio(anio)
+    .filter((periodo) => !f.mes || periodo === f.mes)
+    .map((periodo) => {
+      const delMes = delAuto.filter((x) => periodoDe(x.op.fechaCierre!) === periodo);
+      return { periodo, porParticipe: Object.fromEntries(participes.map((p) => [p.id, suma(delMes.filter((x) => x.participe.id === p.id))])), total: suma(delMes) };
+    });
+  return { porDueno, ventas, meses, total: suma(delPeriodo), autos: filas.map((x) => x.auto) };
 }
 
 // ---------- Lo que se llevó cada persona (sueldos y retiros) ----------
 
-export async function retirosPorPersona(anio: number) {
+export async function retirosPorPersona(anio: number, f: FiltrosReporte = {}) {
   const { desdeTs, hastaTs } = rangoAnio(anio);
   const filas = await db
     .select({
@@ -98,10 +127,12 @@ export async function retirosPorPersona(anio: number) {
   // Los egresos (sueldo, retiro) suman a lo que se llevó; un aporte (ingreso) resta.
   const signo = (f: (typeof filas)[number]) => (f.m.sentido === "EGRESO" ? f.m.importe : -f.m.importe);
   const personas = await db.select().from(s.personas).orderBy(asc(s.personas.rol), asc(s.personas.nombre));
+  const delPeriodo = filas.filter((x) => enMes(x.m.fecha, f.mes));
   const resumen = personas
     .map((p) => {
-      const suyas = filas.filter((f) => f.persona.id === p.id);
-      const porMes = mesesDelAnio(anio).map((periodo) => r2(suyas.filter((f) => periodoDe(f.m.fecha) === periodo).reduce((a, f) => a + signo(f), 0)));
+      const delAnio = filas.filter((x) => x.persona.id === p.id);
+      const suyas = delPeriodo.filter((x) => x.persona.id === p.id);
+      const porMes = mesesDelAnio(anio).map((periodo) => r2(delAnio.filter((f) => periodoDe(f.m.fecha) === periodo).reduce((a, f) => a + signo(f), 0)));
       return {
         persona: p,
         sueldos: r2(suyas.filter((f) => f.m.categoria === "SUELDO").reduce((a, f) => a + f.m.importe, 0)),
@@ -112,12 +143,12 @@ export async function retirosPorPersona(anio: number) {
       };
     })
     .filter((x) => x.persona.activo || x.total !== 0);
-  return { resumen, detalle: filas };
+  return { resumen, detalle: delPeriodo };
 }
 
 // ---------- Histórico de ventas ----------
 
-export async function historicoVentas(anio: number) {
+export async function historicoVentas(anio: number, f: FiltrosReporte = {}) {
   const { desde, hasta } = rangoAnio(anio);
   const filas = await db
     .select({
@@ -134,9 +165,10 @@ export async function historicoVentas(anio: number) {
     .innerJoin(s.participes, eq(s.participes.id, s.liquidaciones.participeId))
     .where(and(inArray(s.operaciones.estado, ["CERRADA", "ENTREGADA"]), gte(s.operaciones.fechaCierre, desde), lte(s.operaciones.fechaCierre, hasta)))
     .orderBy(desc(s.operaciones.fechaCierre), desc(s.operaciones.id));
-  const ventas = filas.map((f) => ({ ...f, numero: numeroOperacion(f.op.id) }));
-  const porMes = mesesDelAnio(anio).map((periodo) => {
-    const v = ventas.filter((x) => periodoDe(x.op.fechaCierre!) === periodo);
+  const todas = filas.filter((x) => coincideAuto(x.auto, f.auto ?? {})).map((x) => ({ ...x, numero: numeroOperacion(x.op.id) }));
+  const ventas = todas.filter((x) => enMes(x.op.fechaCierre, f.mes));
+  const porMes = mesesDelAnio(anio).filter((periodo) => enMes(periodo, f.mes)).map((periodo) => {
+    const v = todas.filter((x) => periodoDe(x.op.fechaCierre!) === periodo);
     return {
       periodo,
       unidades: v.length,
@@ -146,12 +178,12 @@ export async function historicoVentas(anio: number) {
       inversores: r2(v.reduce((a, x) => a + x.l.parteInversor, 0)),
     };
   });
-  return { ventas, porMes };
+  return { ventas, porMes, autos: filas.map((x) => x.auto) };
 }
 
 // ---------- Histórico de autos ----------
 
-export async function historicoAutos(anio: number) {
+export async function historicoAutos(anio: number, f: FiltrosReporte = {}) {
   const { desde, hasta, desdeTs, hastaTs } = rangoAnio(anio);
   // Autos que ingresaron en el año o que se vendieron en el año.
   const autos = await db
@@ -182,19 +214,25 @@ export async function historicoAutos(anio: number) {
     )
     .orderBy(desc(s.auditoria.fecha), desc(s.auditoria.id))
     .limit(400);
+  const filtro = f.auto ?? {};
   return {
-    autos: autos.map((x) => ({
+    opciones: autos.map((x) => x.v),
+    autos: autos
+      .filter((x) => coincideAuto(x.v, filtro) && (!f.mes || enMes(x.v.fechaIngreso, f.mes) || enMes(x.venta?.fechaCierre, f.mes)))
+      .map((x) => ({
       ...x,
       dias: diasEnStock(x.v.fechaIngreso, x.v.fechaDisponible, x.venta?.fechaCierre ? new Date(`${x.venta.fechaCierre}T00:00:00`) : new Date()),
       numero: x.venta?.id ? numeroOperacion(x.venta.id) : null,
     })),
-    movimientos: movimientos.filter((m) => m.a.accion !== "CREAR" || (m.a.descripcion ?? "").startsWith("Alta")),
+    movimientos: movimientos.filter(
+      (m) => (m.a.accion !== "CREAR" || (m.a.descripcion ?? "").startsWith("Alta")) && coincideAuto(m.auto, filtro) && enMes(m.a.fecha, f.mes),
+    ),
   };
 }
 
 // ---------- Ingresos, egresos y sueldos por mes ----------
 
-export async function resumenMensual(anio: number) {
+export async function resumenMensual(anio: number, f: FiltrosReporte = {}) {
   const { desdeTs, hastaTs } = rangoAnio(anio);
   const movs = await db
     .select({ fecha: s.movimientosCaja.fecha, sentido: s.movimientosCaja.sentido, categoria: s.movimientosCaja.categoria, importe: s.movimientosCaja.importe })
@@ -203,7 +241,7 @@ export async function resumenMensual(anio: number) {
   // Los pases entre efectivo y banco no son ingresos ni egresos del negocio.
   const reales = movs.filter((m) => m.categoria !== "TRANSFERENCIA_INTERNA");
   const categorias = [...new Set(reales.map((m) => `${m.sentido}:${m.categoria}`))].sort();
-  const meses = mesesDelAnio(anio).map((periodo) => {
+  const meses = mesesDelAnio(anio).filter((periodo) => enMes(periodo, f.mes)).map((periodo) => {
     const delMes = reales.filter((m) => periodoDe(m.fecha) === periodo);
     const suma = (f: (m: (typeof reales)[number]) => boolean) => r2(delMes.filter(f).reduce((a, m) => a + m.importe, 0));
     return {
@@ -214,5 +252,6 @@ export async function resumenMensual(anio: number) {
       porCategoria: Object.fromEntries(categorias.map((c) => [c, suma((m) => `${m.sentido}:${m.categoria}` === c)])),
     };
   });
-  return { meses, categorias };
+  // Con un mes elegido, solo los tipos que se movieron ese mes.
+  return { meses, categorias: categorias.filter((c) => meses.some((x) => x.porCategoria[c])) };
 }

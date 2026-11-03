@@ -6,6 +6,9 @@ import { desglosePatrimonio } from "@/server/caja";
 import { r2 } from "@/domain/negocio";
 import { ChipEstado } from "@/components/ui";
 import { Icono, type NombreIcono } from "@/components/iconos-caja";
+import { FormFiltros } from "@/components/filtros";
+import { AutoEnLinea, CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { coincideAuto, hayFiltroAuto, leerFiltroAuto, opcionesAuto, type FiltroAuto } from "@/domain/autos";
 
 // Al tocar una tarjeta de Patrimonio, qué compone ese número (K3, K11), con cada parte a la vista.
 const VISTAS: Record<string, { titulo: string; icono: NombreIcono; bajada: string }> = {
@@ -23,9 +26,10 @@ export async function generateMetadata({ params }: { params: Promise<{ ver: stri
 type Moneda = (v: number) => string;
 type Desglose = Awaited<ReturnType<typeof desglosePatrimonio>>;
 
-export default async function DesglosePage({ params }: { params: Promise<{ ver: string }> }) {
+export default async function DesglosePage({ params, searchParams }: { params: Promise<{ ver: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   await requerirUsuario();
   const { ver } = await params;
+  const filtro = leerFiltroAuto(await searchParams);
   const vista = VISTAS[ver];
   if (!vista) notFound();
   const [{ m }, d] = await Promise.all([vistaMoneda(), desglosePatrimonio()]);
@@ -59,7 +63,7 @@ export default async function DesglosePage({ params }: { params: Promise<{ ver: 
       </header>
       {ver === "total" && <Total d={d} m={m} />}
       {ver === "salon" && <Salon d={d} m={m} />}
-      {ver === "autos" && <Autos d={d} m={m} />}
+      {ver === "autos" && <Autos d={d} m={m} filtro={filtro} />}
       {ver === "liquido" && <Liquido d={d} m={m} />}
     </div>
   );
@@ -125,7 +129,7 @@ function Salon({ d, m }: { d: Desglose; m: Moneda }) {
           key={a.id}
           icono="auto"
           signo="−"
-          texto={`Lo que puso ${a.dueno} en el ${a.marca} ${a.modelo} ${a.anio}`}
+          texto={<>Lo que puso {a.dueno} en el <AutoEnLinea auto={a} anio /></>}
           detalle="Sigue en stock: es suyo hasta que se venda. Los gastos los puso el salón y quedan del salón."
           href={`/stock/${a.id}`}
           importe={a.capitalInversor}
@@ -138,7 +142,7 @@ function Salon({ d, m }: { d: Desglose; m: Moneda }) {
           icono="inversor"
           signo={g.d.importe < 0 ? "+" : "−"}
           texto={`${g.d.tipo === "CAPITAL" ? "Capital a devolverle" : "Ganancia a pagarle"} a ${g.participe.nombre}`}
-          detalle={`Venta ${g.numero} · ${g.auto.marca} ${g.auto.modelo} ${g.auto.anio}`}
+          detalle={<>Venta {g.numero} · <AutoEnLinea auto={g.auto} anio /></>}
           href={`/ventas/${g.operacionId}`}
           importe={g.d.importe}
           m={m}
@@ -150,18 +154,28 @@ function Salon({ d, m }: { d: Desglose; m: Moneda }) {
   );
 }
 
-function Autos({ d, m }: { d: Desglose; m: Moneda }) {
-  const t = (f: (a: Desglose["autos"][number]) => number) => r2(d.autos.reduce((s, a) => s + f(a), 0));
+function Autos({ d, m, filtro }: { d: Desglose; m: Moneda; filtro: FiltroAuto }) {
+  const autos = d.autos.filter((a) => coincideAuto(a, filtro));
+  const filtrado = hayFiltroAuto(filtro);
+  const t = (f: (a: Desglose["autos"][number]) => number) => r2(autos.reduce((s, a) => s + f(a), 0));
+  const { marcas, modelos } = opcionesAuto(d.autos);
   return (
     <section className="tarjeta flex flex-col gap-2 p-0">
+      {d.autos.length > 0 && (
+        <FormFiltros claseBarra="mx-4" className="grid gap-3 p-4 pb-0 sm:grid-cols-3">
+          <CamposFiltroAuto valores={filtro} marcas={marcas} modelos={modelos} />
+        </FormFiltros>
+      )}
       {d.autos.length === 0 ? (
         <p className="p-4 text-sm text-apagado">No hay autos en stock.</p>
+      ) : autos.length === 0 ? (
+        <p className="p-4 text-sm text-apagado">Ningún auto coincide con los filtros.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="tabla">
             <thead>
               <tr>
-                <th>Auto</th>
+                <ThAuto />
                 <th>Estado</th>
                 <th>Financia</th>
                 <th className="text-right">Compra</th>
@@ -172,13 +186,9 @@ function Autos({ d, m }: { d: Desglose; m: Moneda }) {
               </tr>
             </thead>
             <tbody>
-              {d.autos.map((a) => (
+              {autos.map((a) => (
                 <tr key={a.id}>
-                  <td>
-                    <Link href={`/stock/${a.id}`}>
-                      {a.marca} {a.modelo} {a.anio} <span className="num text-apagado">{a.dominio}</span>
-                    </Link>
-                  </td>
+                  <TdAuto auto={a} href={`/stock/${a.id}`} anio />
                   <td>
                     <ChipEstado estado={a.estado} />
                   </td>
@@ -193,12 +203,12 @@ function Autos({ d, m }: { d: Desglose; m: Moneda }) {
             </tbody>
             <tfoot>
               <tr className="font-semibold">
-                <td colSpan={3}>Total</td>
+                <td colSpan={5}>{filtrado ? `Total de lo filtrado (${autos.length})` : "Total"}</td>
                 <td className="num text-right">{m(t((a) => a.valorCompraArs))}</td>
                 <td className="num text-right">{m(t((a) => a.gastos))}</td>
-                <td className="num text-right">{m(d.p.stock)}</td>
-                <td className="num text-right">{m(d.p.stockInversores)}</td>
-                <td className="num text-right">{m(d.p.stockSalon)}</td>
+                <td className="num text-right">{m(filtrado ? t((a) => a.costo) : d.p.stock)}</td>
+                <td className="num text-right">{m(filtrado ? t((a) => a.capitalInversor) : d.p.stockInversores)}</td>
+                <td className="num text-right">{m(filtrado ? t((a) => a.delSalon) : d.p.stockSalon)}</td>
               </tr>
             </tfoot>
           </table>
@@ -227,7 +237,7 @@ function Liquido({ d, m }: { d: Desglose; m: Moneda }) {
           icono="inversor"
           signo={g.d.importe < 0 ? "+" : "−"}
           texto={`${g.d.tipo === "CAPITAL" ? "Capital a devolverle" : "Ganancia a pagarle"} a ${g.participe.nombre}`}
-          detalle={`Venta ${g.numero} · ${g.auto.marca} ${g.auto.modelo} ${g.auto.anio}`}
+          detalle={<>Venta {g.numero} · <AutoEnLinea auto={g.auto} anio /></>}
           href={`/ventas/${g.operacionId}`}
           importe={g.d.importe}
           m={m}

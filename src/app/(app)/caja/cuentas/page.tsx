@@ -7,6 +7,9 @@ import { NavCaja } from "../nav";
 import { FormCuenta, FormPagarGanancia, FormPagoCuenta } from "../formularios";
 import { Ayuda } from "@/components/ui";
 import { Icono } from "@/components/iconos-caja";
+import { FormFiltros } from "@/components/filtros";
+import { AutoEnLinea, CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { coincideAuto, hayFiltroAuto, leerFiltroAuto, opcionesAuto } from "@/domain/autos";
 
 export const metadata = { title: "Cuentas pendientes · Colombia Automotores" };
 
@@ -18,10 +21,16 @@ const ORIGEN: Record<string, string> = {
   MANUAL: "Manual",
 };
 
-export default async function CuentasPage() {
+export default async function CuentasPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await requerirUsuario();
   const { m } = await vistaMoneda();
-  const [aCobrar, aPagar, inversores] = await Promise.all([listarCuentas({ tipo: "A_COBRAR" }), listarCuentas({ tipo: "A_PAGAR" }), pendientesPorPagar()]);
+  const filtro = leerFiltroAuto(await searchParams);
+  const [cobrarTodas, pagarTodas, inversoresTodos] = await Promise.all([listarCuentas({ tipo: "A_COBRAR" }), listarCuentas({ tipo: "A_PAGAR" }), pendientesPorPagar()]);
+  // Filtro por auto: las cuentas que no son de un auto (ej. una deuda del salón) solo se ven sin filtro.
+  const aCobrar = cobrarTodas.filter((x) => coincideAuto(x.auto, filtro));
+  const aPagar = pagarTodas.filter((x) => coincideAuto(x.auto, filtro));
+  const inversores = inversoresTodos.filter((g) => coincideAuto(g.auto, filtro));
+  const { marcas, modelos } = opcionesAuto([...[...cobrarTodas, ...pagarTodas].map((x) => x.auto), ...inversoresTodos.map((g) => g.auto)]);
   const totalInversores = inversores.reduce((a, g) => a + g.d.importe, 0);
   const hoy = hoyIso();
   const total = (xs: typeof aCobrar) => xs.reduce((a, x) => a + x.c.saldo, 0);
@@ -36,6 +45,7 @@ export default async function CuentasPage() {
             <tr>
               <th>{tipo === "A_COBRAR" ? "Nos debe" : "Le debemos a"}</th>
               <th>Origen</th>
+              <ThAuto />
               <th>Detalle</th>
               <th>Vence</th>
               <th className="text-right">Saldo</th>
@@ -47,13 +57,9 @@ export default async function CuentasPage() {
               <tr key={c.id}>
                 <td className="font-semibold">{c.contraparte}</td>
                 <td>{ORIGEN[c.origen]}</td>
+                <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} />
                 <td className="max-w-xs whitespace-normal text-sm">
                   {c.operacionId ? <Link href={`/ventas/${c.operacionId}`}>{c.notas}</Link> : c.notas}
-                  {auto && !c.operacionId && (
-                    <Link href={`/stock/${auto.id}`} className="block text-xs">
-                      {auto.marca} {auto.modelo} {auto.dominio ?? ""}
-                    </Link>
-                  )}
                 </td>
                 <td className={`num ${c.vencimiento && c.vencimiento < hoy ? "font-semibold text-aviso-texto" : ""}`}>{fecha(c.vencimiento)}</td>
                 <td className="num text-right">
@@ -80,6 +86,11 @@ export default async function CuentasPage() {
           debemos a terceros (vendedores, consignantes, proveedores) y lo que les debemos a los inversores por sus autos ya vendidos.
         </p>
       </header>
+
+      <FormFiltros plegable className="tarjeta grid gap-3.5 p-4 sm:grid-cols-3">
+        <CamposFiltroAuto valores={filtro} marcas={marcas} modelos={modelos} />
+      </FormFiltros>
+      {hayFiltroAuto(filtro) && <p className="-mt-2 text-sm text-apagado">Los totales de abajo son solo de los autos filtrados.</p>}
 
       <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3">
         {[
@@ -134,8 +145,10 @@ export default async function CuentasPage() {
                   <Link href={`/ventas/${g.operacionId}`} className="num">
                     {g.numero}
                   </Link>{" "}
-                  · {g.auto.marca} {g.auto.modelo} {g.auto.anio}
                   {g.fechaCierre && ` · cerrada el ${fecha(g.fechaCierre)}`}
+                  <span className="mt-1 block text-tinta">
+                    <AutoEnLinea auto={g.auto} anio />
+                  </span>
                 </span>
               </span>
             </span>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoEnLinea, Patente } from "@/components/auto";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
@@ -100,6 +101,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <h1 className="text-3xl font-bold">
             Venta a {nombreContacto(c)}
           </h1>
+          <AutoEnLinea auto={v} anio />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {op.estado !== "CAIDA" && (
@@ -136,7 +138,9 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
         </section>
         <section className="tarjeta flex flex-col">
           <h2 className="pb-2 text-lg font-semibold">Auto que compra</h2>
-          <Fila etiqueta="Auto" valor={<Link href={`/stock/${v.id}`}>{`${v.marca} ${v.modelo} ${v.anio} ${v.dominio ?? ""}`}</Link>} />
+          <Fila etiqueta="Marca" valor={<Link href={`/stock/${v.id}`}>{v.marca}</Link>} />
+          <Fila etiqueta="Modelo" valor={<Link href={`/stock/${v.id}`}>{`${v.modelo} ${v.anio}`}</Link>} />
+          <Fila etiqueta="Patente" valor={<Patente dominio={v.dominio} />} />
           <Fila etiqueta="Estado" valor={<ChipEstado estado={v.estado} />} />
           <Fila etiqueta="Financia" valor={f.financista?.nombre} />
           <Fila etiqueta="Precio de venta" valor={m(op.precioVenta)} fuerte />

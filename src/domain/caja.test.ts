@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { conSaldoAcumulado, cuentaEnPatrimonio, esManual, filtrarDetalle, resumenPorCategoria, saldos, valorStock } from "./caja";
+import { conSaldoAcumulado, faltaDeFondos, cuentaEnPatrimonio, esManual, filtrarDetalle, resumenPorCategoria, saldos, valorStock } from "./caja";
 
 describe("detalle de un saldo", () => {
   const movs = [
@@ -158,5 +158,17 @@ describe("la plata del inversor no es del salón (K9–K11)", () => {
     const p = { caja: 1_000_000, stock: 0, capitalInversores: 0, aCobrar: 4_000_000, aPagar: 1_500_000, deudaInversores: 500_000 };
     expect(patrimonioTotal(p)).toBe(3_500_000);
     expect(patrimonioSalon(p)).toBe(3_000_000);
+  });
+});
+
+describe("saldos nunca negativos (K13)", () => {
+  it("acepta saldos en cero o más", () => {
+    expect(faltaDeFondos({ efectivo: 0, banco: 10 })).toBeNull();
+  });
+  it("frena si el efectivo queda negativo y sugiere el pase desde el banco", () => {
+    expect(faltaDeFondos({ efectivo: -500, banco: 1000 })).toMatch(/efectivo.*Banco → Efectivo/);
+  });
+  it("frena si el banco queda negativo", () => {
+    expect(faltaDeFondos({ efectivo: 1000, banco: -1 })).toMatch(/banco/);
   });
 });

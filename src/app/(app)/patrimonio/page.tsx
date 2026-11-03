@@ -8,13 +8,25 @@ import { TarjetaEnlace } from "@/components/tarjeta";
 import { IlustracionPatrimonio, Vacio } from "@/components/ilustraciones";
 import { NavPatrimonio } from "../caja/nav";
 import { Icono, type NombreIcono } from "@/components/iconos-caja";
+import { FormFiltros } from "@/components/filtros";
+import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { coincideAuto, hayFiltroAuto, leerFiltroAuto, opcionesAuto } from "@/domain/autos";
 
 export const metadata = { title: "Patrimonio · Colombia Automotores" };
 
-export default async function PatrimonioPage() {
+type Busqueda = { marca?: string; modelo?: string; patente?: string; financia?: string };
+
+export default async function PatrimonioPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
+  const sp = await searchParams;
   const [{ m }, p, inversiones, cuentas] = await Promise.all([vistaMoneda(), patrimonio(), subcajas(), listarCuentas({})]);
   const conAutos = inversiones.filter((x) => x.autos.length);
+  // Filtros de la tabla de autos: por marca, modelo, patente y por quién lo financia.
+  const filtroAuto = leerFiltroAuto(sp);
+  const todasLasFilas = conAutos.flatMap((x) => x.autos.map((a) => ({ a, x })));
+  const filas = todasLasFilas.filter(({ a, x }) => coincideAuto(a, filtroAuto) && (!sp.financia || String(x.participe.id) === sp.financia));
+  const filtrado = hayFiltroAuto(filtroAuto) || Boolean(sp.financia);
+  const { marcas, modelos } = opcionesAuto(todasLasFilas.map((f) => f.a));
   const aCobrar = cuentas.filter((c) => c.c.tipo === "A_COBRAR");
   const aPagar = cuentas.filter((c) => c.c.tipo === "A_PAGAR");
   const activos = Math.max(1, Math.max(0, p.caja.total) + p.stock + p.aCobrar);
@@ -136,14 +148,32 @@ export default async function PatrimonioPage() {
 
       <section className="tarjeta flex flex-col p-0">
         <h2 className="p-4 pb-2 text-lg font-semibold">Capital invertido en autos</h2>
+        {conAutos.length > 0 && (
+          <FormFiltros claseBarra="mx-4" className="grid gap-3 px-4 pb-3 sm:grid-cols-2 lg:grid-cols-4">
+            <CamposFiltroAuto valores={filtroAuto} marcas={marcas} modelos={modelos} />
+            <label className="campo">
+              Financia
+              <select name="financia" defaultValue={sp.financia ?? ""}>
+                <option value="">Todos</option>
+                {conAutos.map((x) => (
+                  <option key={x.participe.id} value={x.participe.id}>
+                    {x.participe.tipo === "SALON" ? "Salón" : x.participe.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FormFiltros>
+        )}
         {conAutos.length === 0 ? (
           <Vacio>No hay autos en stock.</Vacio>
+        ) : filas.length === 0 ? (
+          <Vacio>Ningún auto coincide con los filtros.</Vacio>
         ) : (
           <div className="overflow-x-auto">
             <table className="tabla">
               <thead>
                 <tr>
-                  <th>Auto</th>
+                  <ThAuto />
                   <th>Estado</th>
                   <th>Financia</th>
                   <th className="text-right">Invertido</th>
@@ -151,28 +181,31 @@ export default async function PatrimonioPage() {
                 </tr>
               </thead>
               <tbody>
-                {conAutos.flatMap((x) =>
-                  x.autos.map((a) => (
-                    <tr key={a.id}>
-                      <td>
-                        <Link href={`/stock/${a.id}`} className="text-tinta">
-                          {a.marca} {a.modelo} {a.anio} <span className="num text-apagado">{a.dominio}</span>
-                        </Link>
-                      </td>
-                      <td>
-                        <ChipEstado estado={a.estado} />
-                      </td>
-                      <td>{x.participe.nombre}</td>
-                      <td className="num text-right">{m(a.invertido)}</td>
-                      <td className="num text-right text-apagado">{usd(a.invertido / a.tcIngreso)}</td>
-                    </tr>
-                  )),
-                )}
+                {filas.map(({ a, x }) => (
+                  <tr key={a.id}>
+                    <TdAuto auto={a} href={`/stock/${a.id}`} anio />
+                    <td>
+                      <ChipEstado estado={a.estado} />
+                    </td>
+                    <td>{x.participe.nombre}</td>
+                    <td className="num text-right">{m(a.invertido)}</td>
+                    <td className="num text-right text-apagado">{usd(a.invertido / a.tcIngreso)}</td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot>
-                {conAutos.map((x) => (
+                {filtrado && (
+                  <tr>
+                    <td colSpan={5} className="font-semibold">
+                      Total de lo filtrado ({filas.length} {filas.length === 1 ? "auto" : "autos"})
+                    </td>
+                    <td className="num text-right font-semibold">{m(filas.reduce((s, f) => s + f.a.invertido, 0))}</td>
+                    <td className="num text-right text-apagado">{usd(filas.reduce((s, f) => s + f.a.invertido / f.a.tcIngreso, 0))}</td>
+                  </tr>
+                )}
+                {!filtrado && conAutos.map((x) => (
                   <tr key={x.participe.id}>
-                    <td colSpan={3} className="font-semibold">
+                    <td colSpan={5} className="font-semibold">
                       {x.participe.tipo === "SALON" ? "Fondos propios del salón" : `Puesto por ${x.participe.nombre}`}
                     </td>
                     <td className="num text-right font-semibold">{m(x.capital)}</td>

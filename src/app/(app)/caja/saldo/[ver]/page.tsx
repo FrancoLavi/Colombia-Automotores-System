@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { Ayuda } from "@/components/ui";
 import { FilaEnlace, FormFiltros } from "@/components/filtros";
+import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { leerFiltroAuto, opcionesAuto } from "@/domain/autos";
 import { vistaMoneda } from "@/lib/moneda";
 import { leerNumero } from "@/lib/form";
 import { detalleSaldo, patrimonio, pendientesPorPagar } from "@/server/caja";
@@ -25,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ ver: stri
   return { title: `${v?.titulo ?? "Saldo"} · Caja · Colombia Automotores` };
 }
 
-type Busqueda = { desde?: string; hasta?: string; categoria?: string; q?: string; min?: string; max?: string };
+type Busqueda = { desde?: string; hasta?: string; categoria?: string; q?: string; min?: string; max?: string; marca?: string; modelo?: string; patente?: string };
 
 /** Pasa los filtros de la URL al dominio. Un importe que no se entiende se ignora. */
 function leerFiltro(sp: Busqueda): FiltroDetalle {
@@ -99,7 +101,9 @@ export default async function DetalleSaldoPage({ params, searchParams }: { param
 type Moneda = (v: number) => string;
 
 async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Busqueda }) {
-  const d = await detalleSaldo(medio, leerFiltro(sp));
+  const filtroAuto = leerFiltroAuto(sp);
+  const d = await detalleSaldo(medio, leerFiltro(sp), filtroAuto);
+  const { marcas, modelos } = opcionesAuto(d.autos);
   const filtrado = Object.values(sp).some((v) => v?.trim());
   const saldo = medio === "EFECTIVO" ? d.saldos.efectivo : medio === "BANCO" ? d.saldos.banco : d.saldos.total;
   const ingresos = r2(d.resumen.reduce((a, c) => a + c.ingresos, 0));
@@ -109,7 +113,7 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
   return (
     <>
       <section aria-label="Filtros" className="tarjeta flex flex-col gap-3 p-0 pb-4">
-        <FormFiltros plegable claseBarra="mx-4 max-md:mt-4" className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-6">
+        <FormFiltros plegable claseBarra="mx-4 max-md:mt-4" className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-9">
           <label className="campo">
             Desde
             <input type="date" name="desde" defaultValue={sp.desde} />
@@ -141,6 +145,7 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
             Importe hasta ($)
             <input name="max" inputMode="numeric" defaultValue={sp.max} placeholder="Sin tope" />
           </label>
+          <CamposFiltroAuto valores={filtroAuto} marcas={marcas} modelos={modelos} />
         </FormFiltros>
       </section>
 
@@ -217,6 +222,7 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
                   <th>Fecha</th>
                   <th>Tipo</th>
                   <th>Concepto</th>
+                  <ThAuto />
                   <th>Persona</th>
                   {!medio && <th>Medio</th>}
                   <th className="text-right">Entró</th>
@@ -240,6 +246,7 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
                       {x.operacionId ? <Link href={`/ventas/${x.operacionId}`}>{x.concepto}</Link> : x.vehiculoId ? <Link href={`/stock/${x.vehiculoId}`}>{x.concepto}</Link> : x.concepto}
                       {x.anulado && <span className="block text-xs no-underline">Anulado{x.motivoAnulacion ? `: ${x.motivoAnulacion}` : ""} · no cuenta en el saldo</span>}
                     </td>
+                    <TdAuto auto={x.auto?.id ? x.auto : null} href={x.auto?.id ? `/stock/${x.auto.id}` : undefined} />
                     <td>{x.persona ?? ""}</td>
                     {!medio && <td>{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>}
                     <td className="num text-right text-ok-texto">{x.sentido === "INGRESO" ? `+ ${m(x.importe)}` : ""}</td>

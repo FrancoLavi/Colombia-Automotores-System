@@ -106,3 +106,101 @@ export function Vacio({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+// ---------- Reportes: un dibujo por pestaña, para saber de un vistazo qué mide cada una ----------
+
+const T = { stroke: "var(--color-tinta)", strokeWidth: 2.5 } as const;
+
+/** Una pila de monedas que se reparte entre el salón (edificio) y un inversor (persona). */
+export function IlustracionGanancias({ className = "" }: Props) {
+  return (
+    <svg viewBox="0 0 200 120" className={className} aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 108 H190" stroke="var(--color-tinta)" strokeOpacity=".2" strokeWidth="2" />
+      {/* monedas al medio */}
+      <ellipse cx="100" cy="96" rx="20" ry="6" fill="var(--color-aviso-fondo)" {...T} />
+      <path d="M80 96 v-10 M120 96 v-10" {...T} />
+      <ellipse cx="100" cy="86" rx="20" ry="6" fill="var(--color-aviso-fondo)" {...T} />
+      <path d="M80 86 v-10 M120 86 v-10" {...T} />
+      <ellipse cx="100" cy="76" rx="20" ry="6" fill="var(--color-aviso-fondo)" {...T} />
+      <path d="M96 76 h8" stroke="var(--color-grafico-stock)" strokeWidth="3" />
+      {/* flechas hacia cada lado */}
+      <path d="M76 58 Q60 44 46 52 M50 46 l-4 6 6 3" stroke="var(--color-ok)" strokeWidth="2.5" />
+      <path d="M124 58 Q140 44 154 52 M150 46 l4 6 -6 3" stroke="var(--color-acento)" strokeWidth="2.5" />
+      {/* salón */}
+      <path d="M14 66 l5 -12 h34 l5 12 Z" fill="var(--color-ok-fondo)" {...T} />
+      <rect x="18" y="66" width="36" height="42" fill="var(--color-superficie)" {...T} />
+      <rect x="30" y="86" width="12" height="22" fill="var(--color-ok-fondo)" stroke="var(--color-tinta)" strokeWidth="2" />
+      {/* inversor */}
+      <circle cx="166" cy="70" r="9" fill="var(--color-info-fondo)" {...T} />
+      <path d="M148 108 v-8 a18 18 0 0 1 36 0 v8" fill="var(--color-info-fondo)" {...T} />
+    </svg>
+  );
+}
+
+/** Sobre con billetes: sueldos y retiros. */
+export function IlustracionPersonas({ className = "" }: Props) {
+  return (
+    <svg viewBox="0 0 200 120" className={className} aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 108 H190" stroke="var(--color-tinta)" strokeOpacity=".2" strokeWidth="2" />
+      <rect x="48" y="30" width="62" height="34" rx="4" fill="var(--color-ok-fondo)" {...T} transform="rotate(-8 79 47)" />
+      <circle cx="80" cy="46" r="7" stroke="var(--color-ok)" strokeWidth="2.5" />
+      <rect x="40" y="52" width="86" height="54" rx="6" fill="var(--color-superficie)" {...T} />
+      <path d="M40 58 L83 84 L126 58" {...T} />
+      <circle cx="156" cy="56" r="11" fill="var(--color-info-fondo)" {...T} />
+      <path d="M134 106 v-10 a22 22 0 0 1 44 0 v10" fill="var(--color-info-fondo)" {...T} />
+    </svg>
+  );
+}
+
+/** Etiqueta de precio colgando de la llave del auto. */
+export function IlustracionVentas({ className = "" }: Props) {
+  return (
+    <svg viewBox="0 0 200 120" className={className} aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 108 H190" stroke="var(--color-tinta)" strokeOpacity=".2" strokeWidth="2" />
+      <circle cx="60" cy="48" r="20" fill="var(--color-info-fondo)" {...T} />
+      <circle cx="60" cy="48" r="6" fill="var(--color-superficie)" stroke="var(--color-tinta)" strokeWidth="2" />
+      <path d="M76 60 L112 96 M98 82 l8 -8 M106 90 l8 -8" {...T} />
+      <path d="M120 22 h46 l12 14 -12 14 h-46 Z" fill="var(--color-ok-fondo)" {...T} />
+      <circle cx="128" cy="36" r="3.5" fill="var(--color-superficie)" stroke="var(--color-tinta)" strokeWidth="2" />
+      <path d="M140 36 h22" stroke="var(--color-ok)" strokeWidth="3" />
+      <path d="M128 36 Q104 36 80 30" stroke="var(--color-tinta)" strokeOpacity=".5" strokeWidth="2" />
+    </svg>
+  );
+}
+
+/** Auto que entra y auto que sale. */
+export function IlustracionMovimientoAutos({ className = "" }: Props) {
+  const auto = (x: number, color: string) => (
+    <g transform={`translate(${x} 0)`}>
+      <path d="M4 92 v-12 q1 -6 8 -7 l14 -2 l10 -12 q2 -3 7 -3 h18 q5 0 7 4 l7 11 l9 1 q5 1 5 7 v13 Z" fill={color} {...T} />
+      <circle cx="22" cy="93" r="8" fill="var(--color-superficie)" {...T} />
+      <circle cx="68" cy="93" r="8" fill="var(--color-superficie)" {...T} />
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 200 120" className={className} aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 108 H190" stroke="var(--color-tinta)" strokeOpacity=".2" strokeWidth="2" />
+      {auto(4, "var(--color-ok-fondo)")}
+      {auto(108, "var(--color-info-fondo)")}
+      <path d="M20 30 h40 M50 22 l10 8 -10 8" stroke="var(--color-ok)" strokeWidth="3" />
+      <path d="M180 30 h-40 M150 22 l-10 8 10 8" stroke="var(--color-acento)" strokeWidth="3" />
+    </svg>
+  );
+}
+
+/** Balanza: lo que entra contra lo que sale. */
+export function IlustracionIngresosEgresos({ className = "" }: Props) {
+  return (
+    <svg viewBox="0 0 200 120" className={className} aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 108 H190" stroke="var(--color-tinta)" strokeOpacity=".2" strokeWidth="2" />
+      <path d="M100 20 V100 M76 106 h48 M84 100 h32" {...T} />
+      <path d="M40 36 H160" {...T} />
+      <path d="M40 36 L24 72 h32 Z M160 36 L144 72 h32 Z" stroke="var(--color-tinta)" strokeWidth="2" />
+      <path d="M22 72 a18 8 0 0 0 36 0 Z" fill="var(--color-ok-fondo)" {...T} />
+      <path d="M142 72 a18 8 0 0 0 36 0 Z" fill="var(--color-aviso-fondo)" {...T} />
+      <path d="M40 50 v14 M34 58 l6 6 6 -6" stroke="var(--color-ok)" strokeWidth="2.5" />
+      <path d="M160 64 v-14 M154 56 l6 -6 6 6" stroke="var(--color-grafico-stock)" strokeWidth="2.5" />
+      <circle cx="100" cy="20" r="5" fill="var(--color-acento)" />
+    </svg>
+  );
+}

@@ -25,8 +25,10 @@ import {
   type Sentido,
 } from "@/domain/caja";
 import { numeroOperacion } from "@/domain/ventas";
+import { coincideAuto, opcionesAuto, patentePlana, textoPlano, type FiltroAuto } from "@/domain/autos";
 import { ErrorNegocio } from "./errores";
 import { cobrarPagoPendiente } from "./ventas";
+import { exigirFondos } from "./fondos";
 
 const ENTIDAD = "caja";
 type Categoria = (typeof s.movimientosCaja.$inferSelect)["categoria"];
@@ -39,7 +41,12 @@ export interface FiltrosMovimientos {
   medio?: Medio;
   categoria?: string;
   q?: string;
+  marca?: string;
+  modelo?: string;
+  patente?: string;
 }
+
+const AUTO = { id: s.vehiculos.id, marca: s.vehiculos.marca, modelo: s.vehiculos.modelo, anio: s.vehiculos.anio, dominio: s.vehiculos.dominio };
 
 export async function movimientos(f: FiltrosMovimientos) {
   const cond = [];
@@ -48,10 +55,16 @@ export async function movimientos(f: FiltrosMovimientos) {
   if (f.medio) cond.push(eq(s.movimientosCaja.medio, f.medio));
   if (f.categoria) cond.push(eq(s.movimientosCaja.categoria, f.categoria as Categoria));
   if (f.q?.trim()) cond.push(sql`${s.movimientosCaja.concepto} ilike ${"%" + f.q.trim() + "%"}`);
+  // Por auto: cada dato con su filtro (marca, modelo, patente sin espacios ni guiones).
+  const plano = (col: typeof s.vehiculos.marca | typeof s.vehiculos.modelo) => sql`translate(lower(${col}), 'áéíóúüëñç', 'aeiouuenc')`;
+  if (f.marca?.trim()) cond.push(sql`${plano(s.vehiculos.marca)} like ${"%" + textoPlano(f.marca) + "%"}`);
+  if (f.modelo?.trim()) cond.push(sql`${plano(s.vehiculos.modelo)} like ${"%" + textoPlano(f.modelo) + "%"}`);
+  if (f.patente?.trim()) cond.push(sql`regexp_replace(coalesce(${s.vehiculos.dominio}, ''), '[ .-]', '', 'g') ilike ${"%" + patentePlana(f.patente) + "%"}`);
   const filas = await db
-    .select({ m: s.movimientosCaja, usuario: s.usuarios.nombre })
+    .select({ m: s.movimientosCaja, usuario: s.usuarios.nombre, auto: AUTO })
     .from(s.movimientosCaja)
     .leftJoin(s.usuarios, eq(s.usuarios.id, s.movimientosCaja.usuarioId))
+    .leftJoin(s.vehiculos, eq(s.vehiculos.id, s.movimientosCaja.vehiculoId))
     .where(cond.length ? and(...cond) : undefined)
     .orderBy(desc(s.movimientosCaja.fecha), desc(s.movimientosCaja.id))
     .limit(500);
@@ -65,22 +78,28 @@ export async function movimientos(f: FiltrosMovimientos) {
   };
 }
 
+/** Marcas y modelos de todos los autos, para sugerir en los filtros. */
+export async function opcionesDeAutos() {
+  return opcionesAuto(await db.selectDistinct({ marca: s.vehiculos.marca, modelo: s.vehiculos.modelo, dominio: s.vehiculos.dominio }).from(s.vehiculos));
+}
+
 /**
  * HU-5.2: de dónde sale un saldo. Todos los movimientos desde el principio (sin el filtro por mes de
  * la planilla), del más viejo al más nuevo, con el saldo acumulado: el último es el de la tarjeta.
  */
-export async function detalleSaldo(medio?: Medio, filtro: FiltroDetalle = {}) {
+export async function detalleSaldo(medio?: Medio, filtro: FiltroDetalle = {}, filtroAuto: FiltroAuto = {}) {
   const filas = await db
-    .select({ m: s.movimientosCaja, usuario: s.usuarios.nombre, persona: s.personas.nombre })
+    .select({ m: s.movimientosCaja, usuario: s.usuarios.nombre, persona: s.personas.nombre, auto: AUTO })
     .from(s.movimientosCaja)
     .leftJoin(s.usuarios, eq(s.usuarios.id, s.movimientosCaja.usuarioId))
     .leftJoin(s.personas, eq(s.personas.id, s.movimientosCaja.personaId))
+    .leftJoin(s.vehiculos, eq(s.vehiculos.id, s.movimientosCaja.vehiculoId))
     .where(medio ? eq(s.movimientosCaja.medio, medio) : undefined)
     .orderBy(asc(s.movimientosCaja.fecha), asc(s.movimientosCaja.id));
-  const movs = filas.map((x) => ({ ...x.m, usuario: x.usuario, persona: x.persona }));
+  const movs = filas.map((x) => ({ ...x.m, usuario: x.usuario, persona: x.persona, auto: x.auto }));
   // El saldo se acumula sobre todo; el filtro solo elige qué filas mostrar. Los más nuevos, arriba.
-  const filtrados = filtrarDetalle(conSaldoAcumulado(movs), filtro);
-  return { movimientos: filtrados.reverse(), resumen: resumenPorCategoria(filtrados), saldos: saldos(movs) };
+  const filtrados = filtrarDetalle(conSaldoAcumulado(movs), filtro).filter((x) => coincideAuto(x.auto, filtroAuto));
+  return { movimientos: filtrados.reverse(), resumen: resumenPorCategoria(filtrados), saldos: saldos(movs), autos: movs.map((x) => x.auto) };
 }
 
 /** Un movimiento con todo lo que hace falta para entenderlo y llegar al trámite que lo generó. */
@@ -134,6 +153,7 @@ export async function editarMovimiento(
     if (exigePersona(m.categoria) && !d.personaId) throw new ErrorNegocio("Indicá a quién corresponde el sueldo");
     const personaId = (PIDEN_PERSONA as readonly string[]).includes(m.categoria) ? d.personaId : null;
     const [despues] = await t.update(s.movimientosCaja).set({ ...d, personaId }).where(eq(s.movimientosCaja.id, id)).returning();
+    await exigirFondos(t);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes: m, despues, descripcion: `Movimiento corregido: ${d.concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
   });
 }
@@ -152,6 +172,7 @@ export async function crearMovimiento(
       .insert(s.movimientosCaja)
       .values({ fecha: d.fecha, sentido, medio: d.medio, categoria: d.categoria, importe: d.importe, concepto: d.concepto, participeId: d.participeId, personaId, usuarioId })
       .returning();
+    await exigirFondos(t);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: m.id, accion: "CREAR", despues: m, descripcion: `${ETIQUETA_CATEGORIA[d.categoria]}: ${d.concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
   });
 }
@@ -164,6 +185,7 @@ export async function transferenciaInterna(usuarioId: number, d: { desde: Medio;
   await db.transaction(async (t) => {
     const [a] = await t.insert(s.movimientosCaja).values({ fecha: d.fecha, sentido: "EGRESO", medio: d.desde, categoria: "TRANSFERENCIA_INTERNA", importe: d.importe, concepto, usuarioId }).returning();
     await t.insert(s.movimientosCaja).values({ fecha: d.fecha, sentido: "INGRESO", medio: hacia, categoria: "TRANSFERENCIA_INTERNA", importe: d.importe, concepto, usuarioId });
+    await exigirFondos(t);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: a.id, accion: "CREAR", descripcion: `${concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
   });
 }
@@ -185,6 +207,7 @@ export async function anularMovimiento(usuarioId: number, id: number, motivo: st
       ids.push(...par.filter((p) => p.id !== id && p.sentido !== m.sentido).slice(0, 1).map((p) => p.id));
     }
     await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: motivo }).where(inArray(s.movimientosCaja.id, ids));
+    await exigirFondos(t);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "ELIMINAR", antes: m, descripcion: `Anulado: ${m.concepto} (${motivo})` });
   });
 }
@@ -247,6 +270,7 @@ export async function pagarDistribucion(usuarioId: number, id: number, medio: Me
       })
       .returning();
     await t.update(s.distribuciones).set({ estado: "PAGADO", movimientoId: m.id }).where(eq(s.distribuciones.id, id));
+    await exigirFondos(t);
     await auditar(t, {
       usuarioId, entidad: "operacion", entidadId: op.id, accion: "MODIFICAR",
       descripcion: `${reintegro ? "Reintegro" : capital ? "Devolución de capital" : "Pago de ganancia"} a ${p.nombre}: $ ${Math.abs(d.importe).toLocaleString("es-AR")}`,
@@ -320,6 +344,7 @@ export async function registrarPagoCuenta(usuarioId: number, cuentaId: number, i
       .returning();
     const saldo = r2(c.saldo - importe);
     await t.update(s.cuentasPendientes).set({ saldo, estado: saldo === 0 ? "CANCELADA" : "ABIERTA" }).where(eq(s.cuentasPendientes.id, c.id));
+    await exigirFondos(t);
     if (gasto && saldo === 0) await t.update(s.gastos).set({ estado: "PAGADO", movimientoId: m.id }).where(eq(s.gastos.id, gasto.id));
     await auditar(t, {
       usuarioId, entidad: ENTIDAD, entidadId: m.id, accion: "CREAR",

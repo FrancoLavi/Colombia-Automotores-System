@@ -4,7 +4,9 @@ import { Ayuda } from "@/components/ui";
 import { FilaEnlace, FormFiltros } from "@/components/filtros";
 import { Icono, InsigniaMovimiento } from "@/components/iconos-caja";
 import { vistaMoneda } from "@/lib/moneda";
-import { movimientos, patrimonio, pendientesPorPagar } from "@/server/caja";
+import { movimientos, opcionesDeAutos, patrimonio, pendientesPorPagar } from "@/server/caja";
+import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { leerFiltroAuto } from "@/domain/autos";
 import { datosFormulario } from "@/server/vehiculos";
 import { listarPersonas } from "@/server/configuracion";
 import { fecha, hoyIso } from "@/lib/formato";
@@ -15,7 +17,7 @@ import { FormAnular, FormMovimiento } from "./formularios";
 
 export const metadata = { title: "Caja · Colombia Automotores" };
 
-type Busqueda = { desde?: string; hasta?: string; medio?: string; categoria?: string; q?: string };
+type Busqueda = { desde?: string; hasta?: string; medio?: string; categoria?: string; q?: string; marca?: string; modelo?: string; patente?: string };
 
 export default async function CajaPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
@@ -23,13 +25,15 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
   const hoy = hoyIso();
   const desde = sp.desde ?? `${hoy.slice(0, 8)}01`;
   const hasta = sp.hasta ?? hoy;
-  const [{ m }, mov, pendientes, p, { participes }, personas] = await Promise.all([
+  const filtroAuto = leerFiltroAuto(sp);
+  const [{ m }, mov, pendientes, p, { participes }, personas, opciones] = await Promise.all([
     vistaMoneda(),
-    movimientos({ desde, hasta, medio: sp.medio as Medio | undefined, categoria: sp.categoria, q: sp.q }),
+    movimientos({ desde, hasta, medio: sp.medio as Medio | undefined, categoria: sp.categoria, q: sp.q, ...filtroAuto }),
     pendientesPorPagar(),
     patrimonio(),
     datosFormulario(),
     listarPersonas(true),
+    opcionesDeAutos(),
   ]);
 
   return (
@@ -80,8 +84,9 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
       </section>
       {(mov.saldos.efectivo < 0 || mov.saldos.banco < 0) && (
         <p role="status" className="-mt-2 rounded-lg bg-aviso-fondo px-4 py-3 text-sm text-aviso-texto">
-          <b>{mov.saldos.efectivo < 0 ? "El efectivo" : "El banco"} da negativo.</b> En la realidad no puede salir más plata de la que hay: casi siempre falta cargar
-          la caja inicial (como ingreso extraordinario) o algún cobro. Revisá los movimientos de abajo.
+          <b>{mov.saldos.efectivo < 0 ? "El efectivo" : "El banco"} da negativo.</b> No puede salir más plata de la que hay (K13): desde ahora el sistema no lo
+          deja pasar, así que viene de movimientos cargados antes. Casi siempre falta cargar la caja inicial (como ingreso extraordinario), algún cobro o la
+          extracción del banco (pase Banco → Efectivo). Revisá los movimientos de abajo.
         </p>
       )}
 
@@ -116,7 +121,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
       </details>
 
       <section className="tarjeta flex flex-col gap-3 p-0">
-        <FormFiltros plegable claseBarra="mx-4 max-md:mt-4" porDefecto={{ desde: `${hoy.slice(0, 8)}01`, hasta: hoy }} className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-6">
+        <FormFiltros plegable claseBarra="mx-4 max-md:mt-4" porDefecto={{ desde: `${hoy.slice(0, 8)}01`, hasta: hoy }} className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           <label className="campo">
             Desde
             <input type="date" name="desde" defaultValue={desde} />
@@ -148,7 +153,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
             Buscar
             <input type="search" name="q" defaultValue={sp.q} placeholder="Concepto" />
           </label>
-          <button className="btn-secundario self-end">Filtrar</button>
+          <CamposFiltroAuto valores={filtroAuto} marcas={opciones.marcas} modelos={opciones.modelos} />
         </FormFiltros>
         <div className="flex flex-wrap gap-x-6 gap-y-1 px-4 text-sm">
           <span>
@@ -171,6 +176,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
                   <th>Fecha</th>
                   <th>Tipo</th>
                   <th>Concepto</th>
+                  <ThAuto />
                   <th>Persona</th>
                   <th>Medio</th>
                   <th className="text-right">Importe</th>
@@ -179,7 +185,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
                 </tr>
               </thead>
               <tbody>
-                {mov.movimientos.map(({ m: x, usuario, manual }) => (
+                {mov.movimientos.map(({ m: x, usuario, manual, auto }) => (
                   <FilaEnlace key={x.id} href={`/caja/movimiento/${x.id}`} className={x.anulado ? "text-apagado line-through" : ""}>
                     <td className="num">{fecha(x.fecha)}</td>
                     <td>
@@ -192,6 +198,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
                       {x.operacionId ? <Link href={`/ventas/${x.operacionId}`}>{x.concepto}</Link> : x.vehiculoId ? <Link href={`/stock/${x.vehiculoId}`}>{x.concepto}</Link> : x.concepto}
                       {x.anulado && x.motivoAnulacion && <span className="block text-xs no-underline">Anulado: {x.motivoAnulacion}</span>}
                     </td>
+                    <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} />
                     <td>{personas.find((p) => p.id === x.personaId)?.nombre ?? ""}</td>
                     <td>{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>
                     <td className={`num text-right ${x.sentido === "INGRESO" ? "text-ok-texto" : "text-aviso-texto"}`}>

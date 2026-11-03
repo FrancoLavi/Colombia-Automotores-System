@@ -38,3 +38,14 @@ export async function autoDisponible(dominio: string, d: Partial<veh.DatosVehicu
 
 export const saldoCaja = async () =>
   (await db.select().from(s.movimientosCaja)).filter((m) => !m.anulado).reduce((a, m) => a + (m.sentido === "INGRESO" ? m.importe : -m.importe), 0);
+
+/**
+ * K13: la caja no puede quedar en negativo. Los tests que compran o pagan sin preocuparse por
+ * la caja arrancan con plata en los dos medios, con fecha vieja para no tocar los reportes del mes.
+ */
+export async function fondear(importe = 500_000_000) {
+  const fecha = new Date("2020-01-01T12:00:00");
+  await db.insert(s.movimientosCaja).values(
+    (["EFECTIVO", "BANCO"] as const).map((medio) => ({ fecha, sentido: "INGRESO" as const, medio, categoria: "INGRESO_EXTRAORDINARIO" as const, importe, concepto: "Caja inicial (test)", usuarioId: U })),
+  );
+}

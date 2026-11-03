@@ -8,6 +8,7 @@ import { capitalDelInversor } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
 import { ErrorNegocio } from "./errores";
+import { exigirFondos } from "./fondos";
 import { obtenerParametros } from "./parametros";
 import { crearVehiculo, tcHoy, type DatosVehiculo } from "./vehiculos";
 
@@ -351,7 +352,10 @@ export async function quitarPago(usuarioId: number, id: number, pagoId: number) 
     const p = await t.query.pagosOperacion.findFirst({ where: and(eq(s.pagosOperacion.id, pagoId), eq(s.pagosOperacion.operacionId, id)) });
     if (!p) throw new ErrorNegocio("El pago no existe");
     if (p.estado === "DEVUELTA" || p.estado === "RETENIDA") throw new ErrorNegocio("Ese pago ya fue resuelto");
-    if (p.movimientoId) await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: `Pago quitado de ${numeroOperacion(id)}` }).where(eq(s.movimientosCaja.id, p.movimientoId));
+    if (p.movimientoId) {
+      await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: `Pago quitado de ${numeroOperacion(id)}` }).where(eq(s.movimientosCaja.id, p.movimientoId));
+      await exigirFondos(t);
+    }
     if (p.vehiculoPermutaId) await cambiarEstadoVehiculo(t, p.vehiculoPermutaId, "BAJA", usuarioId, `Permuta quitada de ${numeroOperacion(id)}`);
     await t.delete(s.pagosOperacion).where(eq(s.pagosOperacion.id, pagoId));
     // Sin señas vigentes, la operación vuelve a preventa y el auto a disponible.
@@ -550,6 +554,7 @@ export async function caerOperacion(usuarioId: number, id: number, motivo: strin
       await t.update(s.pagosOperacion).set({ estado: "DEVUELTA" }).where(eq(s.pagosOperacion.id, p.id));
       devuelto += p.importe;
     }
+    if (devuelto) await exigirFondos(t);
     await t.update(s.operaciones).set({ estado: "CAIDA", motivoCaida: motivo }).where(eq(s.operaciones.id, id));
     await cambiarEstadoVehiculo(t, op.vehiculoId, "DISPONIBLE", usuarioId, `Liberado: operación caída (${numeroOperacion(id)})`);
     await sincronizarEtapa(t, c.id, usuarioId);

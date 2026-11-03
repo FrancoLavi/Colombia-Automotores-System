@@ -61,6 +61,20 @@ export function saldos(movs: MovimientoSaldo[]) {
 }
 
 /**
+ * K13: ni el efectivo ni el banco pueden quedar en negativo: no puede salir plata que no hay.
+ * Devuelve el error para mostrar, o null si los dos saldos quedan en cero o más.
+ */
+export function faltaDeFondos(s: { efectivo: number; banco: number }, moneda: (n: number) => string = (n) => `$ ${n.toLocaleString("es-AR")}`): string | null {
+  if (s.efectivo < 0) {
+    return `No alcanza el efectivo: faltarían ${moneda(-s.efectivo)}. Si la plata sale del banco, cargalo desde Banco o registrá primero la extracción (pase Banco → Efectivo).`;
+  }
+  if (s.banco < 0) {
+    return `No alcanza la plata del banco: faltarían ${moneda(-s.banco)}. Si la plata sale del efectivo, cargalo desde Efectivo o registrá primero el depósito (pase Efectivo → Banco).`;
+  }
+  return null;
+}
+
+/**
  * Para seguir de dónde sale un saldo: los movimientos en orden, cada uno con cómo queda el saldo
  * después de él. Los anulados se muestran pero no lo mueven. El último saldo es el de la tarjeta.
  */

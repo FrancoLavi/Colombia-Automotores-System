@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { prepararBase } from "@/test/db";
-import { autoDisponible, baseContacto, U } from "@/test/fabricas";
+import { autoDisponible, baseContacto, U, fondear } from "@/test/fabricas";
 import { hoyIso } from "@/lib/formato";
 import { periodoDe } from "@/domain/dashboard";
 import * as con from "./contactos";
@@ -12,9 +12,12 @@ import * as rep from "./reportes";
 const anio = new Date().getFullYear();
 const mes = periodoDe(new Date());
 
-beforeAll(prepararBase);
+beforeAll(async () => {
+  await prepararBase();
+  await fondear();
+});
 
-describe("personas, ganancias pagadas e históricos", () => {
+describe("personas, ganancias por dueño e históricos", () => {
   let bruno = 0;
   let empleado = 0;
 
@@ -44,12 +47,24 @@ describe("personas, ganancias pagadas e históricos", () => {
     for (const g of pendientes) await caja.pagarDistribucion(U, g.d.id, "BANCO");
     await caja.crearMovimiento(U, { categoria: "RETIRO_SOCIO", sentido: null, medio: "BANCO", importe: 1_250_000, concepto: "Retiro ganancia V-0001", fecha: new Date(), participeId: null, personaId: bruno });
 
-    const g = await rep.gananciasPagadasPorMes(anio);
+    const g = await rep.gananciasPorDueno(anio);
     const deEsteMes = g.meses.find((m) => m.periodo === mes)!;
     // Ganancia 2 M sobre costo 10 M: base 1,5 M → inversor 750.000, salón 1.250.000.
     // La devolución del capital (K10) se paga igual pero no cuenta como ganancia de nadie.
     expect(Object.values(deEsteMes.porParticipe).sort()).toEqual([1_250_000, 750_000]);
     expect(g.total).toBe(2_000_000);
+    // El salón va primero; el inversor ya cobró la suya.
+    expect(g.porDueno.map((d) => [d.participe.tipo, d.total, d.cobrado, d.pendiente])).toEqual([
+      ["SALON", 1_250_000, 1_250_000, 0],
+      ["INVERSOR", 750_000, 750_000, 0],
+    ]);
+    expect(g.ventas).toHaveLength(1);
+    // Filtros: por mes y por auto.
+    const otroMes = `${anio}-${mes.endsWith("01") ? "02" : "01"}`;
+    expect((await rep.gananciasPorDueno(anio, { mes: otroMes })).total).toBe(0);
+    expect((await rep.gananciasPorDueno(anio, { mes })).total).toBe(2_000_000);
+    expect((await rep.gananciasPorDueno(anio, { auto: { patente: "aa 111" } })).total).toBe(2_000_000);
+    expect((await rep.gananciasPorDueno(anio, { auto: { marca: "Ford" } })).total).toBe(0);
   });
 
   it("cuánto se llevó cada persona", async () => {

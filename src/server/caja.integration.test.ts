@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { prepararBase } from "@/test/db";
-import { autoDisponible, baseAuto, baseContacto, INVERSOR, U } from "@/test/fabricas";
+import { autoDisponible, baseAuto, baseContacto, fondear, INVERSOR, U } from "@/test/fabricas";
 import * as veh from "./vehiculos";
 import * as con from "./contactos";
 import * as ven from "./ventas";
@@ -86,6 +86,8 @@ describe("patrimonio a lo largo de una venta", () => {
 });
 
 describe("movimientos y cuentas manuales", () => {
+  beforeAll(() => fondear());
+
   it("cuenta a pagar con pago parcial", async () => {
     await caja.crearCuenta(U, { tipo: "A_PAGAR", contraparte: "Arias", importe: 1_000_000, vencimiento: null, notas: "Saldo Polo" });
     const antes = (await caja.patrimonio()).total;
@@ -154,5 +156,19 @@ describe("detalle de saldos y ficha de cada movimiento", () => {
     await caja.editarMovimiento(U, inicial.id, { medio: "EFECTIVO", importe: inicial.importe + 500_000, concepto: "Saldo inicial corregido", fecha: inicial.fecha, personaId: null });
     expect((await caja.patrimonio()).caja.efectivo).toBe(antes + 500_000);
     expect((await caja.fichaMovimiento(inicial.id))!.concepto).toBe("Saldo inicial corregido");
+  });
+});
+
+describe("la caja nunca queda en negativo (K13)", () => {
+  it("no deja sacar más efectivo del que hay, pero sí con un pase previo desde el banco", async () => {
+    const { saldos } = await caja.movimientos({});
+    const mov = (importe: number) => caja.crearMovimiento(U, { categoria: "GASTO_SALON", sentido: null, medio: "EFECTIVO", importe, concepto: "Gasto grande", fecha: new Date(), participeId: null });
+    await expect(mov(saldos.efectivo + 1)).rejects.toThrow(/No alcanza el efectivo/);
+    expect((await caja.movimientos({})).saldos).toEqual(saldos); // no quedó nada a medias
+    await caja.transferenciaInterna(U, { desde: "BANCO", importe: 1, fecha: new Date(), concepto: null });
+    await mov(saldos.efectivo + 1);
+    expect((await caja.movimientos({})).saldos.efectivo).toBe(0);
+    // Con el efectivo en cero, tampoco se puede depositar efectivo en el banco.
+    await expect(caja.transferenciaInterna(U, { desde: "EFECTIVO", importe: 1, fecha: new Date(), concepto: null })).rejects.toThrow(/No alcanza/);
   });
 });

@@ -2,12 +2,15 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { prepararBase } from "@/test/db";
-import { autoDisponible, baseAuto as base, baseContacto as contacto, habilitar, INVERSOR, saldoCaja, SALON, U } from "@/test/fabricas";
+import { autoDisponible, baseAuto as base, baseContacto as contacto, habilitar, INVERSOR, saldoCaja, SALON, U, fondear } from "@/test/fabricas";
 import * as veh from "./vehiculos";
 import * as con from "./contactos";
 import * as ven from "./ventas";
 
-beforeAll(prepararBase);
+beforeAll(async () => {
+  await prepararBase();
+  await fondear();
+});
 
 describe("venta completa: seña + permuta + crédito + efectivo", () => {
   let auto = 0;
