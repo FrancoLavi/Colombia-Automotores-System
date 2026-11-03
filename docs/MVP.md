@@ -111,7 +111,7 @@ Sea **C** el costo total en $, **P** el precio de venta y **G = P − C** la gan
 
 ### M5 · Caja, patrimonio e inversores
 - **HU-5.1** Registrar ingresos y egresos (gasto del salón, retiro de socio, pago a inversor, ingreso extraordinario, ajuste) por medio (efectivo o banco).
-- **HU-5.2** Ver el saldo por medio, **cuánto de ese saldo es del salón** (K11) y la planilla de movimientos con filtros.
+- **HU-5.2** Ver el saldo por medio, **cuánto de ese saldo es del salón** (K11) y la planilla de movimientos con filtros. Al tocar cada saldo (efectivo, banco, total, del salón) se ve **de dónde sale**: todos los movimientos desde el principio con el saldo acumulado y un resumen por tipo, o, para el del salón, el total menos cada cosa que se les debe a los inversores.
 - **HU-5.3** Ver el patrimonio desglosado, en pantalla aparte de Caja (K1), con **el total y lo que es del salón** y abierto por dueño (K11).
 - **HU-5.4** Ver y pagar lo **pendiente de cada venta cerrada** por beneficiario: la ganancia de cada uno y la devolución del capital al inversor (K10), con el usado que se haya llevado descontado y a la vista (K12).
 - **HU-5.5** Registrar el cobro de un crédito bancario (cancela la cuenta a cobrar e ingresa a caja).

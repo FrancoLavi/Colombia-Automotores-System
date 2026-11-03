@@ -6,11 +6,13 @@ import { r2 } from "@/domain/negocio";
 import {
   cajaDelSalon,
   capitalDelInversor,
+  conSaldoAcumulado,
   cuentaEnPatrimonio,
   esManual,
   exigePersona,
   patrimonioSalon,
   patrimonioTotal,
+  resumenPorCategoria,
   saldos,
   ETIQUETA_CATEGORIA,
   MANUALES,
@@ -58,6 +60,22 @@ export async function movimientos(f: FiltrosMovimientos) {
     ingresos: r2(vigentes.filter((x) => x.m.sentido === "INGRESO").reduce((a, x) => a + x.m.importe, 0)),
     egresos: r2(vigentes.filter((x) => x.m.sentido === "EGRESO").reduce((a, x) => a + x.m.importe, 0)),
   };
+}
+
+/**
+ * HU-5.2: de dónde sale un saldo. Todos los movimientos desde el principio (sin el filtro por mes de
+ * la planilla), del más viejo al más nuevo, con el saldo acumulado: el último es el de la tarjeta.
+ */
+export async function detalleSaldo(medio?: Medio) {
+  const filas = await db
+    .select({ m: s.movimientosCaja, usuario: s.usuarios.nombre, persona: s.personas.nombre })
+    .from(s.movimientosCaja)
+    .leftJoin(s.usuarios, eq(s.usuarios.id, s.movimientosCaja.usuarioId))
+    .leftJoin(s.personas, eq(s.personas.id, s.movimientosCaja.personaId))
+    .where(medio ? eq(s.movimientosCaja.medio, medio) : undefined)
+    .orderBy(asc(s.movimientosCaja.fecha), asc(s.movimientosCaja.id));
+  const movs = filas.map((x) => ({ ...x.m, usuario: x.usuario, persona: x.persona }));
+  return { movimientos: conSaldoAcumulado(movs), resumen: resumenPorCategoria(movs), saldos: saldos(movs) };
 }
 
 export async function crearMovimiento(

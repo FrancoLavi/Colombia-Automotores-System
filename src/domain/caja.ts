@@ -58,6 +58,34 @@ export function saldos(movs: MovimientoSaldo[]) {
   return { efectivo: r2(s.EFECTIVO), banco: r2(s.BANCO), total: r2(s.EFECTIVO + s.BANCO) };
 }
 
+/**
+ * Para seguir de dónde sale un saldo: los movimientos en orden, cada uno con cómo queda el saldo
+ * después de él. Los anulados se muestran pero no lo mueven. El último saldo es el de la tarjeta.
+ */
+export function conSaldoAcumulado<T extends MovimientoSaldo>(movs: T[]): (T & { saldo: number })[] {
+  let saldo = 0;
+  return movs.map((m) => {
+    if (!m.anulado) saldo = r2(saldo + (m.sentido === "INGRESO" ? m.importe : -m.importe));
+    return { ...m, saldo };
+  });
+}
+
+/** Cuánto entró y salió por cada tipo de movimiento (sin anulados), de mayor a menor peso. */
+export function resumenPorCategoria(movs: (MovimientoSaldo & { categoria: string })[]) {
+  const porCategoria = new Map<string, { categoria: string; ingresos: number; egresos: number; cantidad: number }>();
+  for (const m of movs) {
+    if (m.anulado) continue;
+    const c = porCategoria.get(m.categoria) ?? { categoria: m.categoria, ingresos: 0, egresos: 0, cantidad: 0 };
+    if (m.sentido === "INGRESO") c.ingresos = r2(c.ingresos + m.importe);
+    else c.egresos = r2(c.egresos + m.importe);
+    c.cantidad++;
+    porCategoria.set(m.categoria, c);
+  }
+  return [...porCategoria.values()]
+    .map((c) => ({ ...c, neto: r2(c.ingresos - c.egresos) }))
+    .sort((a, b) => Math.abs(b.neto) - Math.abs(a.neto));
+}
+
 export interface AutoPatrimonio {
   estado: string;
   tipoIngreso: "COMPRA" | "PERMUTA" | "CONSIGNACION";

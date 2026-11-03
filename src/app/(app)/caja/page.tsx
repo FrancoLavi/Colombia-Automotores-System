@@ -47,26 +47,27 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
 
       <section aria-label="Saldos" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { t: "Efectivo", v: mov.saldos.efectivo, pie: null },
-          { t: "Banco", v: mov.saldos.banco, pie: null },
-          { t: "Total en caja", v: mov.saldos.total, pie: "Toda la plata que hay" },
+          { t: "Efectivo", v: mov.saldos.efectivo, pie: null, href: "/caja/saldo/efectivo" },
+          { t: "Banco", v: mov.saldos.banco, pie: null, href: "/caja/saldo/banco" },
+          { t: "Total en caja", v: mov.saldos.total, pie: "Toda la plata que hay", href: "/caja/saldo/total" },
         ].map((x) => (
-          <div key={x.t} className="tarjeta flex flex-col gap-1.5">
+          <Link key={x.t} href={x.href} className="tarjeta flex flex-col gap-1.5 text-tinta no-underline transition-colors hover:border-tinta">
             <span className="text-xs font-semibold uppercase tracking-wider text-apagado">{x.t}</span>
             <span className={`num text-3xl ${x.v < 0 ? "text-aviso-texto" : ""}`}>{m(x.v)}</span>
-            {x.pie && <span className="text-[13px] text-apagado">{x.pie}</span>}
-          </div>
+            <span className="text-[13px] text-apagado">{x.pie ? `${x.pie} · ` : ""}Ver de dónde sale →</span>
+          </Link>
         ))}
         {/* K11: de la plata que hay, la que es del salón. El resto se les debe a los inversores. */}
-        <div className="tarjeta flex flex-col gap-1.5 border-tinta">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">
+        <div className="tarjeta relative flex flex-col gap-1.5 border-tinta transition-colors hover:bg-fondo">
+          {/* Por encima del enlace que cubre la tarjeta, para que la ayuda se pueda abrir. */}
+          <span className="relative z-10 text-xs font-semibold uppercase tracking-wider text-apagado">
             Del salón
             <Ayuda>De la plata que hay en caja, lo que es del salón: se descuenta lo que se les debe a los inversores por autos ya vendidos (su capital y su ganancia). Lo que tienen en autos todavía en stock no se descuenta, porque esa plata no está en la caja sino en el auto.</Ayuda>
           </span>
           <span className={`num text-3xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</span>
-          <span className="text-[13px] text-apagado">
-            {p.deudaInversores === 0 ? "No se le debe nada a los inversores" : `${m(p.deudaInversores)} son de los inversores`}
-          </span>
+          <Link href="/caja/saldo/salon" className="text-[13px] text-apagado no-underline after:absolute after:inset-0">
+            {p.deudaInversores === 0 ? "No se le debe nada a los inversores" : `${m(p.deudaInversores)} son de los inversores`} · Ver de dónde sale →
+          </Link>
         </div>
       </section>
       {(mov.saldos.efectivo < 0 || mov.saldos.banco < 0) && (

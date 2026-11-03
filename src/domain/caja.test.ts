@@ -1,5 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { cuentaEnPatrimonio, esManual, saldos, valorStock } from "./caja";
+import { conSaldoAcumulado, cuentaEnPatrimonio, esManual, resumenPorCategoria, saldos, valorStock } from "./caja";
+
+describe("detalle de un saldo", () => {
+  const movs = [
+    { sentido: "INGRESO" as const, medio: "EFECTIVO" as const, importe: 1_000_000, anulado: false, categoria: "INGRESO_EXTRAORDINARIO" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 200_000, anulado: false, categoria: "GASTO_VEHICULO" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 999_999, anulado: true, categoria: "GASTO_SALON" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 50_000.5, anulado: false, categoria: "GASTO_VEHICULO" },
+  ];
+
+  it("acumula el saldo movimiento a movimiento y termina en el saldo de la tarjeta", () => {
+    const filas = conSaldoAcumulado(movs);
+    expect(filas.map((f) => f.saldo)).toEqual([1_000_000, 800_000, 800_000, 749_999.5]);
+    expect(filas.at(-1)!.saldo).toBe(saldos(movs).efectivo);
+  });
+
+  it("agrupa por tipo sin contar anulados", () => {
+    expect(resumenPorCategoria(movs)).toEqual([
+      { categoria: "INGRESO_EXTRAORDINARIO", ingresos: 1_000_000, egresos: 0, cantidad: 1, neto: 1_000_000 },
+      { categoria: "GASTO_VEHICULO", ingresos: 0, egresos: 250_000.5, cantidad: 2, neto: -250_000.5 },
+    ]);
+  });
+});
 
 describe("saldos de caja", () => {
   it("suma por medio y no cuenta anulados", () => {
