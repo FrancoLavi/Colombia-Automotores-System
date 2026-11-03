@@ -60,6 +60,14 @@ export async function movimientos(f: FiltrosMovimientos) {
   };
 }
 
+/** K1: saldo de cada medio, para las pantallas que solo necesitan eso. */
+export async function saldosActuales() {
+  const movs = await db
+    .select({ sentido: s.movimientosCaja.sentido, medio: s.movimientosCaja.medio, importe: s.movimientosCaja.importe, anulado: s.movimientosCaja.anulado })
+    .from(s.movimientosCaja);
+  return saldos(movs);
+}
+
 export async function crearMovimiento(
   usuarioId: number,
   d: { categoria: CategoriaManual; sentido: Sentido | null; medio: Medio; importe: number; concepto: string; fecha: Date; participeId: number | null; personaId?: number | null },

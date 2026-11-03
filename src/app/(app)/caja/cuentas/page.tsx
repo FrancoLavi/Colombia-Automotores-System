@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
-import { listarCuentas } from "@/server/caja";
+import { listarCuentas, saldosActuales } from "@/server/caja";
 import { fecha, hoyIso } from "@/lib/formato";
 import { NavCaja } from "../nav";
 import { FormCuenta, FormPagoCuenta } from "../formularios";
@@ -19,7 +19,7 @@ const ORIGEN: Record<string, string> = {
 export default async function CuentasPage() {
   await requerirUsuario();
   const { m } = await vistaMoneda();
-  const [aCobrar, aPagar] = await Promise.all([listarCuentas({ tipo: "A_COBRAR" }), listarCuentas({ tipo: "A_PAGAR" })]);
+  const [aCobrar, aPagar, saldos] = await Promise.all([listarCuentas({ tipo: "A_COBRAR" }), listarCuentas({ tipo: "A_PAGAR" }), saldosActuales()]);
   const hoy = hoyIso();
   const total = (xs: typeof aCobrar) => xs.reduce((a, x) => a + x.c.saldo, 0);
 
@@ -58,7 +58,7 @@ export default async function CuentasPage() {
                   {c.saldo !== c.importe && <span className="block text-xs text-apagado">de {m(c.importe)}</span>}
                 </td>
                 <td>
-                  <FormPagoCuenta id={c.id} saldo={c.saldo} tipo={c.tipo} deVenta={c.origen === "CREDITO_BANCARIO" || (c.origen === "MANUAL" && c.operacionId != null)} />
+                  <FormPagoCuenta id={c.id} saldo={c.saldo} tipo={c.tipo} deVenta={c.origen === "CREDITO_BANCARIO" || (c.origen === "MANUAL" && c.operacionId != null)} saldos={saldos} />
                 </td>
               </tr>
             ))}

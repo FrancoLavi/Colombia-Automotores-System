@@ -63,7 +63,7 @@ describe("vista en dólares", () => {
   });
 });
 
-import { cajaDelSalon, capitalDelInversor, compraSaleDeCaja, patrimonioSalon, patrimonioTotal } from "./caja";
+import { cajaDelSalon, capitalDelInversor, compraSaleDeCaja, patrimonioSalon, patrimonioTotal, medioSugerido } from "./caja";
 
 describe("la plata del inversor no es del salón (K9–K11)", () => {
   it("la compra sale de caja solo si la financia el salón", () => {
@@ -126,5 +126,29 @@ describe("la plata del inversor no es del salón (K9–K11)", () => {
     const p = { caja: 1_000_000, stock: 0, capitalInversores: 0, aCobrar: 4_000_000, aPagar: 1_500_000, deudaInversores: 500_000 };
     expect(patrimonioTotal(p)).toBe(3_500_000);
     expect(patrimonioSalon(p)).toBe(3_000_000);
+  });
+});
+
+describe("medio sugerido para pagar (K13)", () => {
+  it("efectivo cuando alcanza: es como opera el salón", () => {
+    expect(medioSugerido({ efectivo: 5_000_000, banco: 1_000_000 }, 3_000_000)).toBe("EFECTIVO");
+    expect(medioSugerido({ efectivo: 3_000_000, banco: 0 }, 3_000_000)).toBe("EFECTIVO"); // justo
+  });
+
+  it("banco cuando el efectivo no alcanza", () => {
+    expect(medioSugerido({ efectivo: 1_000_000, banco: 50_000_000 }, 3_000_000)).toBe("BANCO");
+  });
+
+  it("el caso real: efectivo en rojo y la plata en el banco", () => {
+    expect(medioSugerido({ efectivo: -144_107_201.52, banco: 151_600_000 }, 16_500_000)).toBe("BANCO");
+  });
+
+  it("si no alcanza en ninguno, el que está menos mal", () => {
+    expect(medioSugerido({ efectivo: -10_000_000, banco: 500_000 }, 3_000_000)).toBe("BANCO");
+    expect(medioSugerido({ efectivo: 500_000, banco: -10_000_000 }, 3_000_000)).toBe("EFECTIVO");
+  });
+
+  it("un reintegro entra, así que no hay nada que cubrir", () => {
+    expect(medioSugerido({ efectivo: -144_000_000, banco: 0 }, -500_000)).toBe("EFECTIVO");
   });
 });

@@ -6,6 +6,7 @@ import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { hoyIso, pesos } from "@/lib/formato";
+import { medioSugerido } from "@/domain/caja";
 import * as a from "./actions";
 
 function useReset(accion: (r: Resultado, fd: FormData) => Promise<Resultado>) {
@@ -147,6 +148,7 @@ export function FormPagarGanancia({
   etiqueta,
   socios,
   capital = false,
+  saldos,
 }: {
   id: number;
   importe: number;
@@ -154,7 +156,10 @@ export function FormPagarGanancia({
   socios?: Persona[];
   /** K10: devolución del capital del inversor (no es ganancia). */
   capital?: boolean;
+  /** K13: para sugerir el medio que tiene con qué pagar. */
+  saldos: { efectivo: number; banco: number };
 }) {
+  const sugerido = medioSugerido(saldos, importe);
   const [r, enviar] = useActionState(a.pagarGananciaAccion.bind(null, id), INICIAL);
   if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Pagado</span>;
   return (
@@ -169,7 +174,7 @@ export function FormPagarGanancia({
           ))}
         </select>
       )}
-      <select name="medio" aria-label="Medio" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
+      <select name="medio" aria-label="Medio" defaultValue={sugerido} className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>
       </select>
@@ -190,6 +195,10 @@ export function FormPagarGanancia({
         {importe < 0 ? "Registrar reintegro" : etiqueta}
       </BotonConfirmar>
       {r.error && <span className="w-full text-right text-xs text-aviso-texto">{r.error}</span>}
+      {/* K13: si no se avisa, el medio por defecto hunde el efectivo sin que nadie lo note. */}
+      {sugerido === "BANCO" && (
+        <span className="w-full text-right text-xs text-apagado">El efectivo no alcanza para {pesos(importe)}: sugerido banco.</span>
+      )}
     </form>
   );
 }
@@ -231,8 +240,22 @@ export function FormCuenta() {
   );
 }
 
-export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo: number; tipo: "A_COBRAR" | "A_PAGAR"; deVenta: boolean }) {
+export function FormPagoCuenta({
+  id,
+  saldo,
+  tipo,
+  deVenta,
+  saldos,
+}: {
+  id: number;
+  saldo: number;
+  tipo: "A_COBRAR" | "A_PAGAR";
+  deVenta: boolean;
+  /** K13: solo se sugiere al pagar; cobrar es plata que entra y no hay nada que cubrir. */
+  saldos: { efectivo: number; banco: number };
+}) {
   const [r, enviar] = useActionState(a.pagoCuentaAccion.bind(null, id), INICIAL);
+  const sugerido = tipo === "A_PAGAR" ? medioSugerido(saldos, saldo) : deVenta ? "BANCO" : "EFECTIVO";
   if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Registrado</span>;
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
@@ -247,7 +270,7 @@ export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo
         title={deVenta ? "Los cobros de una venta van por el total" : undefined}
         className="min-h-11 w-32 rounded-lg border border-campo-borde px-2 font-mono text-sm"
       />
-      <select name="medio" aria-label="Medio" defaultValue={tipo === "A_COBRAR" && deVenta ? "BANCO" : "EFECTIVO"} className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
+      <select name="medio" aria-label="Medio" defaultValue={sugerido} className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>
       </select>
@@ -255,6 +278,9 @@ export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo
         {tipo === "A_COBRAR" ? "Cobrar" : "Pagar"}
       </BotonEnviar>
       {r.error && <span className="w-full text-right text-xs text-aviso-texto">{r.error}</span>}
+      {!r.error && tipo === "A_PAGAR" && sugerido === "BANCO" && (
+        <span className="w-full text-right text-xs text-apagado">El efectivo no alcanza para {pesos(saldo)}: sugerido banco.</span>
+      )}
       {!r.error && saldo > 0 && !deVenta && <span className="w-full text-right text-xs text-apagado">Podés registrar un pago parcial (saldo {pesos(saldo)})</span>}
     </form>
   );

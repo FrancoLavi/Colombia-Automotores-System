@@ -111,6 +111,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
                 capital={g.d.tipo === "CAPITAL"}
                 etiqueta={g.d.tipo === "CAPITAL" ? "Devolver" : g.participe.tipo === "INVERSOR" ? "Pagar" : "Retirar"}
                 socios={g.participe.tipo === "SALON" ? socios : undefined}
+                saldos={p.caja}
               />
             </div>
           </div>

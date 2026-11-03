@@ -58,6 +58,25 @@ export function saldos(movs: MovimientoSaldo[]) {
   return { efectivo: r2(s.EFECTIVO), banco: r2(s.BANCO), total: r2(s.EFECTIVO + s.BANCO) };
 }
 
+/**
+ * K13: con qué medio conviene pagar un egreso. El formulario lo deja preseleccionado; el que
+ * paga siempre puede cambiarlo.
+ *
+ * Por defecto efectivo, que es como opera el salón. Pero si el efectivo no alcanza y el banco sí,
+ * sugiere el banco: pagar de donde no hay deja la caja en negativo y esconde que la plata salió
+ * de otro lado. Es lo que pasó cargando los primeros meses, donde los cobros entraban por banco
+ * y cada pago se registraba en efectivo sin el pase que los une (K1).
+ *
+ * Un importe negativo es un reintegro: entra plata, no hay nada que cubrir.
+ */
+export function medioSugerido(saldos: { efectivo: number; banco: number }, importe: number): Medio {
+  if (importe <= 0) return "EFECTIVO";
+  if (saldos.efectivo >= importe) return "EFECTIVO";
+  if (saldos.banco >= importe) return "BANCO";
+  // No alcanza en ninguno: el menos malo, para que el rojo quede donde ya estaba.
+  return saldos.banco > saldos.efectivo ? "BANCO" : "EFECTIVO";
+}
+
 export interface AutoPatrimonio {
   estado: string;
   tipoIngreso: "COMPRA" | "PERMUTA" | "CONSIGNACION";
