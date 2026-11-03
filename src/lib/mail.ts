@@ -1,4 +1,5 @@
 import "server-only";
+import nodemailer from "nodemailer";
 
 export interface Mail {
   para: string;
@@ -8,27 +9,31 @@ export interface Mail {
 }
 
 /**
- * Manda un mail con Resend (https://resend.com) usando su API HTTP, sin SDK.
- * Sin RESEND_API_KEY (desarrollo y tests) no manda nada: lo muestra en la consola del servidor.
+ * Manda un mail por SMTP. Sirve con una casilla de Gmail (smtp.gmail.com + contraseña de aplicación)
+ * o con cualquier proveedor que dé SMTP (Resend, Brevo…), cambiando solo las variables SMTP_*.
+ * Sin SMTP_HOST o SMTP_PASS (desarrollo y tests) no manda nada: lo muestra en la consola del servidor.
  */
 export async function enviarMail(m: Mail): Promise<void> {
-  const clave = process.env.RESEND_API_KEY;
-  if (!clave) {
-    console.info(`[mail sin enviar: falta RESEND_API_KEY]\nPara: ${m.para}\nAsunto: ${m.asunto}\n\n${m.texto}`);
+  const host = process.env.SMTP_HOST;
+  if (!host || !process.env.SMTP_PASS) {
+    console.info(`[mail sin enviar: falta configurar SMTP_HOST / SMTP_PASS]\nPara: ${m.para}\nAsunto: ${m.asunto}\n\n${m.texto}`);
     return;
   }
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: process.env.MAIL_FROM || "Colombia Automotores <onboarding@resend.dev>",
-      to: [m.para],
-      subject: m.asunto,
-      text: m.texto,
-      html: m.html,
-    }),
+  const puerto = Number(process.env.SMTP_PORT || 465);
+  const transporte = nodemailer.createTransport({
+    host,
+    port: puerto,
+    // 465 va cifrado de entrada; 587 arranca en claro y pasa a cifrado (STARTTLS).
+    secure: puerto === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
-  if (!r.ok) throw new Error(`Resend respondió ${r.status}: ${await r.text()}`);
+  await transporte.sendMail({
+    from: process.env.MAIL_FROM || `Colombia Automotores <${process.env.SMTP_USER}>`,
+    to: m.para,
+    subject: m.asunto,
+    text: m.texto,
+    html: m.html,
+  });
 }
 
 /**
