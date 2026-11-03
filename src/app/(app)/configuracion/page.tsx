@@ -15,6 +15,7 @@ import {
   FormCategoria,
   FormDocumento,
   FormInversor,
+  FormCerrarTodas,
   FormMiPassword,
   FormObjetivo,
   FormParametros,
@@ -57,6 +58,7 @@ export default async function ConfiguracionPage() {
           <div className="border-t border-linea pt-3">
             <FormMiPassword />
           </div>
+          <FormCerrarTodas />
         </section>
       </div>
 

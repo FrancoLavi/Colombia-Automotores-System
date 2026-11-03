@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
+import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { BotonEnviar, Mensaje } from "@/components/ui";
@@ -260,6 +261,29 @@ export function FormMiPassword() {
         <Mensaje r={r} />
         <BotonEnviar className="btn-secundario ml-auto">Cambiar mi contraseña</BotonEnviar>
       </div>
+    </form>
+  );
+}
+
+/** T4: por si quedó la sesión abierta en otra PC o se perdió el celular. */
+export function FormCerrarTodas() {
+  const [r, enviar] = useActionState(a.cerrarTodasAccion, INICIAL);
+  return (
+    <form action={enviar} className="flex flex-col gap-2 border-t border-linea pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-apagado">¿Quedó abierta en otra PC o perdiste el celular? Cerrala en todos lados, incluido acá.</p>
+        <BotonConfirmar
+          peligro
+          className="btn border border-aviso-texto text-aviso-texto hover:bg-aviso-fondo"
+          titulo="¿Cerrar sesión en todos los dispositivos?"
+          detalle="Se cierran todas tus sesiones abiertas, incluida esta. Vas a tener que volver a ingresar con tu contraseña."
+          confirmar="Cerrar todas"
+          pendiente="Cerrando…"
+        >
+          Cerrar sesión en todos los dispositivos
+        </BotonConfirmar>
+      </div>
+      <Mensaje r={r} />
     </form>
   );
 }
