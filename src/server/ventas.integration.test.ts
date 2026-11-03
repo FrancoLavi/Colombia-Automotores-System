@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { prepararBase } from "@/test/db";
-import { autoDisponible, baseAuto as base, baseContacto as contacto, INVERSOR, saldoCaja, SALON, U } from "@/test/fabricas";
+import { autoDisponible, baseAuto as base, baseContacto as contacto, habilitar, INVERSOR, saldoCaja, SALON, U } from "@/test/fabricas";
 import * as veh from "./vehiculos";
 import * as con from "./contactos";
 import * as ven from "./ventas";
@@ -94,6 +94,61 @@ describe("K12: el usado a cuenta del capital solo si queda a nombre del inversor
     expect(f.capitalReinvertido).toBe(0);
     // El auto se lo queda el salón, así que la plata del inversor sale entera de la caja.
     expect(f.distribuciones.filter((d) => d.d.tipo === "CAPITAL").map((d) => d.d.importe)).toEqual([10_000_000]);
+  });
+});
+
+describe("K12 en cadena: el inversor reinvierte venta tras venta", () => {
+  // El modelo que plantea el cliente, dos eslabones: en cada venta el inversor se lleva lo que
+  // puso en ESE auto más su ganancia, menos lo que reinvierte en ESA misma venta.
+  let cruce = 0;
+  let corsa = 0;
+  const ops: number[] = [];
+
+  const capitalDe = (f: { distribuciones: { d: { tipo: string; importe: number } }[] }) =>
+    f.distribuciones.find((d) => d.d.tipo === "CAPITAL")!.d.importe;
+
+  it("primera venta: puso 10 M y se lleva un usado de 4 M → cobra 6 M", async () => {
+    const auto = await autoDisponible("GG777GG");
+    const cliente = await con.crearContacto(U, { ...contacto, nombre: "Ana", telefono: "2915550211" });
+    const op = await ven.crearOperacion(U, { contactoId: cliente, vehiculoId: auto, precioVenta: 12_000_000, observaciones: null });
+    ops.push(op);
+    cruce = await ven.tomarUsado(U, op, { ...base, dominio: "KL111CR", marca: "Chevrolet", modelo: "Cruze", anio: 2017, participeId: INVERSOR, monedaCompra: "ARS", valorCompra: 4_000_000, tcIngreso: 1_500 });
+    await ven.agregarPago(U, op, { tipo: "EFECTIVO", importe: 8_000_000, fecha: "2026-10-12", medio: "EFECTIVO", banco: null, vence: null, cobradoAhora: true });
+    await ven.cerrarOperacion(U, op, 1_550);
+
+    const f = (await ven.fichaOperacion(op))!;
+    expect(f.liquidacion).toMatchObject({ regla: "INVERSOR_BASE", parteInversor: 750_000, parteSalon: 1_250_000 });
+    expect(capitalDe(f)).toBe(6_000_000); // 10 M − 4 M del Cruze
+  });
+
+  it("segunda venta: el capital del Cruze es su valor de toma, menos la nueva reinversión", async () => {
+    await habilitar(cruce);
+    const cliente = await con.crearContacto(U, { ...contacto, nombre: "Beto", telefono: "2915550212" });
+    const op = await ven.crearOperacion(U, { contactoId: cliente, vehiculoId: cruce, precioVenta: 5_000_000, observaciones: null });
+    ops.push(op);
+    corsa = await ven.tomarUsado(U, op, { ...base, dominio: "KL222CO", marca: "Chevrolet", modelo: "Corsa", anio: 2013, participeId: INVERSOR, monedaCompra: "ARS", valorCompra: 1_500_000, tcIngreso: 1_500 });
+    await ven.agregarPago(U, op, { tipo: "EFECTIVO", importe: 3_500_000, fecha: "2026-10-20", medio: "EFECTIVO", banco: null, vence: null, cobradoAhora: true });
+    await ven.cerrarOperacion(U, op, 1_550);
+
+    const f = (await ven.fichaOperacion(op))!;
+    // El Cruze entró por permuta: su capital es el valor de toma, sin los gastos (K10).
+    expect(f.liquidacion).toMatchObject({ regla: "INVERSOR_BASE", costo: 4_000_000, parteInversor: 300_000, parteSalon: 700_000 });
+    // 4 M que tenía puesto en el Cruze − 1,5 M que reinvierte en el Corsa (K12).
+    expect(f.capitalReinvertido).toBe(1_500_000);
+    expect(capitalDe(f)).toBe(2_500_000);
+  });
+
+  it("al final de la cadena no le falta ni le sobra un peso", async () => {
+    // Entre la plata que cobró y el auto que todavía tiene, el inversor recupera lo que puso
+    // más sus ganancias. Ni dos veces lo mismo, ni de menos.
+    const suyas = await db
+      .select({ tipo: s.distribuciones.tipo, importe: s.distribuciones.importe })
+      .from(s.distribuciones)
+      .innerJoin(s.liquidaciones, eq(s.liquidaciones.id, s.distribuciones.liquidacionId))
+      .where(and(eq(s.distribuciones.participeId, INVERSOR), inArray(s.liquidaciones.operacionId, ops)));
+    const cobrado = suyas.reduce((a, d) => a + d.importe, 0);
+    const autoQueLeQueda = (await db.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, corsa) }))!.valorCompraArs;
+    expect(cobrado + autoQueLeQueda).toBe(10_000_000 + 750_000 + 300_000);
   });
 });
 
