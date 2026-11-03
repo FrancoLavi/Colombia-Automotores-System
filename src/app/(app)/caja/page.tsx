@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
+import { Ayuda } from "@/components/ui";
 import { FormFiltros } from "@/components/filtros";
 import { vistaMoneda } from "@/lib/moneda";
 import { movimientos, patrimonio, pendientesPorPagar } from "@/server/caja";
@@ -58,7 +59,10 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
         ))}
         {/* K11: de la plata que hay, la que es del salón. El resto se les debe a los inversores. */}
         <div className="tarjeta flex flex-col gap-1.5 border-tinta">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Del salón</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">
+            Del salón
+            <Ayuda>De la plata que hay en caja, lo que es del salón: se descuenta lo que se les debe a los inversores por autos ya vendidos (su capital y su ganancia). Lo que tienen en autos todavía en stock no se descuenta, porque esa plata no está en la caja sino en el auto.</Ayuda>
+          </span>
           <span className={`num text-3xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</span>
           <span className="text-[13px] text-apagado">
             {p.deudaInversores === 0 ? "No se le debe nada a los inversores" : `${m(p.deudaInversores)} son de los inversores`}
@@ -73,7 +77,13 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
       )}
 
       <section className="tarjeta flex flex-col">
-        <h2 className="pb-2 text-lg font-semibold">Pendiente de pagar por ventas cerradas</h2>
+        <h2 className="pb-2 text-lg font-semibold">
+          Pendiente de pagar por ventas cerradas
+          <Ayuda>
+            Ganancia: la parte de lo que se ganó con la venta que le toca a cada uno. Capital: lo que el inversor puso para comprar el auto, que se le devuelve
+            aparte; no es ganancia de nadie. Si se llevó un usado de esa venta, ya viene descontado.
+          </Ayuda>
+        </h2>
         {pendientes.length === 0 && (
           <p className="text-sm text-apagado">No hay nada pendiente. Al cerrar una venta queda la ganancia de cada uno y, si el auto era de un inversor, su capital.</p>
         )}
@@ -89,13 +99,16 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
               </span>
             </span>
             <span className="flex items-center gap-2">
-              <span className="rounded-full bg-panel px-2 py-0.5 text-xs font-semibold text-apagado">{g.d.tipo === "CAPITAL" ? "Capital" : "Ganancia"}</span>
+              <span className={`chip ${g.d.tipo === "CAPITAL" ? "bg-info-fondo text-info-texto" : "bg-ok-fondo text-ok-texto"}`}>
+                {g.d.tipo === "CAPITAL" ? "Devolución de capital" : "Ganancia"}
+              </span>
               <span className={`num ${g.d.importe < 0 ? "text-aviso-texto" : ""}`}>{m(g.d.importe)}</span>
             </span>
             <div className="w-full">
               <FormPagarGanancia
                 id={g.d.id}
                 importe={g.d.importe}
+                capital={g.d.tipo === "CAPITAL"}
                 etiqueta={g.d.tipo === "CAPITAL" ? "Devolver" : g.participe.tipo === "INVERSOR" ? "Pagar" : "Retirar"}
                 socios={g.participe.tipo === "SALON" ? socios : undefined}
               />
@@ -114,7 +127,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
       </details>
 
       <section className="tarjeta flex flex-col gap-3 p-0">
-        <FormFiltros className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-6">
+        <FormFiltros plegable claseBarra="mx-4 max-md:mt-4" porDefecto={{ desde: `${hoy.slice(0, 8)}01`, hasta: hoy }} className="grid gap-3 p-4 pb-0 sm:grid-cols-2 lg:grid-cols-6">
           <label className="campo">
             Desde
             <input type="date" name="desde" defaultValue={desde} />

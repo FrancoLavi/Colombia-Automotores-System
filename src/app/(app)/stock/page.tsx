@@ -64,7 +64,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <FormFiltros className="tarjeta grid gap-3.5 p-4 sm:grid-cols-2 lg:grid-cols-6">
+      <FormFiltros plegable porDefecto={{ estado: "ACTIVOS" }} className="tarjeta grid gap-3.5 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <label className="campo lg:col-span-2">
           Buscar
           <input type="search" name="q" defaultValue={sp.q} placeholder="Patente, marca o modelo" />
@@ -122,13 +122,13 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                 <th>Patente</th>
                 <th>Auto</th>
                 <th>Año</th>
-                <th className="text-right">Km</th>
+                <th className="hidden text-right xl:table-cell">Km</th>
                 <th>Estado</th>
-                <th>Ubicación</th>
+                <th className="hidden xl:table-cell">Ubicación</th>
                 <th className="text-right">Días</th>
                 <th className="text-right">Costo</th>
                 <th className="text-right">Precio</th>
-                <th className="text-right">Margen USD</th>
+                <th className="hidden text-right lg:table-cell">Margen USD</th>
                 <th>Alertas</th>
               </tr>
             </thead>
@@ -146,16 +146,16 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                     </Link>
                   </td>
                   <td>{v.anio}</td>
-                  <td className="num text-right">{numero(v.km)}</td>
+                  <td className="num hidden text-right xl:table-cell">{numero(v.km)}</td>
                   <td>
                     <ChipEstado estado={v.estado} />
                     {v.prendado && <span className="chip ml-1 bg-aviso-fondo text-aviso-texto">Prendado</span>}
                   </td>
-                  <td>{ETIQUETA_UBICACION[v.ubicacion]}</td>
+                  <td className="hidden xl:table-cell">{ETIQUETA_UBICACION[v.ubicacion]}</td>
                   <td className="num text-right">{v.estado === "POR_INGRESAR" ? "—" : v.dias}</td>
                   <td className="num text-right">{v.costo > 0 ? m(v.costo) : "—"}</td>
                   <td className="num text-right">{m(v.precio)}</td>
-                  <td className={`num text-right ${v.margen != null && v.margen <= 0.1 ? "font-semibold text-aviso-texto" : ""}`}>
+                  <td className={`num hidden text-right lg:table-cell ${v.margen != null && v.margen <= 0.1 ? "font-semibold text-aviso-texto" : ""}`}>
                     {v.margen != null ? porcentaje(v.margen) : "—"}
                   </td>
                   <td>

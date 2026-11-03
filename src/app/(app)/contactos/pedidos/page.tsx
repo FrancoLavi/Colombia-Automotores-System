@@ -55,7 +55,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
           coinciden. Sirve para decidir qué tomar y a quién llamar.
         </p>
       </div>
-      <FormFiltros className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <FormFiltros plegable className="tarjeta grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="campo lg:col-span-2">
           Buscar
           <input type="search" name="q" defaultValue={sp.q} placeholder="Auto, contacto, teléfono o nota" />
@@ -80,7 +80,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
           </select>
         </label>
         <div className="flex items-end gap-2 lg:col-span-4">
-          <button className="btn-secundario">Buscar</button>
+          <button className="btn-secundario">Filtrar</button>
           {filtrando && (
             <Link href="/contactos/pedidos" className="btn text-sm text-acento">
               Limpiar
