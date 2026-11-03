@@ -4,7 +4,7 @@ import { useActionState, useRef, useState } from "react";
 import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
-import { BotonEnviar, Mensaje } from "@/components/ui";
+import { BotonEnviar, Mensaje, ErrorLinea } from "@/components/ui";
 import { hoyIso, pesos } from "@/lib/formato";
 import * as a from "./actions";
 
@@ -193,7 +193,7 @@ export function FormAnular({ id }: { id: number }) {
       <BotonEnviar className="btn min-h-11 border border-aviso-texto px-2 text-xs text-aviso-texto" pendiente="…">
         Anular
       </BotonEnviar>
-      {r.error && <span className="text-xs text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="text-xs text-aviso-texto" />
     </form>
   );
 }
@@ -234,7 +234,7 @@ export function FormPagarGanancia({
       >
         {importe < 0 ? "Registrar reintegro" : etiqueta}
       </BotonConfirmar>
-      {r.error && <span className="w-full text-right text-xs text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="w-full text-right text-xs text-aviso-texto" />
     </form>
   );
 }
@@ -299,7 +299,7 @@ export function FormPagoCuenta({ id, saldo, tipo, deVenta }: { id: number; saldo
       <BotonEnviar className="btn-secundario" pendiente="…">
         {tipo === "A_COBRAR" ? "Cobrar" : "Pagar"}
       </BotonEnviar>
-      {r.error && <span className="w-full text-right text-xs text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="w-full text-right text-xs text-aviso-texto" />
       {!r.error && saldo > 0 && !deVenta && <span className="w-full text-right text-xs text-apagado">Podés registrar un pago parcial (saldo {pesos(saldo)})</span>}
     </form>
   );

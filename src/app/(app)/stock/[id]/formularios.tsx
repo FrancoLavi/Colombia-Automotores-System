@@ -4,7 +4,7 @@ import { useActionState, useRef, useState, useTransition } from "react";
 import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
-import { BotonEnviar, Mensaje } from "@/components/ui";
+import { BotonEnviar, Mensaje, ErrorLinea } from "@/components/ui";
 import { ETIQUETA_ESTADO, ETIQUETA_UBICACION, type EstadoVehiculo, type Ubicacion } from "@/domain/stock";
 import { hoyIso } from "@/lib/formato";
 import * as a from "../actions";
@@ -24,7 +24,7 @@ export function FormUbicacion({ id, actual }: { id: number; actual: Ubicacion })
           ))}
         </select>
       </label>
-      {r.error && <span className="text-sm text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="text-sm text-aviso-texto" />
     </form>
   );
 }
@@ -165,7 +165,7 @@ export function FilaDocumento({ vehiculoId, doc }: { vehiculoId: number; doc: Do
           <Comprobante vehiculoId={vehiculoId} documentoId={doc.id} url={doc.archivoUrl} nombre={doc.nombre} />
         </div>
       )}
-      {r.error && <span className="text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="text-aviso-texto" />
     </div>
   );
 }
@@ -188,7 +188,7 @@ function Comprobante({ vehiculoId, documentoId, url, nombre }: { vehiculoId: num
         >
           {pendiente ? "Quitando…" : "Quitar"}
         </button>
-        {r.error && <span className="text-aviso-texto">{r.error}</span>}
+        <ErrorLinea r={r} className="text-aviso-texto" />
       </span>
     );
   }
@@ -211,7 +211,7 @@ function Comprobante({ vehiculoId, documentoId, url, nombre }: { vehiculoId: num
           });
         }}
       />
-      {r.error && <span className="font-normal text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="font-normal text-aviso-texto" />
     </label>
   );
 }

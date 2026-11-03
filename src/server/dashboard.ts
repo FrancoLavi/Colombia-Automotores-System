@@ -29,7 +29,7 @@ export async function tablero(hoy: Date = new Date(), mes?: string) {
   const periodo = mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(mes) ? mes : periodoDe(hoy);
   const inicioMes = `${periodo}-01`;
   const [a, mm] = periodo.split("-").map(Number);
-  const finMes = hoyIso(new Date(a, mm, 0));
+  const finMes = new Date(Date.UTC(a, mm, 0)).toISOString().slice(0, 10); // en UTC: no corre el día según la zona del servidor
   const hace12 = [hoyIso(new Date(hoy.getFullYear(), hoy.getMonth() - 11, 1)), inicioMes].sort()[0];
 
   const [cerradas, stock, p, ag, objetivo, tcs, senias, cuentasVencidas, ingresadosAntes] = await Promise.all([

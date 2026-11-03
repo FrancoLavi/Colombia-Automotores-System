@@ -8,7 +8,7 @@ import { capitalDelInversor } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
 import { ErrorNegocio } from "./errores";
-import { exigirFondos } from "./fondos";
+import { exigirFondos, fotoFondos } from "./fondos";
 import { obtenerParametros } from "./parametros";
 import { crearVehiculo, tcHoy, type DatosVehiculo } from "./vehiculos";
 
@@ -347,6 +347,7 @@ export async function tomarUsado(usuarioId: number, id: number, datos: Omit<Dato
 /** Quita un pago antes del cierre. Si ya había entrado a caja, se anula el movimiento. La permuta da de baja el usado. */
 export async function quitarPago(usuarioId: number, id: number, pagoId: number) {
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const op = await cargarOperacion(t, id);
     if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("No se pueden quitar pagos de una operación cerrada");
     const p = await t.query.pagosOperacion.findFirst({ where: and(eq(s.pagosOperacion.id, pagoId), eq(s.pagosOperacion.operacionId, id)) });
@@ -354,7 +355,7 @@ export async function quitarPago(usuarioId: number, id: number, pagoId: number) 
     if (p.estado === "DEVUELTA" || p.estado === "RETENIDA") throw new ErrorNegocio("Ese pago ya fue resuelto");
     if (p.movimientoId) {
       await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: `Pago quitado de ${numeroOperacion(id)}` }).where(eq(s.movimientosCaja.id, p.movimientoId));
-      await exigirFondos(t);
+      await exigirFondos(t, antesFondos);
     }
     if (p.vehiculoPermutaId) await cambiarEstadoVehiculo(t, p.vehiculoPermutaId, "BAJA", usuarioId, `Permuta quitada de ${numeroOperacion(id)}`);
     await t.delete(s.pagosOperacion).where(eq(s.pagosOperacion.id, pagoId));
@@ -522,6 +523,7 @@ export async function entregarOperacion(usuarioId: number, id: number, fechaEntr
 /** S3: la operación se cae. La seña se devuelve (egreso) o queda para el salón; los demás cobros se devuelven. */
 export async function caerOperacion(usuarioId: number, id: number, motivo: string, sena: "DEVOLVER" | "RETENER", medio: Medio) {
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const op = await cargarOperacion(t, id);
     if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("Solo se pueden dar de baja operaciones abiertas");
     const pagos = await t.select().from(s.pagosOperacion).where(eq(s.pagosOperacion.operacionId, id));
@@ -554,7 +556,7 @@ export async function caerOperacion(usuarioId: number, id: number, motivo: strin
       await t.update(s.pagosOperacion).set({ estado: "DEVUELTA" }).where(eq(s.pagosOperacion.id, p.id));
       devuelto += p.importe;
     }
-    if (devuelto) await exigirFondos(t);
+    if (devuelto) await exigirFondos(t, antesFondos);
     await t.update(s.operaciones).set({ estado: "CAIDA", motivoCaida: motivo }).where(eq(s.operaciones.id, id));
     await cambiarEstadoVehiculo(t, op.vehiculoId, "DISPONIBLE", usuarioId, `Liberado: operación caída (${numeroOperacion(id)})`);
     await sincronizarEtapa(t, c.id, usuarioId);

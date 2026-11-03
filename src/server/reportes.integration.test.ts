@@ -67,6 +67,19 @@ describe("personas, ganancias por dueño e históricos", () => {
     expect((await rep.gananciasPorDueno(anio, { auto: { marca: "Ford" } })).total).toBe(0);
   });
 
+  it("balance del salón en el mes: foto al empezar, foto al terminar y qué pasó en el medio", async () => {
+    const b = (await rep.balanceSalon(anio, mes))!;
+    expect(b.ganancia).toBe(1_250_000);
+    expect(b.gastos).toBe(85_000); // publicidad
+    expect(b.sueldosEmpleados).toBe(500_000);
+    expect(b.retirosSocios).toBe(1_250_000); // el retiro de Bruno no resta del resultado
+    expect(b.resultado).toBe(1_250_000 - 85_000 - 500_000);
+    expect(b.otros).toBe(0);
+    expect(Math.round(b.fin - b.inicio)).toBe(b.resultado - b.retirosSocios + b.aportes);
+    // Hoy, la foto del salón coincide con Patrimonio.
+    expect(b.fin).toBe((await caja.patrimonio()).salon);
+  });
+
   it("cuánto se llevó cada persona", async () => {
     const { resumen } = await rep.retirosPorPersona(anio);
     expect(resumen.find((r) => r.persona.id === empleado)).toMatchObject({ sueldos: 500_000, total: 500_000 });

@@ -52,6 +52,9 @@ describe("patrimonio a lo largo de una venta", () => {
     // K11: al salón le quedan sus 20 M iniciales más su parte de la ganancia, y nada más.
     // El Fiesta y los 6 M que faltan devolverle son del inversor, cada cosa contada una sola vez.
     expect(p.salon).toBe(21_075_000);
+    // Caja del salón + lo suyo en autos + a cobrar − a pagar = patrimonio del salón.
+    const c = p.conciliacion;
+    expect(Math.round(c.cajaSalon + c.autos + c.aCobrar - c.aPagar)).toBe(p.salon);
   });
 
   it("devolverle el capital y la ganancia al inversor no cambia lo que es del salón", async () => {

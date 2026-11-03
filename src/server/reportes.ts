@@ -6,6 +6,8 @@ import { diasEnStock } from "@/domain/negocio";
 import { periodoDe } from "@/domain/dashboard";
 import { numeroOperacion } from "@/domain/ventas";
 import { coincideAuto, type FiltroAuto } from "@/domain/autos";
+import { balanceDelSalon, capitalDelInversor, patrimonioSalon, saldos } from "@/domain/caja";
+import { hoyIso } from "@/lib/formato";
 
 /** Rango de un año calendario como fechas ISO y como timestamps. */
 function rangoAnio(anio: number) {
@@ -254,4 +256,133 @@ export async function resumenMensual(anio: number, f: FiltrosReporte = {}) {
   });
   // Con un mes elegido, solo los tipos que se movieron ese mes.
   return { meses, categorias: categorias.filter((c) => meses.some((x) => x.porCategoria[c])) };
+}
+
+// ---------- Foto del salón a una fecha y balance del período ----------
+
+/** Último instante de un día en Argentina (UTC−3). */
+const finDelDia = (dia: string) => new Date(`${dia}T23:59:59.999-03:00`);
+
+/**
+ * K11 a una fecha pasada: cuánto era del salón al terminar ese día. Se rehace con lo que había
+ * registrado hasta ese momento: la caja, los autos en stock al costo (sin consignados ni
+ * permutas de ventas que todavía no cerraban), lo que se les debía a los inversores y las
+ * cuentas abiertas con su saldo de ese día.
+ */
+export async function patrimonioSalonAl(dia: string) {
+  const corte = finDelDia(dia);
+  const [movs, autos, gastos, ops, deudas, cuentas, pagosCuentas] = await Promise.all([
+    db
+      .select({ sentido: s.movimientosCaja.sentido, medio: s.movimientosCaja.medio, importe: s.movimientosCaja.importe, anulado: s.movimientosCaja.anulado })
+      .from(s.movimientosCaja)
+      .where(lte(s.movimientosCaja.fecha, corte)),
+    db
+      .select({ id: s.vehiculos.id, estado: s.vehiculos.estado, tipoIngreso: s.vehiculos.tipoIngreso, valorCompraArs: s.vehiculos.valorCompraArs, operacionOrigenId: s.vehiculos.operacionOrigenId, financista: s.participes.tipo })
+      .from(s.vehiculos)
+      .innerJoin(s.participes, eq(s.participes.id, s.vehiculos.participeId))
+      .where(lte(s.vehiculos.fechaIngreso, dia)),
+    db
+      .select({ vehiculoId: s.gastos.vehiculoId, total: sql<number>`coalesce(sum(${s.gastos.importe}), 0)::float` })
+      .from(s.gastos)
+      .where(and(lte(s.gastos.fecha, dia), eq(s.gastos.extraordinario, false)))
+      .groupBy(s.gastos.vehiculoId),
+    db
+      .select({ id: s.operaciones.id, vehiculoId: s.operaciones.vehiculoId, fechaCierre: s.operaciones.fechaCierre })
+      .from(s.operaciones)
+      .where(and(inArray(s.operaciones.estado, ["CERRADA", "ENTREGADA"]), lte(s.operaciones.fechaCierre, dia))),
+    // Lo que se le debía al inversor ese día: de ventas ya cerradas, sin pagar todavía (o pagado después).
+    db
+      .select({ importe: s.distribuciones.importe, estado: s.distribuciones.estado, pagado: s.movimientosCaja.fecha })
+      .from(s.distribuciones)
+      .innerJoin(s.participes, eq(s.participes.id, s.distribuciones.participeId))
+      .innerJoin(s.liquidaciones, eq(s.liquidaciones.id, s.distribuciones.liquidacionId))
+      .innerJoin(s.operaciones, eq(s.operaciones.id, s.liquidaciones.operacionId))
+      .leftJoin(s.movimientosCaja, eq(s.movimientosCaja.id, s.distribuciones.movimientoId))
+      .where(and(eq(s.participes.tipo, "INVERSOR"), lte(s.operaciones.fechaCierre, dia))),
+    db
+      .select({ id: s.cuentasPendientes.id, tipo: s.cuentasPendientes.tipo, importe: s.cuentasPendientes.importe })
+      .from(s.cuentasPendientes)
+      .where(lte(s.cuentasPendientes.creadoEn, corte)),
+    db
+      .select({ cuentaId: s.movimientosCaja.cuentaPendienteId, total: sql<number>`coalesce(sum(${s.movimientosCaja.importe}), 0)::float` })
+      .from(s.movimientosCaja)
+      .where(and(lte(s.movimientosCaja.fecha, corte), eq(s.movimientosCaja.anulado, false), isNotNull(s.movimientosCaja.cuentaPendienteId)))
+      .groupBy(s.movimientosCaja.cuentaPendienteId),
+  ]);
+  const vendidos = new Set(ops.map((o) => o.vehiculoId));
+  const cerradas = new Set(ops.map((o) => o.id));
+  const enStock = autos.filter(
+    (a) =>
+      !["RECHAZADO", "BAJA"].includes(a.estado) &&
+      !vendidos.has(a.id) &&
+      a.tipoIngreso !== "CONSIGNACION" &&
+      // Una permuta cuenta recién cuando cerró la venta que la trajo (K3).
+      !(a.tipoIngreso === "PERMUTA" && a.operacionOrigenId != null && !cerradas.has(a.operacionOrigenId)),
+  );
+  const stock = r2(enStock.reduce((t, a) => t + a.valorCompraArs + (gastos.find((g) => g.vehiculoId === a.id)?.total ?? 0), 0));
+  const capitalInversores = r2(enStock.reduce((t, a) => t + capitalDelInversor({ tipoIngreso: a.tipoIngreso, financista: a.financista, valorCompraArs: a.valorCompraArs }), 0));
+  const deudaInversores = r2(deudas.filter((d) => d.estado === "PENDIENTE" || (d.pagado != null && d.pagado > corte)).reduce((t, d) => t + d.importe, 0));
+  const saldoCuenta = (c: (typeof cuentas)[number]) => r2(c.importe - (pagosCuentas.find((p) => p.cuentaId === c.id)?.total ?? 0));
+  const aCobrar = r2(cuentas.filter((c) => c.tipo === "A_COBRAR").reduce((t, c) => t + Math.max(0, saldoCuenta(c)), 0));
+  const aPagar = r2(cuentas.filter((c) => c.tipo === "A_PAGAR").reduce((t, c) => t + Math.max(0, saldoCuenta(c)), 0));
+  const caja = saldos(movs).total;
+  return patrimonioSalon({ caja, stock, capitalInversores, aCobrar, aPagar, deudaInversores });
+}
+
+/**
+ * HU-8.1: balance del salón en un mes (o en el año, sin mes): la foto al empezar, la foto al
+ * terminar (o hoy) y qué pasó en el medio. Lo que se llevaron los socios no resta del resultado:
+ * es lo que deciden hacer con él.
+ */
+export async function balanceSalon(anio: number, mes?: string) {
+  const hoy = hoyIso();
+  const desde = mes ? `${mes}-01` : `${anio}-01-01`;
+  // Fechas como texto, con cuentas en UTC: así no corre el día según la zona del servidor.
+  const [a, m] = (mes ?? `${anio}-12`).split("-").map(Number);
+  const ultimo = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
+  const hasta = ultimo < hoy ? ultimo : hoy;
+  const diaAntes = new Date(Date.parse(`${desde}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const enCurso = ultimo >= hoy;
+  if (desde > hoy) return null; // un mes que todavía no empezó
+
+  const [inicio, fin, gananciaSalon, movs] = await Promise.all([
+    patrimonioSalonAl(diaAntes),
+    patrimonioSalonAl(hasta),
+    db
+      .select({ total: sql<number>`coalesce(sum(${s.distribuciones.importe}), 0)::float` })
+      .from(s.distribuciones)
+      .innerJoin(s.participes, eq(s.participes.id, s.distribuciones.participeId))
+      .innerJoin(s.liquidaciones, eq(s.liquidaciones.id, s.distribuciones.liquidacionId))
+      .innerJoin(s.operaciones, eq(s.operaciones.id, s.liquidaciones.operacionId))
+      .where(
+        and(
+          eq(s.participes.tipo, "SALON"),
+          eq(s.distribuciones.tipo, "GANANCIA"),
+          inArray(s.operaciones.estado, ["CERRADA", "ENTREGADA"]),
+          gte(s.operaciones.fechaCierre, desde),
+          lte(s.operaciones.fechaCierre, hasta),
+        ),
+      ),
+    db
+      .select({ categoria: s.movimientosCaja.categoria, sentido: s.movimientosCaja.sentido, importe: s.movimientosCaja.importe, rol: s.personas.rol })
+      .from(s.movimientosCaja)
+      .leftJoin(s.personas, eq(s.personas.id, s.movimientosCaja.personaId))
+      .where(and(eq(s.movimientosCaja.anulado, false), gte(s.movimientosCaja.fecha, new Date(`${desde}T00:00:00-03:00`)), lte(s.movimientosCaja.fecha, finDelDia(hasta)))),
+  ]);
+  const suma = (f: (x: (typeof movs)[number]) => boolean) => r2(movs.filter(f).reduce((t, x) => t + (x.sentido === "EGRESO" ? x.importe : -x.importe), 0));
+  return {
+    desde,
+    hasta,
+    diaAntes,
+    enCurso,
+    ...balanceDelSalon({
+      inicio,
+      fin,
+      ganancia: r2(gananciaSalon[0].total),
+      gastos: suma((x) => x.categoria === "GASTO_SALON" || x.categoria === "GASTO_EXTRAORDINARIO"),
+      sueldosEmpleados: suma((x) => x.categoria === "SUELDO" && x.rol !== "SOCIO"),
+      retirosSocios: suma((x) => x.categoria === "RETIRO_SOCIO" || (x.categoria === "SUELDO" && x.rol === "SOCIO")),
+      aportes: -suma((x) => x.categoria === "APORTE" || x.categoria === "INGRESO_EXTRAORDINARIO"),
+    }),
+  };
 }

@@ -4,7 +4,7 @@ import { useActionState, useRef, useState, useTransition } from "react";
 import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
-import { BotonEnviar, Mensaje } from "@/components/ui";
+import { BotonEnviar, Mensaje, ErrorLinea } from "@/components/ui";
 import * as a from "./actions";
 
 function useReset(accion: (r: Resultado, fd: FormData) => Promise<Resultado>) {
@@ -121,7 +121,7 @@ export function FilaParticipe({ p }: { p: { id: number; nombre: string; tipo: st
       )}
       {p.tipo === "SALON" && <input type="hidden" name="activo" value="on" />}
       <BotonEnviar className="btn-secundario">Guardar</BotonEnviar>
-      {r.error && <span className="w-full text-sm text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="w-full text-sm text-aviso-texto" />
     </form>
   );
 }
@@ -419,7 +419,7 @@ export function FilaPersona({ p }: { p: { id: number; nombre: string; rol: "SOCI
         <input type="checkbox" name="activo" defaultChecked={p.activo} className="h-5 w-5" /> Activo
       </label>
       <BotonEnviar className="btn-secundario">Guardar</BotonEnviar>
-      {r.error && <span className="w-full text-sm text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="w-full text-sm text-aviso-texto" />
     </form>
   );
 }

@@ -74,11 +74,11 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
               <Icono nombre="salon" className="size-[18px]" />
             </span>
             Del salón
-            <Ayuda>De la plata que hay en caja, lo que es del salón: se descuenta lo que se les debe a los inversores por autos ya vendidos (su capital y su ganancia). Lo que tienen en autos todavía en stock no se descuenta, porque esa plata no está en la caja sino en el auto.</Ayuda>
+            <Ayuda>De la plata que hay en caja, lo que es del salón: se descuenta lo que se les debe a los inversores (su capital y su ganancia) y a los consignantes (lo pactado) por autos ya vendidos. Es solo plata líquida: en Patrimonio el salón suma además sus autos y lo que le deben, por eso ahí da otro número.</Ayuda>
           </span>
           <span className={`num text-3xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</span>
           <Link href="/caja/saldo/salon" className="text-[13px] text-apagado no-underline after:absolute after:inset-0">
-            {p.deudaInversores === 0 ? "No se le debe nada a los inversores" : `${m(p.deudaInversores)} son de los inversores`} · Ver de dónde sale →
+            {p.ajeno === 0 ? "Toda la caja es del salón" : `${m(p.ajeno)} son de inversores${p.deudaConsignantes ? " y consignantes" : ""}`} · Ver de dónde sale →
           </Link>
         </div>
       </section>

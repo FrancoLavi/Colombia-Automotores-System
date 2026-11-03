@@ -162,13 +162,39 @@ describe("la plata del inversor no es del salón (K9–K11)", () => {
 });
 
 describe("saldos nunca negativos (K13)", () => {
+  const f = (efectivo: number, banco: number, ajena = 0) => ({ efectivo, banco, ajena });
   it("acepta saldos en cero o más", () => {
-    expect(faltaDeFondos({ efectivo: 0, banco: 10 })).toBeNull();
+    expect(faltaDeFondos(f(100, 10), f(0, 10))).toBeNull();
   });
   it("frena si el efectivo queda negativo y sugiere el pase desde el banco", () => {
-    expect(faltaDeFondos({ efectivo: -500, banco: 1000 })).toMatch(/efectivo.*Banco → Efectivo/);
+    expect(faltaDeFondos(f(100, 1000), f(-500, 1000))).toMatch(/efectivo.*Banco → Efectivo/);
   });
   it("frena si el banco queda negativo", () => {
-    expect(faltaDeFondos({ efectivo: 1000, banco: -1 })).toMatch(/banco/);
+    expect(faltaDeFondos(f(1000, 0), f(1000, -1))).toMatch(/banco/);
+  });
+  it("frena si la caja del salón queda negativa aunque haya plata (es de inversores)", () => {
+    // Hay 1.000 en el banco, pero 800 son del inversor: el salón tiene 200.
+    expect(faltaDeFondos(f(0, 1000, 800), f(0, 700, 800))).toMatch(/plata del salón en el banco/);
+    expect(faltaDeFondos(f(0, 1000, 800), f(0, 800, 800))).toBeNull();
+  });
+  it("no frena lo que no empeora un saldo que ya venía negativo (pagarle al inversor)", () => {
+    expect(faltaDeFondos(f(0, 1000, 1500), f(0, 500, 1000))).toBeNull();
+    expect(faltaDeFondos(f(-50, 1000), f(-50, 900))).toBeNull();
+  });
+});
+
+import { balanceDelSalon } from "./caja";
+
+describe("balance del salón en el mes", () => {
+  it("el resultado es la diferencia entre las dos fotos, sin contar lo que se llevaron ni lo que pusieron los socios", () => {
+    // Arrancó con 10 M, ganó 3 M en ventas, gastó 0,5 M y pagó 0,3 M de sueldos: generó 2,2 M.
+    // Los socios se llevaron 1 M y pusieron 0,2 M, así que terminó con 11,4 M.
+    const b = balanceDelSalon({ inicio: 10_000_000, fin: 11_400_000, ganancia: 3_000_000, gastos: 500_000, sueldosEmpleados: 300_000, retirosSocios: 1_000_000, aportes: 200_000 });
+    expect(b.resultado).toBe(2_200_000);
+    expect(b.otros).toBe(0);
+  });
+  it("lo que no se explica va a 'otros' (por ejemplo una seña cobrada de una venta abierta)", () => {
+    const b = balanceDelSalon({ inicio: 0, fin: 600_000, ganancia: 0, gastos: 0, sueldosEmpleados: 0, retirosSocios: 0, aportes: 0 });
+    expect(b.otros).toBe(600_000);
   });
 });

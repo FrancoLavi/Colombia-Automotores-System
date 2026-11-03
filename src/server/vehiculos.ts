@@ -17,7 +17,7 @@ import {
 } from "@/domain/stock";
 
 import { ErrorNegocio } from "./errores";
-import { exigirFondos } from "./fondos";
+import { exigirFondos, fotoFondos } from "./fondos";
 import { obtenerParametros } from "./parametros";
 import { dolarDeHoy } from "./dolar";
 export { ErrorNegocio };
@@ -295,6 +295,7 @@ export type PagoCompra =
 
 export async function crearVehiculo(usuarioId: number, d: DatosVehiculo, pago: PagoCompra, tx?: Tx): Promise<number> {
   const run = async (t: Tx) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     await verificarDominio(t, d.dominio);
     const participeId = await financistaValido(t, d);
     const [v] = await t
@@ -321,7 +322,7 @@ export async function crearVehiculo(usuarioId: number, d: DatosVehiculo, pago: P
           participeId,
           usuarioId,
         });
-        await exigirFondos(t);
+        await exigirFondos(t, antesFondos);
       } else if (pago.modo === "A_PAGAR") {
         const contacto = d.contactoOrigenId ? await t.query.contactos.findFirst({ where: eq(s.contactos.id, d.contactoOrigenId) }) : null;
         await t.insert(s.cuentasPendientes).values({
@@ -548,6 +549,7 @@ async function insertarGasto(
   v: Vehiculo,
   g: { categoriaId: number; fecha: string; descripcion: string | null; importe: number; estado: "PAGADO" | "PENDIENTE"; medio: "EFECTIVO" | "BANCO" },
 ) {
+  const antesFondos = await fotoFondos(t); // K13: para comparar al final
   const vehiculoId = v.id;
   const categoria = await t.query.categoriasGasto.findFirst({ where: eq(s.categoriasGasto.id, g.categoriaId) });
   if (!categoria) throw new ErrorNegocio("Categoría inválida");
@@ -571,7 +573,7 @@ async function insertarGasto(
       })
       .returning();
     movimientoId = m.id;
-    await exigirFondos(t);
+    await exigirFondos(t, antesFondos);
   } else {
     const [c] = await t
       .insert(s.cuentasPendientes)

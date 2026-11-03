@@ -28,7 +28,10 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
   const [cobrarTodas, pagarTodas, inversoresTodos] = await Promise.all([listarCuentas({ tipo: "A_COBRAR" }), listarCuentas({ tipo: "A_PAGAR" }), pendientesPorPagar()]);
   // Filtro por auto: las cuentas que no son de un auto (ej. una deuda del salón) solo se ven sin filtro.
   const aCobrar = cobrarTodas.filter((x) => coincideAuto(x.auto, filtro));
-  const aPagar = pagarTodas.filter((x) => coincideAuto(x.auto, filtro));
+  const aPagarTodo = pagarTodas.filter((x) => coincideAuto(x.auto, filtro));
+  // Los dueños de autos en consignación van aparte, como los inversores: esa plata ya está en la caja.
+  const aConsignantes = aPagarTodo.filter((x) => x.c.origen === "CONSIGNANTE");
+  const aPagar = aPagarTodo.filter((x) => x.c.origen !== "CONSIGNANTE");
   const inversores = inversoresTodos.filter((g) => coincideAuto(g.auto, filtro));
   const { marcas, modelos } = opcionesAuto([...[...cobrarTodas, ...pagarTodas].map((x) => x.auto), ...inversoresTodos.map((g) => g.auto)]);
   const totalInversores = inversores.reduce((a, g) => a + g.d.importe, 0);
@@ -39,7 +42,7 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
     filas.length === 0 ? (
       <p className="p-4 text-sm text-apagado">No hay cuentas {tipo === "A_COBRAR" ? "a cobrar" : "a pagar"}.</p>
     ) : (
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="tabla">
           <thead>
             <tr>
@@ -92,16 +95,17 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
       </FormFiltros>
       {hayFiltroAuto(filtro) && <p className="-mt-2 text-sm text-apagado">Los totales de abajo son solo de los autos filtrados.</p>}
 
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3">
+      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { t: "A cobrar", v: total(aCobrar), href: "#cobrar", tono: "ok" as const, pie: "Entra a la caja cuando se cobra" },
-          { t: "A pagar a terceros", v: total(aPagar), href: "#terceros", tono: "aviso" as const, pie: "Sale de la caja cuando se paga" },
-          { t: "A pagar a inversores", v: totalInversores, href: "#inversores", tono: "aviso" as const, pie: "Ya está en la caja, pero es de ellos" },
+          { t: "A cobrar", v: total(aCobrar), href: "#cobrar", tono: "ok" as const, pie: "Entra a la caja cuando se cobra", icono: "cuenta" as const },
+          { t: "A pagar a inversores", v: totalInversores, href: "#inversores", tono: "aviso" as const, pie: "Ya está en la caja, pero es de ellos", icono: "inversor" as const },
+          { t: "A pagar a consignantes", v: total(aConsignantes), href: "#consignantes", tono: "aviso" as const, pie: "Ya está en la caja, pero es de los dueños", icono: "persona" as const },
+          { t: "A pagar a terceros", v: total(aPagar), href: "#terceros", tono: "aviso" as const, pie: "Sale de la caja cuando se paga", icono: "cuenta" as const },
         ].map((x) => (
           <a key={x.t} href={x.href} className="tarjeta flex flex-col gap-1.5 text-tinta no-underline transition-colors hover:border-tinta">
             <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-apagado">
               <span className={`inline-flex size-8 items-center justify-center rounded-lg ${x.tono === "ok" ? "bg-ok-fondo text-ok-texto" : "bg-aviso-fondo text-aviso-texto"}`}>
-                <Icono nombre={x.t.includes("inversores") ? "inversor" : "cuenta"} className="size-[18px]" />
+                <Icono nombre={x.icono} className="size-[18px]" />
               </span>
               {x.t}
             </span>
@@ -158,6 +162,20 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
             </span>
           </div>
         ))}
+      </section>
+
+      <section id="consignantes" className="tarjeta scroll-mt-4 p-0">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 p-4 pb-2">
+          <h2 className="text-lg font-semibold">
+            A pagar a consignantes por autos vendidos
+            <Ayuda>
+              Al vender un auto en consignación entra todo el precio a la caja, pero lo que pidió el dueño es de él. Lo que se sacó arriba es del salón.
+              Ver todos los consignados en <Link href="/patrimonio/consignaciones">Patrimonio → Consignaciones</Link>.
+            </Ayuda>
+          </h2>
+          <span className="num font-semibold text-aviso-texto">{m(total(aConsignantes))}</span>
+        </div>
+        <Tabla filas={aConsignantes} tipo="A_PAGAR" />
       </section>
 
       <section id="terceros" className="tarjeta scroll-mt-4 p-0">

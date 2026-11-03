@@ -7,6 +7,7 @@ const PESTANAS_CAJA = [
 const PESTANAS_PATRIMONIO = [
   { href: "/patrimonio", texto: "Patrimonio" },
   { href: "/patrimonio/inversores", texto: "Inversores" },
+  { href: "/patrimonio/consignaciones", texto: "Consignaciones" },
 ];
 
 export function NavCaja({ actual }: { actual: string }) {

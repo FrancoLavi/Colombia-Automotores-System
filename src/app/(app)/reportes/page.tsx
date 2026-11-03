@@ -10,7 +10,8 @@ import { IlustracionGanancias, IlustracionIngresosEgresos, IlustracionMovimiento
 import { Icono, InsigniaMovimiento, type NombreIcono } from "@/components/iconos-caja";
 import { FilaEnlace, FormFiltros } from "@/components/filtros";
 import { AutoEnLinea, CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
-import { leerFiltroAuto } from "@/domain/autos";
+import { hayFiltroAuto, leerFiltroAuto } from "@/domain/autos";
+import { r2 } from "@/domain/negocio";
 import { opcionesDeAutos } from "@/server/caja";
 
 export const metadata = { title: "Reportes · Colombia Automotores" };
@@ -22,7 +23,7 @@ const PESTANAS = [
     icono: "inversor",
     porAuto: true,
     bajada:
-      "Lo que ganó el salón y cada inversor con los autos que se vendieron, en el mes en que se cerró cada venta. Del inversor se ve cuánto ya cobró y cuánto falta. El capital que se le devuelve no es ganancia y no aparece.",
+      "Del salón: una foto al empezar y otra al terminar el período, y qué pasó en el medio. De cada inversor: solo su ganancia por los autos vendidos (cuánto cobró y cuánto falta); el capital que se le devuelve no es ganancia.",
   },
   { clave: "personas", texto: "Sueldos y retiros", icono: "persona", porAuto: false, bajada: "Lo que se llevó cada socio y cada empleado: sueldos y retiros. Un aporte resta." },
   { clave: "ventas", texto: "Ventas", icono: "venta", porAuto: true, bajada: "Autos vendidos, cuánto se facturó y cuánto se ganó, y cómo se repartió entre el salón y los inversores." },
@@ -158,11 +159,20 @@ function BarrasMes({ valores, anio, mes, m, color = "bg-acento/70" }: { valores:
 }
 
 async function Ganancias({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
-  const g = await rep.gananciasPorDueno(anio, f);
+  const [g, b] = await Promise.all([rep.gananciasPorDueno(anio, f), rep.balanceSalon(anio, f.mes)]);
+  const inversores = g.porDueno.filter((d) => d.participe.tipo !== "SALON");
   return (
     <>
-      <section aria-label="Ganancia de cada uno" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {g.porDueno.map((d) => {
+      {b && <BalanceSalon b={b} m={m} filtroAuto={hayFiltroAuto(f.auto ?? {})} />}
+
+      <h2 className="flex items-center gap-2 pt-1 text-lg font-semibold">
+        <Icono nombre="inversor" /> Inversores: su ganancia
+      </h2>
+      {inversores.length === 0 && (
+        <p className="tarjeta text-sm text-apagado">Ningún inversor tuvo ventas cerradas en este período.</p>
+      )}
+      <section aria-label="Ganancia de cada inversor" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {inversores.map((d) => {
           const esSalon = d.participe.tipo === "SALON";
           const pct = d.total > 0 ? Math.min(100, Math.round((d.cobrado / d.total) * 100)) : 0;
           return (
@@ -296,6 +306,86 @@ async function Ganancias({ anio, f, m }: { anio: number; f: Filtros; m: Fmt }) {
         )}
       </section>
     </>
+  );
+}
+
+type Balance = NonNullable<Awaited<ReturnType<typeof rep.balanceSalon>>>;
+
+/**
+ * El salón en el período: la foto al empezar, la foto al terminar y qué pasó en el medio.
+ * El resultado es lo que generó el mes; después los socios deciden si lo dejan o lo retiran.
+ */
+function BalanceSalon({ b, m, filtroAuto }: { b: Balance; m: Fmt; filtroAuto: boolean }) {
+  const Fila = ({ signo, texto, detalle, v, fuerte = false }: { signo: string; texto: string; detalle?: string; v: number; fuerte?: boolean }) => (
+    <div className={`flex items-center justify-between gap-3 py-2.5 text-sm ${fuerte ? "border-t-2 border-tinta" : "border-t border-linea"}`}>
+      <span className="flex items-center gap-2.5">
+        <span
+          aria-hidden="true"
+          className={`inline-flex size-7 shrink-0 items-center justify-center rounded-full font-bold ${signo === "+" ? "bg-ok-fondo text-ok-texto" : signo === "−" ? "bg-aviso-fondo text-aviso-texto" : "bg-info-fondo text-info-texto"}`}
+        >
+          {signo}
+        </span>
+        <span>
+          {fuerte ? <b>{texto}</b> : texto}
+          {detalle && <span className="block text-[13px] text-apagado">{detalle}</span>}
+        </span>
+      </span>
+      <span className={`num ${fuerte ? "text-lg font-bold" : ""} ${v < 0 ? "text-aviso-texto" : ""}`}>{m(v === 0 ? 0 : v)}</span>
+    </div>
+  );
+  const dif = r2(b.fin - b.inicio);
+  return (
+    <section className="tarjeta flex flex-col gap-3 border-tinta">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex size-10 items-center justify-center rounded-xl bg-ok-fondo text-ok-texto">
+          <Icono nombre="salon" />
+        </span>
+        <div>
+          <h2 className="text-lg font-semibold leading-tight">Salón: balance del período</h2>
+          <span className="text-[13px] text-apagado">Una foto de lo que era del salón al empezar y otra al terminar{b.enCurso ? " (hoy, porque el período sigue)" : ""}.</span>
+        </div>
+      </div>
+
+      {/* Las dos fotos */}
+      <div className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+        <div className="rounded-xl bg-fondo p-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Al empezar · {fecha(b.diaAntes)}</span>
+          <div className="num text-2xl">{m(b.inicio)}</div>
+        </div>
+        <div className="flex flex-col items-center text-sm">
+          <Icono nombre="flecha" className="size-6 max-sm:rotate-90" />
+          <span className={`num font-semibold ${dif < 0 ? "text-aviso-texto" : "text-ok-texto"}`}>
+            {dif >= 0 ? "+" : ""}
+            {m(dif)}
+          </span>
+        </div>
+        <div className="rounded-xl bg-fondo p-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">
+            {b.enCurso ? "Hoy" : "Al terminar"} · {fecha(b.hasta)}
+          </span>
+          <div className="num text-2xl">{m(b.fin)}</div>
+        </div>
+      </div>
+
+      <div className="flex flex-col">
+        <Fila signo="=" texto="Lo que era del salón al empezar" v={b.inicio} />
+        <Fila signo="+" texto="Ganancia de las ventas cerradas" detalle="La parte del salón de cada venta (R3)" v={b.ganancia} />
+        <Fila signo="−" texto="Gastos del salón" detalle="Gastos del salón y gastos extraordinarios" v={-b.gastos} />
+        <Fila signo="−" texto="Sueldos de empleados" v={-b.sueldosEmpleados} />
+        {b.otros !== 0 && <Fila signo="±" texto="Otros" detalle="Deudas o créditos cargados a mano, señas de ventas todavía abiertas y ajustes" v={b.otros} />}
+        <Fila signo="=" texto="Resultado del período" detalle="Lo que generó el salón, antes de que los socios decidan qué hacer con eso" v={b.resultado} fuerte />
+        <Fila signo="−" texto="Lo que se llevaron los socios" detalle="Sueldos de socios y retiros" v={-b.retirosSocios} />
+        {b.aportes !== 0 && <Fila signo="+" texto="Lo que pusieron los socios" detalle="Aportes e ingresos extraordinarios" v={b.aportes} />}
+        <Fila signo="=" texto={b.enCurso ? "Lo que es del salón hoy" : "Lo que era del salón al terminar"} v={b.fin} fuerte />
+      </div>
+
+      <p className="rounded-lg bg-panel px-3 py-2 text-sm text-suave">
+        Con el resultado, los socios deciden: dejarlo en la caja para el mes que viene o llevárselo como sueldo o retiro (
+        <Link href="/caja">Caja → Registrar movimiento</Link>). La foto cuenta la caja, los autos al costo y las cuentas; ver{" "}
+        <Link href="/patrimonio/desglose/salon">qué la compone hoy</Link>.
+        {filtroAuto && " El balance es de todo el salón: no se filtra por auto."}
+      </p>
+    </section>
   );
 }
 

@@ -60,16 +60,36 @@ export function saldos(movs: MovimientoSaldo[]) {
   return { efectivo: r2(s.EFECTIVO), banco: r2(s.BANCO), total: r2(s.EFECTIVO + s.BANCO) };
 }
 
+/** Cómo está la plata: por medio y lo que de toda la caja es del salón (K11). */
+export interface Fondos {
+  efectivo: number;
+  banco: number;
+  /** Plata de la caja que es de inversores y consignantes por autos ya vendidos. */
+  ajena: number;
+}
+
+const pesosAR = (n: number) => `$ ${n.toLocaleString("es-AR")}`;
+
 /**
- * K13: ni el efectivo ni el banco pueden quedar en negativo: no puede salir plata que no hay.
- * Devuelve el error para mostrar, o null si los dos saldos quedan en cero o más.
+ * K13: no puede salir plata que no hay. Compara cómo estaba la caja antes de la operación y cómo
+ * queda: frena si el efectivo, el banco o la caja del salón (caja − lo ajeno, K11) quedan en
+ * negativo **por culpa de esta operación**. Si ya venían en negativo (datos viejos), no frena lo
+ * que no los empeora, como pagarle a un inversor lo que se le debe.
+ * Devuelve el error para mostrar, o null si se puede.
  */
-export function faltaDeFondos(s: { efectivo: number; banco: number }, moneda: (n: number) => string = (n) => `$ ${n.toLocaleString("es-AR")}`): string | null {
-  if (s.efectivo < 0) {
-    return `No alcanza el efectivo: faltarían ${moneda(-s.efectivo)}. Si la plata sale del banco, cargalo desde Banco o registrá primero la extracción (pase Banco → Efectivo).`;
+export function faltaDeFondos(antes: Fondos, despues: Fondos, moneda: (n: number) => string = pesosAR): string | null {
+  const empeora = (a: number, d: number) => d < 0 && d < a - 0.005;
+  if (empeora(antes.efectivo, despues.efectivo)) {
+    return `No alcanza el efectivo: hay ${moneda(Math.max(0, antes.efectivo))} y faltarían ${moneda(-despues.efectivo)}. Si la plata sale del banco, elegí Banco o registrá primero la extracción (pase Banco → Efectivo).`;
   }
-  if (s.banco < 0) {
-    return `No alcanza la plata del banco: faltarían ${moneda(-s.banco)}. Si la plata sale del efectivo, cargalo desde Efectivo o registrá primero el depósito (pase Efectivo → Banco).`;
+  if (empeora(antes.banco, despues.banco)) {
+    return `No alcanza la plata del banco: hay ${moneda(Math.max(0, antes.banco))} y faltarían ${moneda(-despues.banco)}. Si la plata sale del efectivo, elegí Efectivo o registrá primero el depósito (pase Efectivo → Banco).`;
+  }
+  const salonAntes = r2(antes.efectivo + antes.banco - antes.ajena);
+  const salonDespues = r2(despues.efectivo + despues.banco - despues.ajena);
+  if (empeora(salonAntes, salonDespues)) {
+    const medio = despues.efectivo < antes.efectivo ? "el efectivo" : despues.banco < antes.banco ? "el banco" : "la caja";
+    return `No alcanza la plata del salón en ${medio}: de la caja, ${moneda(antes.ajena)} son de inversores o consignantes por autos vendidos y al salón le quedan ${moneda(Math.max(0, salonAntes))}. Faltarían ${moneda(-salonDespues)}. Primero hay que cobrar lo pendiente o que los socios pongan plata (Aporte).`;
   }
   return null;
 }
@@ -211,4 +231,35 @@ export function patrimonioSalon(p: PiezasPatrimonio): number {
  */
 export function cajaDelSalon(cajaTotal: number, deudaInversores: number): number {
   return r2(cajaTotal - deudaInversores);
+}
+
+// ---------- Balance del salón en un período (HU-8.1) ----------
+
+export interface PiezasBalance {
+  /** Patrimonio del salón al empezar el período (K11). */
+  inicio: number;
+  /** Patrimonio del salón al terminar el período (o hoy, si no terminó). */
+  fin: number;
+  /** Parte del salón en las ventas cerradas en el período (R3). */
+  ganancia: number;
+  /** Gastos del salón y extraordinarios. */
+  gastos: number;
+  /** Sueldos de empleados (los de los socios van con los retiros). */
+  sueldosEmpleados: number;
+  /** Lo que se llevaron los socios: retiros y sueldos de socios. */
+  retirosSocios: number;
+  /** Lo que pusieron los socios: aportes e ingresos extraordinarios. */
+  aportes: number;
+}
+
+/**
+ * La foto del salón al empezar y al terminar el período, y qué pasó en el medio.
+ * El **resultado** es lo que generó el período antes de que los socios decidan qué hacer con eso:
+ * fin − inicio + lo que se llevaron − lo que pusieron. "Otros" es lo que no se explica con lo
+ * anterior (señas cobradas de ventas todavía abiertas, ajustes): así la cuenta siempre cierra.
+ */
+export function balanceDelSalon(p: PiezasBalance) {
+  const resultado = r2(p.fin - p.inicio + p.retirosSocios - p.aportes);
+  const otros = r2(resultado - (p.ganancia - p.gastos - p.sueldosEmpleados));
+  return { ...p, resultado, otros };
 }

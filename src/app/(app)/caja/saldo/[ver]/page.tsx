@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { Ayuda } from "@/components/ui";
 import { FilaEnlace, FormFiltros } from "@/components/filtros";
-import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { AutoEnLinea, CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
 import { leerFiltroAuto, opcionesAuto } from "@/domain/autos";
 import { vistaMoneda } from "@/lib/moneda";
 import { leerNumero } from "@/lib/form";
-import { detalleSaldo, patrimonio, pendientesPorPagar } from "@/server/caja";
+import { detalleSaldo, listarCuentas, patrimonio, pendientesPorPagar } from "@/server/caja";
 import { fecha } from "@/lib/formato";
 import { r2 } from "@/domain/negocio";
 import { esEditable, ETIQUETA_CATEGORIA, type FiltroDetalle, type Medio } from "@/domain/caja";
@@ -275,45 +275,86 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
 }
 
 async function DelSalon({ m }: { m: Moneda }) {
-  const [p, pendientes] = await Promise.all([patrimonio(), pendientesPorPagar()]);
+  const [p, pendientes, cuentas] = await Promise.all([patrimonio(), pendientesPorPagar(), listarCuentas({ tipo: "A_PAGAR" })]);
   const deInversores = pendientes.filter((x) => x.participe.tipo === "INVERSOR");
+  const deConsignantes = cuentas.filter((x) => x.c.origen === "CONSIGNANTE");
+  const c = p.conciliacion;
 
   return (
-    <section className="tarjeta flex flex-col">
-      <div className="flex items-center justify-between gap-2 py-2.5 text-sm">
-        <span>
-          <b>Total en caja</b> <span className="text-apagado">· efectivo + banco</span> · <Link href="/caja/saldo/total">ver movimientos</Link>
-        </span>
-        <span className="num font-semibold">{m(p.caja.total)}</span>
-      </div>
-      {deInversores.length === 0 && (
-        <p className="border-t border-linea py-2.5 text-sm text-apagado">No se les debe nada a los inversores: toda la plata de la caja es del salón.</p>
-      )}
-      {deInversores.map((g) => (
-        <div key={g.d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-linea py-2.5 text-sm">
+    <>
+      <section className="tarjeta flex flex-col">
+        <div className="flex items-center justify-between gap-2 py-2.5 text-sm">
           <span>
-            Menos {g.d.tipo === "CAPITAL" ? "devolución de capital" : "ganancia"} pendiente a <b>{g.participe.nombre}</b> ·{" "}
-            <Link href={`/ventas/${g.operacionId}`} className="num">
-              {g.numero}
-            </Link>{" "}
-            <span className="text-apagado">
-              {g.auto.marca} {g.auto.modelo} {g.auto.anio}
-            </span>
+            <b>Total en caja</b> <span className="text-apagado">· efectivo + banco</span> · <Link href="/caja/saldo/total">ver movimientos</Link>
           </span>
-          <span className={`num ${g.d.importe < 0 ? "text-ok-texto" : "text-aviso-texto"}`}>
-            {g.d.importe < 0 ? "+ " : "− "}
-            {m(Math.abs(g.d.importe))}
-          </span>
+          <span className="num font-semibold">{m(p.caja.total)}</span>
         </div>
-      ))}
-      <div className="flex items-center justify-between gap-2 border-t-2 border-tinta py-2.5">
-        <b>Del salón</b>
-        <b className={`num text-xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</b>
-      </div>
-      <p className="pt-1 text-[13px] text-apagado">
-        Lo que los inversores tienen en autos todavía en stock no se descuenta: esa plata no está en la caja, está en el auto. Se ve en{" "}
-        <Link href="/patrimonio">Patrimonio</Link>. Una línea en verde es una pérdida que el inversor tiene que reintegrar.
-      </p>
-    </section>
+        {deInversores.length + deConsignantes.length === 0 && (
+          <p className="border-t border-linea py-2.5 text-sm text-apagado">No se les debe nada a inversores ni a consignantes: toda la plata de la caja es del salón.</p>
+        )}
+        {deInversores.map((g) => (
+          <div key={g.d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-linea py-2.5 text-sm">
+            <span className="flex flex-wrap items-center gap-x-1.5">
+              Menos {g.d.tipo === "CAPITAL" ? "devolución de capital" : "ganancia"} pendiente a <b>{g.participe.nombre}</b> ·
+              <Link href={`/ventas/${g.operacionId}`} className="num">
+                {g.numero}
+              </Link>
+              <AutoEnLinea auto={g.auto} anio />
+            </span>
+            <span className={`num ${g.d.importe < 0 ? "text-ok-texto" : "text-aviso-texto"}`}>
+              {g.d.importe < 0 ? "+ " : "− "}
+              {m(Math.abs(g.d.importe))}
+            </span>
+          </div>
+        ))}
+        {deConsignantes.map(({ c: x, auto }) => (
+          <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-linea py-2.5 text-sm">
+            <span className="flex flex-wrap items-center gap-x-1.5">
+              Menos lo pactado con <b>{x.contraparte}</b> (consignación)
+              {auto?.id && <AutoEnLinea auto={auto} />}
+            </span>
+            <span className="num text-aviso-texto">− {m(x.saldo)}</span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-2 border-t-2 border-tinta py-2.5">
+          <b>Del salón</b>
+          <b className={`num text-xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</b>
+        </div>
+        <p className="pt-1 text-[13px] text-apagado">
+          Lo que los inversores tienen en autos todavía en stock no se descuenta: esa plata no está en la caja, está en el auto. Una línea en verde es una
+          pérdida que el inversor tiene que reintegrar.
+        </p>
+        {p.cajaSalon < 0 && (
+          <p role="status" className="mt-2 rounded-lg bg-aviso-fondo px-3 py-2 text-sm text-aviso-texto">
+            <b>La caja del salón está en negativo:</b> se usó plata de inversores o consignantes (por ejemplo, para comprar autos del salón) o todavía no
+            se cobró algo de una venta. Desde ahora el sistema no deja hacer pagos que la bajen más (K13).
+          </p>
+        )}
+      </section>
+
+      <section className="tarjeta flex flex-col">
+        <h2 className="text-lg font-semibold">¿Por qué en Patrimonio el salón tiene otro número?</h2>
+        <p className="pb-2 text-sm text-suave">Porque Patrimonio cuenta además lo que el salón tiene en autos y lo que le deben, y resta lo que debe:</p>
+        {[
+          { t: "Caja del salón (lo de arriba)", v: c.cajaSalon, s: c.cajaSalon < 0 ? "−" : "+" },
+          { t: "Lo que el salón tiene en autos en stock", v: c.autos, s: "+" },
+          { t: "Lo que le deben (a cobrar)", v: c.aCobrar, s: "+" },
+          { t: "Lo que debe a terceros (a pagar)", v: c.aPagar, s: "−" },
+        ].map((x) => (
+          <div key={x.t} className="flex items-center justify-between gap-2 border-t border-linea py-2.5 text-sm">
+            <span>{x.t}</span>
+            <span className={`num ${x.s === "−" ? "text-aviso-texto" : ""}`}>
+              {x.s} {m(Math.abs(x.v))}
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-2 border-t-2 border-tinta py-2.5">
+          <Link href="/patrimonio/desglose/salon" className="font-semibold">
+            Del salón en Patrimonio →
+          </Link>
+          <b className="num text-xl">{m(p.salon)}</b>
+        </div>
+      </section>
+    </>
   );
 }

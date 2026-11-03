@@ -4,7 +4,7 @@ import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { Dialogo } from "@/components/dialogo";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
-import { BotonEnviar, Mensaje } from "@/components/ui";
+import { BotonEnviar, Mensaje, ErrorLinea } from "@/components/ui";
 import { ETIQUETA_ACTIVIDAD, ETIQUETA_ORIGEN, type Origen, type TipoActividad } from "@/domain/contactos";
 import { hoyIso, ZONA } from "@/lib/formato";
 import * as a from "./actions";
@@ -260,7 +260,7 @@ export function FormCompletar({ actividadId, contactoId }: { actividadId: number
         <input name="nota" required={!actividadId} placeholder="Qué pasó" />
       </label>
       <BotonEnviar className="btn-secundario">Hecho</BotonEnviar>
-      {r.error && <span className="w-full text-sm text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="w-full text-sm text-aviso-texto" />
     </form>
   );
 }
@@ -580,7 +580,7 @@ export function AccionesEtapa({ id, opciones }: { id: number; opciones: ("DATO" 
           {e === "DESCARTADO" ? "Descartar" : "Reactivar"}
         </button>
       ))}
-      {r.error && <span className="text-sm text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="text-sm text-aviso-texto" />
     </form>
   );
 }

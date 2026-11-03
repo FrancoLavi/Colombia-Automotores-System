@@ -119,38 +119,61 @@ function Total({ d, m }: { d: Desglose; m: Moneda }) {
 
 function Salon({ d, m }: { d: Desglose; m: Moneda }) {
   const { p } = d;
+  const c = p.conciliacion;
   const deInversores = d.autos.filter((a) => a.capitalInversor > 0);
+  const consignantes = d.aPagar.filter((x) => x.c.origen === "CONSIGNANTE");
+  const terceros = d.aPagar.filter((x) => x.c.origen !== "CONSIGNANTE");
   return (
-    <section className="tarjeta flex flex-col">
-      <h2 className="pb-2 text-lg font-semibold">La cuenta</h2>
-      <Linea icono="total" texto="Patrimonio total" href="/patrimonio/desglose/total" importe={p.total} m={m} />
-      {deInversores.map((a) => (
-        <Linea
-          key={a.id}
-          icono="auto"
-          signo="−"
-          texto={<>Lo que puso {a.dueno} en el <AutoEnLinea auto={a} anio /></>}
-          detalle="Sigue en stock: es suyo hasta que se venda. Los gastos los puso el salón y quedan del salón."
-          href={`/stock/${a.id}`}
-          importe={a.capitalInversor}
-          m={m}
-        />
-      ))}
-      {d.deInversores.map((g) => (
-        <Linea
-          key={g.d.id}
-          icono="inversor"
-          signo={g.d.importe < 0 ? "+" : "−"}
-          texto={`${g.d.tipo === "CAPITAL" ? "Capital a devolverle" : "Ganancia a pagarle"} a ${g.participe.nombre}`}
-          detalle={<>Venta {g.numero} · <AutoEnLinea auto={g.auto} anio /></>}
-          href={`/ventas/${g.operacionId}`}
-          importe={g.d.importe}
-          m={m}
-        />
-      ))}
-      {deInversores.length === 0 && d.deInversores.length === 0 && <p className="border-t border-linea py-2.5 text-sm text-apagado">No hay nada de inversores: todo es del salón.</p>}
-      <Resultado texto="Del salón" importe={p.salon} m={m} />
-    </section>
+    <>
+      {/* Por qué Caja y Patrimonio dicen distinto "del salón": se parte de la caja y se suma lo demás. */}
+      <section className="tarjeta flex flex-col">
+        <h2 className="text-lg font-semibold">De la caja del salón al patrimonio del salón</h2>
+        <p className="pb-2 text-sm text-suave">
+          En Caja, “del salón” es solo la plata líquida. Acá se le suma lo que el salón tiene en autos y lo que le deben, y se resta lo que debe.
+        </p>
+        <Linea icono="salon" texto="Caja del salón" detalle="Efectivo + banco, menos lo que es de inversores y consignantes" href="/caja/saldo/salon" importe={c.cajaSalon} m={m} signo={c.cajaSalon < 0 ? "−" : "+"} />
+        <Linea icono="auto" texto="Lo que el salón tiene en autos en stock" detalle="Sus autos al costo, más los gastos que les puso a los autos de los inversores" href="/patrimonio/desglose/autos" importe={c.autos} m={m} />
+        <Linea icono="cuenta" texto={`A cobrar (${d.aCobrar.length})`} detalle="Créditos y saldos que todavía no entraron" href="/caja/cuentas#cobrar" importe={c.aCobrar} m={m} />
+        <Linea icono="cuenta" texto={`A pagar a terceros (${terceros.length})`} detalle="Vendedores, proveedores, gastos a pagar" href="/caja/cuentas#terceros" importe={c.aPagar} m={m} signo="−" />
+        <Resultado texto="Del salón" importe={p.salon} m={m} />
+      </section>
+
+      <section className="tarjeta flex flex-col">
+        <h2 className="pb-2 text-lg font-semibold">Visto al revés: del total, lo que no es del salón</h2>
+        <Linea icono="total" texto="Patrimonio total" href="/patrimonio/desglose/total" importe={p.total} m={m} />
+        {deInversores.map((a) => (
+          <Linea
+            key={a.id}
+            icono="auto"
+            signo="−"
+            texto={<>Lo que puso {a.dueno} en el <AutoEnLinea auto={a} anio /></>}
+            detalle="Sigue en stock: es suyo hasta que se venda. Los gastos los puso el salón y quedan del salón."
+            href={`/stock/${a.id}`}
+            importe={a.capitalInversor}
+            m={m}
+          />
+        ))}
+        {d.deInversores.map((g) => (
+          <Linea
+            key={g.d.id}
+            icono="inversor"
+            signo={g.d.importe < 0 ? "+" : "−"}
+            texto={`${g.d.tipo === "CAPITAL" ? "Capital a devolverle" : "Ganancia a pagarle"} a ${g.participe.nombre}`}
+            detalle={<>Venta {g.numero} · <AutoEnLinea auto={g.auto} anio /></>}
+            href={`/ventas/${g.operacionId}`}
+            importe={g.d.importe}
+            m={m}
+          />
+        ))}
+        {deInversores.length === 0 && d.deInversores.length === 0 && <p className="border-t border-linea py-2.5 text-sm text-apagado">No hay nada de inversores.</p>}
+        <Resultado texto="Del salón" importe={p.salon} m={m} />
+        {consignantes.length > 0 && (
+          <p className="pt-2 text-[13px] text-apagado">
+            Lo que se les debe a los consignantes ({m(p.deudaConsignantes)}) ya está restado en el total, como cuenta a pagar.
+          </p>
+        )}
+      </section>
+    </>
   );
 }
 

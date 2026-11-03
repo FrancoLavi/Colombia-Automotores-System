@@ -28,7 +28,8 @@ import { numeroOperacion } from "@/domain/ventas";
 import { coincideAuto, opcionesAuto, patentePlana, textoPlano, type FiltroAuto } from "@/domain/autos";
 import { ErrorNegocio } from "./errores";
 import { cobrarPagoPendiente } from "./ventas";
-import { exigirFondos } from "./fondos";
+import { exigirFondos, fotoFondos } from "./fondos";
+import { listarStock } from "./vehiculos";
 
 const ENTIDAD = "caja";
 type Categoria = (typeof s.movimientosCaja.$inferSelect)["categoria"];
@@ -142,6 +143,7 @@ export async function editarMovimiento(
 ) {
   if (!(d.importe > 0)) throw new ErrorNegocio("El importe debe ser mayor a cero");
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const m = await t.query.movimientosCaja.findFirst({ where: eq(s.movimientosCaja.id, id) });
     if (!m) throw new ErrorNegocio("El movimiento no existe");
     if (m.anulado) throw new ErrorNegocio("El movimiento está anulado");
@@ -153,7 +155,7 @@ export async function editarMovimiento(
     if (exigePersona(m.categoria) && !d.personaId) throw new ErrorNegocio("Indicá a quién corresponde el sueldo");
     const personaId = (PIDEN_PERSONA as readonly string[]).includes(m.categoria) ? d.personaId : null;
     const [despues] = await t.update(s.movimientosCaja).set({ ...d, personaId }).where(eq(s.movimientosCaja.id, id)).returning();
-    await exigirFondos(t);
+    await exigirFondos(t, antesFondos);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", antes: m, despues, descripcion: `Movimiento corregido: ${d.concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
   });
 }
@@ -168,11 +170,12 @@ export async function crearMovimiento(
   const sentido = MANUALES[d.categoria] ?? d.sentido;
   if (!sentido) throw new ErrorNegocio("Indicá si el ajuste es ingreso o egreso");
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const [m] = await t
       .insert(s.movimientosCaja)
       .values({ fecha: d.fecha, sentido, medio: d.medio, categoria: d.categoria, importe: d.importe, concepto: d.concepto, participeId: d.participeId, personaId, usuarioId })
       .returning();
-    await exigirFondos(t);
+    await exigirFondos(t, antesFondos);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: m.id, accion: "CREAR", despues: m, descripcion: `${ETIQUETA_CATEGORIA[d.categoria]}: ${d.concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
   });
 }
@@ -183,9 +186,10 @@ export async function transferenciaInterna(usuarioId: number, d: { desde: Medio;
   const hacia: Medio = d.desde === "EFECTIVO" ? "BANCO" : "EFECTIVO";
   const concepto = d.concepto ?? (d.desde === "EFECTIVO" ? "Depósito en banco" : "Extracción del banco");
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const [a] = await t.insert(s.movimientosCaja).values({ fecha: d.fecha, sentido: "EGRESO", medio: d.desde, categoria: "TRANSFERENCIA_INTERNA", importe: d.importe, concepto, usuarioId }).returning();
     await t.insert(s.movimientosCaja).values({ fecha: d.fecha, sentido: "INGRESO", medio: hacia, categoria: "TRANSFERENCIA_INTERNA", importe: d.importe, concepto, usuarioId });
-    await exigirFondos(t);
+    await exigirFondos(t, antesFondos);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: a.id, accion: "CREAR", descripcion: `${concepto} · $ ${d.importe.toLocaleString("es-AR")}` });
   });
 }
@@ -193,6 +197,7 @@ export async function transferenciaInterna(usuarioId: number, d: { desde: Medio;
 /** Solo se anulan movimientos cargados a mano; los demás se corrigen desde su origen (gasto, venta, cuenta). */
 export async function anularMovimiento(usuarioId: number, id: number, motivo: string) {
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const m = await t.query.movimientosCaja.findFirst({ where: eq(s.movimientosCaja.id, id) });
     if (!m) throw new ErrorNegocio("El movimiento no existe");
     if (m.anulado) return;
@@ -207,7 +212,7 @@ export async function anularMovimiento(usuarioId: number, id: number, motivo: st
       ids.push(...par.filter((p) => p.id !== id && p.sentido !== m.sentido).slice(0, 1).map((p) => p.id));
     }
     await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: motivo }).where(inArray(s.movimientosCaja.id, ids));
-    await exigirFondos(t);
+    await exigirFondos(t, antesFondos);
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "ELIMINAR", antes: m, descripcion: `Anulado: ${m.concepto} (${motivo})` });
   });
 }
@@ -244,6 +249,7 @@ export async function pendientesPorPagar() {
  */
 export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio) {
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const d = await t.query.distribuciones.findFirst({ where: eq(s.distribuciones.id, id) });
     if (!d) throw new ErrorNegocio("No existe");
     if (d.estado === "PAGADO") throw new ErrorNegocio("Ya está pagado");
@@ -270,7 +276,7 @@ export async function pagarDistribucion(usuarioId: number, id: number, medio: Me
       })
       .returning();
     await t.update(s.distribuciones).set({ estado: "PAGADO", movimientoId: m.id }).where(eq(s.distribuciones.id, id));
-    await exigirFondos(t);
+    await exigirFondos(t, antesFondos);
     await auditar(t, {
       usuarioId, entidad: "operacion", entidadId: op.id, accion: "MODIFICAR",
       descripcion: `${reintegro ? "Reintegro" : capital ? "Devolución de capital" : "Pago de ganancia"} a ${p.nombre}: $ ${Math.abs(d.importe).toLocaleString("es-AR")}`,
@@ -325,6 +331,7 @@ export async function registrarPagoCuenta(usuarioId: number, cuentaId: number, i
   }
 
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     let categoria = CATEGORIA_CUENTA[c.tipo][c.origen];
     const gasto = c.origen === "GASTO" ? await t.query.gastos.findFirst({ where: eq(s.gastos.cuentaPendienteId, cuentaId) }) : null;
     if (gasto?.extraordinario) categoria = "GASTO_EXTRAORDINARIO";
@@ -344,7 +351,7 @@ export async function registrarPagoCuenta(usuarioId: number, cuentaId: number, i
       .returning();
     const saldo = r2(c.saldo - importe);
     await t.update(s.cuentasPendientes).set({ saldo, estado: saldo === 0 ? "CANCELADA" : "ABIERTA" }).where(eq(s.cuentasPendientes.id, c.id));
-    await exigirFondos(t);
+    await exigirFondos(t, antesFondos);
     if (gasto && saldo === 0) await t.update(s.gastos).set({ estado: "PAGADO", movimientoId: m.id }).where(eq(s.gastos.id, gasto.id));
     await auditar(t, {
       usuarioId, entidad: ENTIDAD, entidadId: m.id, accion: "CREAR",
@@ -398,7 +405,7 @@ export async function patrimonio() {
   const [movs, autos, cuentas, pendientes] = await Promise.all([
     db.select({ sentido: s.movimientosCaja.sentido, medio: s.movimientosCaja.medio, importe: s.movimientosCaja.importe, anulado: s.movimientosCaja.anulado }).from(s.movimientosCaja),
     stockConCosto(),
-    db.select({ tipo: s.cuentasPendientes.tipo, saldo: s.cuentasPendientes.saldo }).from(s.cuentasPendientes).where(eq(s.cuentasPendientes.estado, "ABIERTA")),
+    db.select({ tipo: s.cuentasPendientes.tipo, origen: s.cuentasPendientes.origen, saldo: s.cuentasPendientes.saldo }).from(s.cuentasPendientes).where(eq(s.cuentasPendientes.estado, "ABIERTA")),
     pendientesPorPagar(),
   ]);
   const caja = saldos(movs);
@@ -412,11 +419,16 @@ export async function patrimonio() {
   // Capital y ganancias de ventas ya cerradas que todavía no se les pagaron: plata que está en
   // la caja y no es del salón (K11).
   const deudaInversores = r2(pendientes.filter((p) => p.participe.tipo === "INVERSOR").reduce((a, p) => a + p.d.importe, 0));
+  // Lo que se le debe al dueño de un auto en consignación ya vendido: también es plata de la caja
+  // que no es del salón (K11, S7). Es una cuenta a pagar, así que en el patrimonio ya resta.
+  const deudaConsignantes = r2(cuentas.filter((c) => c.tipo === "A_PAGAR" && c.origen === "CONSIGNANTE").reduce((a, c) => a + c.saldo, 0));
   const piezas = { caja: caja.total, stock, capitalInversores, aCobrar, aPagar, deudaInversores };
+  const cajaSalon = cajaDelSalon(caja.total, deudaInversores + deudaConsignantes);
+  const salon = patrimonioSalon(piezas);
   return {
     caja,
     /** K11: de la caja, lo que es del salón. */
-    cajaSalon: cajaDelSalon(caja.total, deudaInversores),
+    cajaSalon,
     stock,
     stockInversores: capitalInversores,
     stockSalon: r2(stock - capitalInversores),
@@ -425,10 +437,19 @@ export async function patrimonio() {
     aCobrar,
     aPagar,
     deudaInversores,
+    deudaConsignantes,
+    /** Plata de la caja que no es del salón: de inversores y consignantes por autos vendidos. */
+    ajeno: r2(deudaInversores + deudaConsignantes),
     /** K3: todo lo que hay, sea del salón o de los inversores. */
     total: patrimonioTotal(piezas),
     /** K11: de ese total, lo que es del salón. */
-    salon: patrimonioSalon(piezas),
+    salon,
+    /**
+     * Por qué la caja del salón y el patrimonio del salón dan distinto: el patrimonio suma además
+     * lo que el salón tiene en autos y lo que le deben, y resta lo que debe a terceros.
+     * cajaSalon + autos + aCobrar − aPagar = salon.
+     */
+    conciliacion: { cajaSalon, autos: r2(stock - capitalInversores), aCobrar, aPagar: r2(aPagar - deudaConsignantes) },
   };
 }
 
@@ -497,4 +518,71 @@ export async function subcajas() {
       ventas: new Set(d.map((x) => x.liquidacionId)).size,
     };
   });
+}
+
+// ---------- Consignaciones ----------
+
+/**
+ * S7: autos que dejan clientes en consignación, agrupados por dueño. El dueño pide un monto
+ * (el pactado); al vender se le debe eso y todo lo que se saque arriba es del salón. No es un
+ * inversor: no pone plata ni cobra ganancia, pero como él, tiene plata en la caja hasta que se le paga.
+ */
+export async function consignaciones() {
+  const { vehiculos } = await listarStock({ estado: "TODOS" });
+  const autos = vehiculos.filter((v) => v.tipoIngreso === "CONSIGNACION" && v.estado !== "RECHAZADO");
+  const ids = autos.map((a) => a.id);
+  const [duenos, cuentas, ventas] = ids.length
+    ? await Promise.all([
+        db
+          .select({ id: s.contactos.id, nombre: s.contactos.nombre, apellido: s.contactos.apellido, telefono: s.contactos.telefono })
+          .from(s.contactos)
+          .where(inArray(s.contactos.id, autos.map((a) => a.contactoOrigenId).filter((x): x is number => x != null))),
+        db
+          .select()
+          .from(s.cuentasPendientes)
+          .where(and(eq(s.cuentasPendientes.origen, "CONSIGNANTE"), inArray(s.cuentasPendientes.vehiculoId, ids))),
+        db
+          .select({ vehiculoId: s.operaciones.vehiculoId, operacionId: s.operaciones.id, fechaCierre: s.operaciones.fechaCierre, precio: s.liquidaciones.precio, ganancia: s.liquidaciones.ganancia })
+          .from(s.operaciones)
+          .innerJoin(s.liquidaciones, eq(s.liquidaciones.operacionId, s.operaciones.id))
+          .where(and(inArray(s.operaciones.vehiculoId, ids), inArray(s.operaciones.estado, ["CERRADA", "ENTREGADA"]))),
+      ])
+    : [[], [], []];
+  const filas = autos.map((a) => {
+    const venta = ventas.find((v) => v.vehiculoId === a.id) ?? null;
+    const cuenta = cuentas.find((c) => c.vehiculoId === a.id) ?? null;
+    const gastos = r2(a.costo - a.valorCompraArs);
+    return {
+      auto: a,
+      /** Lo que pidió el dueño (monto pactado). */
+      pide: a.valorCompraArs,
+      gastos,
+      /** Precio publicado (o sugerido) mientras está en stock; el de venta, si se vendió. */
+      precio: venta?.precio ?? a.precio,
+      /** Lo que le queda al salón: todo lo que se saque arriba de lo pedido, menos los gastos. */
+      paraElSalon: venta ? venta.ganancia : r2(a.precio - a.costo),
+      venta: venta ? { ...venta, numero: numeroOperacion(venta.operacionId) } : null,
+      /** Lo que todavía se le debe al dueño (si se vendió y no se le pagó todo). */
+      seLeDebe: cuenta && cuenta.estado === "ABIERTA" ? cuenta.saldo : 0,
+      cuentaId: cuenta?.estado === "ABIERTA" ? cuenta.id : null,
+      pagado: cuenta ? r2(cuenta.importe - cuenta.saldo) : 0,
+    };
+  });
+  const grupos = new Map<string, { dueno: (typeof duenos)[number] | null; filas: typeof filas }>();
+  for (const f of filas) {
+    const clave = String(f.auto.contactoOrigenId ?? "sin");
+    if (!grupos.has(clave)) grupos.set(clave, { dueno: duenos.find((d) => d.id === f.auto.contactoOrigenId) ?? null, filas: [] });
+    grupos.get(clave)!.filas.push(f);
+  }
+  const enStock = filas.filter((f) => !f.venta && ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"].includes(f.auto.estado));
+  return {
+    grupos: [...grupos.values()],
+    totales: {
+      enStock: enStock.length,
+      pedidoEnStock: r2(enStock.reduce((t, f) => t + f.pide, 0)),
+      paraElSalonEnStock: r2(enStock.reduce((t, f) => t + f.paraElSalon, 0)),
+      seLesDebe: r2(filas.reduce((t, f) => t + f.seLeDebe, 0)),
+      ganadoConVendidos: r2(filas.filter((f) => f.venta).reduce((t, f) => t + f.paraElSalon, 0)),
+    },
+  };
 }

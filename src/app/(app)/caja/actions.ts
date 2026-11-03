@@ -13,7 +13,8 @@ const MEDIOS = ["EFECTIVO", "BANCO"] as const;
 function revalidar() {
   // "layout": también el detalle de cada saldo y la ficha de cada movimiento.
   revalidatePath("/caja", "layout");
-  for (const p of ["/patrimonio", "/patrimonio/inversores", "/reportes", "/", "/ventas"]) revalidatePath(p);
+  revalidatePath("/patrimonio", "layout");
+  for (const p of ["/reportes", "/", "/ventas"]) revalidatePath(p);
 }
 
 /** Fecha del formulario con la hora actual (para ordenar bien los movimientos del día). */
