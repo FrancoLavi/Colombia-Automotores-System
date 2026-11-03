@@ -75,7 +75,7 @@ export async function anularAccion(id: number, _: Resultado, fd: FormData): Prom
 export async function pagarGananciaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"), texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null);
+    await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
     return "Pagado.";
   });
   revalidar();

@@ -202,13 +202,11 @@ export function FormPagarGanancia({
   id,
   importe,
   etiqueta,
-  socios,
   capital = false,
 }: {
   id: number;
   importe: number;
   etiqueta: string;
-  socios?: Persona[];
   /** K10: devolución del capital del inversor (no es ganancia). */
   capital?: boolean;
 }) {
@@ -216,16 +214,6 @@ export function FormPagarGanancia({
   if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Pagado</span>;
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
-      {socios && socios.length > 0 && importe > 0 && (
-        <select name="personaId" aria-label="Socio que retira" defaultValue="" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
-          <option value="">Queda en el salón (sin retirar a nombre de nadie)</option>
-          {socios.map((p) => (
-            <option key={p.id} value={p.id}>
-              Lo retira {p.nombre}
-            </option>
-          ))}
-        </select>
-      )}
       <select name="medio" aria-label="Medio" defaultValue="EFECTIVO" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>

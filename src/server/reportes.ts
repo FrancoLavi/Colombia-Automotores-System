@@ -49,6 +49,29 @@ export async function gananciasPagadasPorMes(anio: number) {
         lte(s.movimientosCaja.fecha, hastaTs),
       ),
     );
+  // K5: la ganancia del salón no se paga con un movimiento: queda en su caja al cerrar la venta.
+  // Cuenta en el mes del cierre. (Las ventas viejas la tienen pagada con un retiro: van arriba.)
+  const delSalon = await db
+    .select({
+      fechaCierre: s.operaciones.fechaCierre,
+      importe: s.distribuciones.importe,
+      participe: { id: s.participes.id, nombre: s.participes.nombre, tipo: s.participes.tipo },
+    })
+    .from(s.distribuciones)
+    .innerJoin(s.participes, eq(s.participes.id, s.distribuciones.participeId))
+    .innerJoin(s.liquidaciones, eq(s.liquidaciones.id, s.distribuciones.liquidacionId))
+    .innerJoin(s.operaciones, eq(s.operaciones.id, s.liquidaciones.operacionId))
+    .where(
+      and(
+        eq(s.participes.tipo, "SALON"),
+        eq(s.distribuciones.estado, "PAGADO"),
+        eq(s.distribuciones.tipo, "GANANCIA"),
+        sql`${s.distribuciones.movimientoId} is null`,
+        gte(s.operaciones.fechaCierre, `${anio}-01-01`),
+        lte(s.operaciones.fechaCierre, `${anio}-12-31`),
+      ),
+    );
+  filas.push(...delSalon.map((x) => ({ fecha: new Date(`${x.fechaCierre}T12:00:00`), importe: x.importe, participe: x.participe })));
   const participes = [...new Map(filas.map((f) => [f.participe.id, f.participe])).values()].sort((a, b) => (a.tipo === "SALON" ? -1 : b.tipo === "SALON" ? 1 : a.nombre.localeCompare(b.nombre)));
   const meses = mesesDelAnio(anio).map((periodo) => {
     const delMes = filas.filter((f) => periodoDe(f.fecha) === periodo);

@@ -189,9 +189,13 @@ export async function anularMovimiento(usuarioId: number, id: number, motivo: st
   });
 }
 
-// ---------- Lo que queda por pagar de cada venta ----------
+// ---------- Lo que se les debe a los inversores por autos vendidos ----------
 
-/** K5/K10: por venta cerrada, lo que falta pagar: la ganancia de cada uno y el capital del inversor. */
+/**
+ * K5/K10: por venta cerrada, lo que falta pagarle al inversor: su capital y su ganancia.
+ * La parte del salón no figura: queda en su caja y los socios la retiran como movimiento (K5).
+ * (Ventas cerradas antes de esa regla pueden tener la parte del salón marcada como pendiente: tampoco se muestra.)
+ */
 export async function pendientesPorPagar() {
   const filas = await db
     .select({
@@ -206,21 +210,24 @@ export async function pendientesPorPagar() {
     .innerJoin(s.liquidaciones, eq(s.liquidaciones.id, s.distribuciones.liquidacionId))
     .innerJoin(s.operaciones, eq(s.operaciones.id, s.liquidaciones.operacionId))
     .innerJoin(s.vehiculos, eq(s.vehiculos.id, s.operaciones.vehiculoId))
-    .where(eq(s.distribuciones.estado, "PENDIENTE"))
+    .where(and(eq(s.distribuciones.estado, "PENDIENTE"), eq(s.participes.tipo, "INVERSOR")))
     .orderBy(asc(s.operaciones.fechaCierre));
   return filas.map((x) => ({ ...x, numero: numeroOperacion(x.operacionId) }));
 }
 
 /**
- * K5/K10: paga lo que quedó de una venta: la ganancia de cada uno o el capital del inversor.
- * Si la parte es negativa (venta con pérdida), el participe la reintegra.
+ * K5/K10: le paga al inversor lo que quedó de una venta: su ganancia o su capital.
+ * Si la parte es negativa (venta con pérdida), el inversor la reintegra.
  */
-export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio, personaId: number | null = null) {
+export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio) {
   await db.transaction(async (t) => {
     const d = await t.query.distribuciones.findFirst({ where: eq(s.distribuciones.id, id) });
     if (!d) throw new ErrorNegocio("No existe");
     if (d.estado === "PAGADO") throw new ErrorNegocio("Ya está pagado");
     const p = (await t.query.participes.findFirst({ where: eq(s.participes.id, d.participeId) }))!;
+    if (p.tipo !== "INVERSOR") {
+      throw new ErrorNegocio("La ganancia del salón ya está en la caja. Si un socio se lleva plata, cargalo en Caja → Registrar movimiento → Retiro de un socio");
+    }
     const liq = (await t.query.liquidaciones.findFirst({ where: eq(s.liquidaciones.id, d.liquidacionId) }))!;
     const op = (await t.query.operaciones.findFirst({ where: eq(s.operaciones.id, liq.operacionId) }))!;
     const reintegro = d.importe < 0;
@@ -230,14 +237,12 @@ export async function pagarDistribucion(usuarioId: number, id: number, medio: Me
       .values({
         sentido: reintegro ? "INGRESO" : "EGRESO",
         medio,
-        categoria: reintegro ? "AJUSTE" : capital ? "DEVOLUCION_CAPITAL" : p.tipo === "INVERSOR" ? "PAGO_INVERSOR" : "RETIRO_SOCIO",
+        categoria: reintegro ? "AJUSTE" : capital ? "DEVOLUCION_CAPITAL" : "PAGO_INVERSOR",
         importe: Math.abs(d.importe),
-        concepto: `${reintegro ? "Reintegro de pérdida" : capital ? "Devolución de capital" : p.tipo === "INVERSOR" ? "Ganancia" : "Retiro ganancia salón"} ${numeroOperacion(op.id)} · ${p.nombre}`,
+        concepto: `${reintegro ? "Reintegro de pérdida" : capital ? "Devolución de capital" : "Ganancia"} ${numeroOperacion(op.id)} · ${p.nombre}`,
         operacionId: op.id,
         vehiculoId: op.vehiculoId,
         participeId: p.id,
-        // Si es la parte del salón, quién de los socios la retira.
-        personaId: p.tipo === "SALON" ? personaId : null,
         usuarioId,
       })
       .returning();
@@ -452,7 +457,8 @@ export async function subcajas() {
       .filter((a) => a.enPatrimonio && a.participeId === p.id)
       .map((a) => ({ ...a, invertido: esInversor ? a.capitalInversor : a.costo }));
     const d = dist.filter((x) => x.participeId === p.id);
-    const pendientes = d.filter((x) => x.estado === "PENDIENTE");
+    // K5: lo del salón nunca queda pendiente (está en su caja), aunque venga de una venta vieja.
+    const pendientes = esInversor ? d.filter((x) => x.estado === "PENDIENTE") : [];
     const suma = (xs: typeof d) => r2(xs.reduce((a, x) => a + x.importe, 0));
     return {
       participe: p,
@@ -462,7 +468,7 @@ export async function subcajas() {
       /** K10: capital de autos ya vendidos que todavía no se le devolvió. */
       capitalPorCobrar: suma(pendientes.filter((x) => x.tipo === "CAPITAL")),
       pendiente: suma(pendientes.filter((x) => x.tipo === "GANANCIA")),
-      cobrado: suma(d.filter((x) => x.estado === "PAGADO" && x.tipo === "GANANCIA")),
+      cobrado: suma(d.filter((x) => (x.estado === "PAGADO" || !esInversor) && x.tipo === "GANANCIA")),
       ventas: new Set(d.map((x) => x.liquidacionId)).size,
     };
   });

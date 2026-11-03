@@ -11,7 +11,7 @@ import { fecha, hoyIso } from "@/lib/formato";
 import { ETIQUETA_CATEGORIA, type Medio } from "@/domain/caja";
 import { IlustracionCaja, Vacio } from "@/components/ilustraciones";
 import { NavCaja } from "./nav";
-import { FormAnular, FormMovimiento, FormPagarGanancia } from "./formularios";
+import { FormAnular, FormMovimiento } from "./formularios";
 
 export const metadata = { title: "Caja · Colombia Automotores" };
 
@@ -31,7 +31,6 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
     datosFormulario(),
     listarPersonas(true),
   ]);
-  const socios = personas.filter((p) => p.rol === "SOCIO");
 
   return (
     <div className="flex flex-col gap-5">
@@ -86,46 +85,26 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
         </p>
       )}
 
-      <section className="tarjeta flex flex-col">
-        <h2 className="pb-2 text-lg font-semibold">
-          Pendiente de pagar por ventas cerradas
-          <Ayuda>
-            Ganancia: la parte de lo que se ganó con la venta que le toca a cada uno. Capital: lo que el inversor puso para comprar el auto, que se le devuelve
-            aparte; no es ganancia de nadie. Si se llevó un usado de esa venta, ya viene descontado.
-          </Ayuda>
-        </h2>
-        {pendientes.length === 0 && (
-          <p className="text-sm text-apagado">No hay nada pendiente. Al cerrar una venta queda la ganancia de cada uno y, si el auto era de un inversor, su capital.</p>
-        )}
-        {pendientes.map((g) => (
-          <div key={g.d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-linea py-2.5 text-sm">
-            <span className="min-w-48">
-              <b>{g.participe.nombre}</b> ·{" "}
-              <Link href={`/ventas/${g.operacionId}`} className="num">
-                {g.numero}
-              </Link>{" "}
-              <span className="text-apagado">
-                {g.auto.marca} {g.auto.modelo} {g.auto.anio}
-              </span>
+      {/* Lo que se les debe a los inversores se gestiona en Cuentas pendientes, junto con el resto de las deudas. */}
+      {pendientes.length > 0 && (
+        <Link
+          href="/caja/cuentas#inversores"
+          className="tarjeta flex flex-wrap items-center justify-between gap-3 border-aviso-texto/40 bg-aviso-fondo/40 text-tinta no-underline hover:border-aviso-texto"
+        >
+          <span className="flex items-center gap-3">
+            <span className="inline-flex size-10 items-center justify-center rounded-full bg-aviso-fondo text-aviso-texto">
+              <Icono nombre="inversor" />
             </span>
-            <span className="flex items-center gap-2">
-              <span className={`chip ${g.d.tipo === "CAPITAL" ? "bg-info-fondo text-info-texto" : "bg-ok-fondo text-ok-texto"}`}>
-                {g.d.tipo === "CAPITAL" ? "Devolución de capital" : "Ganancia"}
-              </span>
-              <span className={`num ${g.d.importe < 0 ? "text-aviso-texto" : ""}`}>{m(g.d.importe)}</span>
+            <span>
+              <b>
+                {pendientes.length === 1 ? "Hay 1 pago pendiente" : `Hay ${pendientes.length} pagos pendientes`} a inversores por autos vendidos
+              </b>
+              <span className="block text-sm text-apagado">Esa plata está en la caja pero no es del salón. Se paga desde Cuentas pendientes.</span>
             </span>
-            <div className="w-full">
-              <FormPagarGanancia
-                id={g.d.id}
-                importe={g.d.importe}
-                capital={g.d.tipo === "CAPITAL"}
-                etiqueta={g.d.tipo === "CAPITAL" ? "Devolver" : g.participe.tipo === "INVERSOR" ? "Pagar" : "Retirar"}
-                socios={g.participe.tipo === "SALON" ? socios : undefined}
-              />
-            </div>
-          </div>
-        ))}
-      </section>
+          </span>
+          <span className="num font-semibold text-aviso-texto">{m(p.deudaInversores)} →</span>
+        </Link>
+      )}
 
       <details className="tarjeta">
         <summary className="cursor-pointer text-lg font-semibold">+ Registrar movimiento</summary>

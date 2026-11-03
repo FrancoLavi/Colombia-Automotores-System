@@ -32,13 +32,17 @@ describe("personas, ganancias pagadas e históricos", () => {
     expect(movimientos.find((m) => m.m.concepto === "Publicidad")!.m.personaId).toBeNull();
   });
 
-  it("venta cerrada: el salón retira su parte a nombre de un socio y el inversor cobra la suya", async () => {
+  it("venta cerrada: la parte del salón queda en su caja, el socio la retira como movimiento y el inversor cobra la suya", async () => {
     const auto = await autoDisponible("AA111AA");
     const cliente = await con.crearContacto(U, { ...baseContacto, nombre: "Marcos", telefono: "2915550142" });
     const op = await ven.crearOperacion(U, { contactoId: cliente, vehiculoId: auto, precioVenta: 12_000_000, observaciones: null });
     await ven.agregarPago(U, op, { tipo: "TRANSFERENCIA", importe: 12_000_000, fecha: hoyIso(), medio: "BANCO", banco: null, vence: null, cobradoAhora: true });
     await ven.cerrarOperacion(U, op, null);
-    for (const g of await caja.pendientesPorPagar()) await caja.pagarDistribucion(U, g.d.id, "BANCO", g.participe.tipo === "SALON" ? bruno : null);
+    // K5: solo queda pendiente lo del inversor; la parte del salón no se "paga".
+    const pendientes = await caja.pendientesPorPagar();
+    expect(pendientes.every((g) => g.participe.tipo === "INVERSOR")).toBe(true);
+    for (const g of pendientes) await caja.pagarDistribucion(U, g.d.id, "BANCO");
+    await caja.crearMovimiento(U, { categoria: "RETIRO_SOCIO", sentido: null, medio: "BANCO", importe: 1_250_000, concepto: "Retiro ganancia V-0001", fecha: new Date(), participeId: null, personaId: bruno });
 
     const g = await rep.gananciasPagadasPorMes(anio);
     const deEsteMes = g.meses.find((m) => m.periodo === mes)!;

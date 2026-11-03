@@ -426,6 +426,9 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
           participeId: x.destino === "INVERSOR" ? financista.id : salon.id,
           tipo: x.tipo,
           importe: x.importe,
+          // K5: la parte del salón ya está en su caja; no queda pendiente. Lo que se lleva cada socio
+          // se registra aparte, como retiro. Solo queda pendiente lo que se les debe a los inversores.
+          estado: x.destino === "INVERSOR" ? ("PENDIENTE" as const) : ("PAGADO" as const),
         })),
       );
     }

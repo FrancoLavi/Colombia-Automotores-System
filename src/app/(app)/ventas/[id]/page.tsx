@@ -349,10 +349,20 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             </div>
             {f.distribuciones.length > 0 && (
               <p className="text-xs text-apagado">
+                {/* K5: la parte del salón queda en su caja al cerrar; solo lo del inversor se paga aparte. */}
                 {f.distribuciones
-                  .map((d) => `${d.participe} (${d.d.tipo === "CAPITAL" ? "capital" : "ganancia"}): ${d.d.estado === "PAGADO" ? "pagado" : "pendiente de pago"}`)
-                  .join(" · ")}{" "}
-                — se paga desde Caja.
+                  .map((d) =>
+                    d.tipo === "SALON"
+                      ? `${d.participe} (ganancia): quedó en la caja del salón`
+                      : `${d.participe} (${d.d.tipo === "CAPITAL" ? "capital" : "ganancia"}): ${d.d.estado === "PAGADO" ? "pagado" : "pendiente de pago"}`,
+                  )
+                  .join(" · ")}
+                {f.distribuciones.some((d) => d.tipo !== "SALON" && d.d.estado !== "PAGADO") && (
+                  <>
+                    {" "}
+                    — se paga desde <Link href="/caja/cuentas#inversores">Cuentas pendientes</Link>.
+                  </>
+                )}
               </p>
             )}
             {f.usd && (
