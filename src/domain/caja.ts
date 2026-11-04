@@ -95,6 +95,27 @@ export function faltaDeFondos(antes: Fondos, despues: Fondos, moneda: (n: number
 }
 
 /**
+ * K14: con qué medio conviene pagar un egreso. El formulario lo deja preseleccionado; el que
+ * paga siempre puede cambiarlo.
+ *
+ * Por defecto efectivo, que es como opera el salón. Pero si el efectivo no alcanza y el banco sí,
+ * sugiere el banco: desde K13 pagar de donde no hay ni siquiera se puede, así que sin esto el que
+ * paga se come un rechazo y tiene que adivinar con qué medio reintentar.
+ *
+ * Mira solo los dos medios. La caja del salón (K11) no depende del medio que se elija: si lo que
+ * falta es esa, K13 frena igual y elegir banco no ayuda.
+ *
+ * Un importe negativo es un reintegro: entra plata, no hay nada que cubrir.
+ */
+export function medioSugerido(saldos: { efectivo: number; banco: number }, importe: number): Medio {
+  if (importe <= 0) return "EFECTIVO";
+  if (saldos.efectivo >= importe) return "EFECTIVO";
+  if (saldos.banco >= importe) return "BANCO";
+  // No alcanza en ninguno: el menos malo, para que el rojo quede donde ya estaba.
+  return saldos.banco > saldos.efectivo ? "BANCO" : "EFECTIVO";
+}
+
+/**
  * Para seguir de dónde sale un saldo: los movimientos en orden, cada uno con cómo queda el saldo
  * después de él. Los anulados se muestran pero no lo mueven. El último saldo es el de la tarjeta.
  */

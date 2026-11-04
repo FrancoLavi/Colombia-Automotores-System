@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
-import { listarCuentas, pendientesPorPagar, ultimosCobrosYPagos } from "@/server/caja";
+import { listarCuentas, pendientesPorPagar, saldosActuales, ultimosCobrosYPagos } from "@/server/caja";
 import { fecha, hoyIso } from "@/lib/formato";
 import { NavCaja } from "../nav";
 import { FormCuenta, FormPagarGanancia, FormPagoCuenta } from "../formularios";
@@ -25,11 +25,12 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
   await requerirUsuario();
   const { m } = await vistaMoneda();
   const filtro = leerFiltroAuto(await searchParams);
-  const [cobrarTodas, pagarTodas, inversoresTodos, recientes] = await Promise.all([
+  const [cobrarTodas, pagarTodas, inversoresTodos, recientes, saldos] = await Promise.all([
     listarCuentas({ tipo: "A_COBRAR" }),
     listarCuentas({ tipo: "A_PAGAR" }),
     pendientesPorPagar(),
     ultimosCobrosYPagos(),
+    saldosActuales(),
   ]);
   // Filtro por auto: las cuentas que no son de un auto (ej. una deuda del salón) solo se ven sin filtro.
   const aCobrar = cobrarTodas.filter((x) => coincideAuto(x.auto, filtro));
@@ -75,7 +76,7 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
                   {c.saldo !== c.importe && <span className="block text-xs text-apagado">de {m(c.importe)}</span>}
                 </td>
                 <td>
-                  <FormPagoCuenta id={c.id} saldo={c.saldo} tipo={c.tipo} deVenta={c.origen === "CREDITO_BANCARIO" || (c.origen === "MANUAL" && c.operacionId != null)} />
+                  <FormPagoCuenta id={c.id} saldo={c.saldo} tipo={c.tipo} deVenta={c.origen === "CREDITO_BANCARIO" || (c.origen === "MANUAL" && c.operacionId != null)} saldos={saldos} />
                 </td>
               </tr>
             ))}
@@ -163,7 +164,7 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
             </span>
             <span className="flex flex-wrap items-center justify-end gap-2">
               <span className={`num font-semibold ${g.d.importe < 0 ? "text-ok-texto" : ""}`}>{m(g.d.importe)}</span>
-              <FormPagarGanancia id={g.d.id} importe={g.d.importe} capital={g.d.tipo === "CAPITAL"} etiqueta={g.d.tipo === "CAPITAL" ? "Devolver" : "Pagar"} />
+              <FormPagarGanancia id={g.d.id} importe={g.d.importe} capital={g.d.tipo === "CAPITAL"} etiqueta={g.d.tipo === "CAPITAL" ? "Devolver" : "Pagar"} saldos={saldos} />
             </span>
           </div>
         ))}

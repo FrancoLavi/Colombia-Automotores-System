@@ -80,6 +80,14 @@ export async function movimientos(f: FiltrosMovimientos) {
 }
 
 /** Marcas y modelos de todos los autos, para sugerir en los filtros. */
+/** K1: saldo de cada medio, para las pantallas que solo necesitan eso. */
+export async function saldosActuales() {
+  const movs = await db
+    .select({ sentido: s.movimientosCaja.sentido, medio: s.movimientosCaja.medio, importe: s.movimientosCaja.importe, anulado: s.movimientosCaja.anulado })
+    .from(s.movimientosCaja);
+  return saldos(movs);
+}
+
 export async function opcionesDeAutos() {
   return opcionesAuto(await db.selectDistinct({ marca: s.vehiculos.marca, modelo: s.vehiculos.modelo, dominio: s.vehiculos.dominio }).from(s.vehiculos));
 }

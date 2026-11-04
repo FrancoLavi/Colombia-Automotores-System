@@ -198,3 +198,47 @@ describe("balance del salón en el mes", () => {
     expect(b.otros).toBe(600_000);
   });
 });
+
+import { medioSugerido } from "./caja";
+
+describe("medio sugerido para pagar (K14)", () => {
+  it("efectivo cuando alcanza: es como opera el salón", () => {
+    expect(medioSugerido({ efectivo: 5_000_000, banco: 1_000_000 }, 3_000_000)).toBe("EFECTIVO");
+    expect(medioSugerido({ efectivo: 3_000_000, banco: 0 }, 3_000_000)).toBe("EFECTIVO"); // justo
+  });
+
+  it("banco cuando el efectivo no alcanza", () => {
+    expect(medioSugerido({ efectivo: 1_000_000, banco: 50_000_000 }, 3_000_000)).toBe("BANCO");
+  });
+
+  it("el caso real: efectivo en rojo y la plata en el banco", () => {
+    expect(medioSugerido({ efectivo: -144_107_201.52, banco: 151_600_000 }, 16_500_000)).toBe("BANCO");
+  });
+
+  it("si no alcanza en ninguno, el que está menos mal", () => {
+    expect(medioSugerido({ efectivo: -10_000_000, banco: 500_000 }, 3_000_000)).toBe("BANCO");
+    expect(medioSugerido({ efectivo: 500_000, banco: -10_000_000 }, 3_000_000)).toBe("EFECTIVO");
+  });
+
+  it("un reintegro entra, así que no hay nada que cubrir", () => {
+    expect(medioSugerido({ efectivo: -144_000_000, banco: 0 }, -500_000)).toBe("EFECTIVO");
+  });
+
+  it("sugiere el medio que K13 acepta, y el otro lo habría rechazado", () => {
+    // La sugerencia y la validación tienen que estar de acuerdo, si no el que paga se come un
+    // error y tiene que adivinar. El efectivo no alcanza pero el banco sí, y al salón le sobra.
+    const fondos = { efectivo: -10_000_000, banco: 100_000_000, ajena: 0 };
+    const importe = 16_500_000;
+    expect(medioSugerido(fondos, importe)).toBe("BANCO");
+    expect(faltaDeFondos(fondos, { ...fondos, banco: fondos.banco - importe })).toBeNull();
+    expect(faltaDeFondos(fondos, { ...fondos, efectivo: fondos.efectivo - importe })).toContain("No alcanza el efectivo");
+  });
+
+  it("si lo que falta es la plata del salón, ningún medio salva: eso lo decide K13", () => {
+    // Los saldos reales de hoy: entre los dos medios hay $ 7.492.798, así que pagar 16,5 M se
+    // rechaza se elija lo que se elija. medioSugerido no promete que el pago vaya a entrar.
+    const fondos = { efectivo: -144_107_201.52, banco: 151_600_000, ajena: 0 };
+    expect(medioSugerido(fondos, 16_500_000)).toBe("BANCO");
+    expect(faltaDeFondos(fondos, { ...fondos, banco: fondos.banco - 16_500_000 })).toContain("No alcanza la plata del salón");
+  });
+});

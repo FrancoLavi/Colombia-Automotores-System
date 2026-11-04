@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
-import { consignaciones } from "@/server/caja";
+import { consignaciones, saldosActuales } from "@/server/caja";
 import { fecha, nombreContacto } from "@/lib/formato";
 import { ChipEstado, Ayuda } from "@/components/ui";
 import { TdAuto, ThAuto } from "@/components/auto";
@@ -14,7 +14,7 @@ export const metadata = { title: "Consignaciones · Colombia Automotores" };
 
 export default async function ConsignacionesPage() {
   await requerirUsuario();
-  const [{ m }, c] = await Promise.all([vistaMoneda(), consignaciones()]);
+  const [{ m }, c, saldos] = await Promise.all([vistaMoneda(), consignaciones(), saldosActuales()]);
   const t = c.totales;
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -130,7 +130,7 @@ export default async function ConsignacionesPage() {
                       ) : f.cuentaId ? (
                         <span className="flex flex-col gap-1">
                           <span className="num text-sm font-semibold text-aviso-texto">Se le debe {m(f.seLeDebe)}</span>
-                          <FormPagoCuenta id={f.cuentaId} saldo={f.seLeDebe} tipo="A_PAGAR" deVenta={false} />
+                          <FormPagoCuenta id={f.cuentaId} saldo={f.seLeDebe} tipo="A_PAGAR" deVenta={false} saldos={saldos} />
                         </span>
                       ) : (
                         <span className="chip bg-ok-fondo text-ok-texto">Pagado {m(f.pagado)}</span>
