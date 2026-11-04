@@ -6,6 +6,7 @@ import { db, schema as s } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { enviarMail, urlApp, type Mail } from "@/lib/mail";
 import {
+  COSTO_BCRYPT,
   MAX_PEDIDOS_RECUPERACION_HORA,
   minutosBloqueado,
   problemaPassword,
@@ -114,7 +115,7 @@ export async function restablecerPassword(token: string, nueva: string, repetida
   if (problema) throw new ErrorNegocio(problema);
   const v = await recuperacionVigente(token, ahora);
   if (!v) throw new ErrorNegocio("El link venció o ya se usó. Pedí uno nuevo.");
-  const passwordHash = await bcrypt.hash(nueva, 10);
+  const passwordHash = await bcrypt.hash(nueva, COSTO_BCRYPT);
   return db.transaction(async (t) => {
     await t.update(s.recuperaciones).set({ usadoEn: ahora }).where(and(eq(s.recuperaciones.usuarioId, v.u.id), isNull(s.recuperaciones.usadoEn)));
     const [u] = await t

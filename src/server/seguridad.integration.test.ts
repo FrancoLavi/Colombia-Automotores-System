@@ -14,6 +14,8 @@ let id = 0;
 const usuario = async () => (await db.query.usuarios.findFirst({ where: eq(s.usuarios.id, id) }))!;
 
 beforeAll(async () => {
+  // El 10 es a propósito y no se cambia a COSTO_BCRYPT: así este usuario arranca con un hash
+  // del costo viejo y los tests prueban que esas contraseñas siguen validando.
   const [u] = await db.insert(s.usuarios).values({ nombre: "Ana", email: EMAIL, passwordHash: await bcrypt.hash("clave-vieja-1", 10) }).returning();
   id = u.id;
 });

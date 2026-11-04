@@ -14,6 +14,18 @@ export const VENCE_RECUPERACION_MIN = 30;
 export const MAX_PEDIDOS_RECUPERACION_HORA = 3;
 export const LARGO_MINIMO_PASSWORD = 8;
 
+/**
+ * Costo de bcrypt al hashear una contraseña. Es un exponente: cada punto duplica el trabajo,
+ * así que 12 tarda unos 400 ms contra los ~100 ms de 10. Para quien ingresa es imperceptible;
+ * para quien se robó la tabla `usuarios` y prueba contraseñas a lo bruto, es cuatro veces más
+ * lento para siempre.
+ *
+ * El costo queda guardado dentro del propio hash, así que subirlo no invalida nada: los
+ * usuarios con hashes de costo 10 siguen entrando, y la contraseña nace con el costo nuevo
+ * recién cuando se la cambian o se crea el usuario.
+ */
+export const COSTO_BCRYPT = 12;
+
 /** Segundos desde epoch, como en los JWT. */
 export const ahoraS = (d: Date = new Date()) => Math.floor(d.getTime() / 1000);
 
