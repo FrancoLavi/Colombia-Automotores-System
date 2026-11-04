@@ -242,3 +242,46 @@ describe("medio sugerido para pagar (K14)", () => {
     expect(faltaDeFondos(fondos, { ...fondos, banco: fondos.banco - 16_500_000 })).toContain("No alcanza la plata del salón");
   });
 });
+
+import { deudaConConsignante, efectoCambioFinancista, gastosDelDueno } from "./caja";
+
+describe("quién paga cada gasto del auto (R8)", () => {
+  const gastos = [
+    { importe: 100_000, extraordinario: false, pagadoPor: "SALON" as const },
+    { importe: 250_000, extraordinario: false, pagadoPor: "DUENO" as const },
+    { importe: 40_000, extraordinario: true, pagadoPor: "DUENO" as const },
+  ];
+
+  it("al dueño solo se le cuentan los gastos que pagó él, sin los extraordinarios", () => {
+    expect(gastosDelDueno(gastos)).toBe(250_000);
+  });
+
+  it("los gastos del inversor suman a su capital; los del salón no", () => {
+    const auto = { tipoIngreso: "COMPRA" as const, financista: "INVERSOR" as const, valorCompraArs: 10_000_000 };
+    expect(capitalDelInversor({ ...auto, gastosDelDueno: gastosDelDueno(gastos) })).toBe(10_250_000);
+    expect(capitalDelInversor({ ...auto, financista: "SALON", gastosDelDueno: 250_000 })).toBe(0);
+  });
+
+  it("al consignante se le debe lo pactado más lo que puso en gastos", () => {
+    expect(deudaConConsignante(8_000_000, 250_000)).toBe(8_250_000);
+  });
+});
+
+describe("cambio de quién financia (K15)", () => {
+  const base = { puesto: 16_500_000, permutaPendiente: false, correccion: false };
+
+  it("del salón a un inversor: el inversor le devuelve al salón lo que puso", () => {
+    expect(efectoCambioFinancista({ ...base, de: "SALON", a: "INVERSOR" })).toEqual({ sentido: "INGRESO", importe: 16_500_000 });
+  });
+
+  it("de un inversor al salón: el salón le devuelve el capital al inversor", () => {
+    expect(efectoCambioFinancista({ ...base, de: "INVERSOR", a: "SALON" })).toEqual({ sentido: "EGRESO", importe: 16_500_000 });
+  });
+
+  it("entre inversores, una corrección o una permuta de una venta abierta no mueven la caja", () => {
+    expect(efectoCambioFinancista({ ...base, de: "INVERSOR", a: "INVERSOR" })).toBeNull();
+    expect(efectoCambioFinancista({ ...base, de: "SALON", a: "INVERSOR", correccion: true })).toBeNull();
+    expect(efectoCambioFinancista({ ...base, de: "SALON", a: "INVERSOR", permutaPendiente: true })).toBeNull();
+    expect(efectoCambioFinancista({ ...base, puesto: 0, de: "SALON", a: "INVERSOR" })).toBeNull();
+  });
+});

@@ -58,7 +58,10 @@ export default async function MiInversionPage() {
                 <span>
                   {a.marca} {a.modelo} {a.anio} <span className="text-apagado">· {ETIQUETA_ESTADO[a.estado].toLowerCase()}</span>
                 </span>
-                <span className="num">{pesos(a.invertido)}</span>
+                <span className="num text-right">
+                  {pesos(a.invertido)}
+                  {a.gastosDelDueno > 0 && <span className="block text-xs text-apagado">incluye {pesos(a.gastosDelDueno)} de gastos que pagaste</span>}
+                </span>
               </div>
             ))}
           </section>

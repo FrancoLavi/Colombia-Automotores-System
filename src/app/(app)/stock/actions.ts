@@ -65,7 +65,12 @@ export async function crearVehiculoAccion(_: Resultado, fd: FormData): Promise<R
 
 export async function editarVehiculoAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
-  const r = await ejecutar(() => svc.actualizarVehiculo(u.id, id, datosVehiculo(fd)));
+  // K15: si cambia quién financia, se dice si es un pase de verdad (con plata) o una corrección.
+  const cambio: svc.CambioFinancia =
+    fd.get("cambioModo") === "PASE"
+      ? { modo: "PASE", medio: opcion(fd, "cambioMedio", ["EFECTIVO", "BANCO"] as const, "EFECTIVO") }
+      : { modo: "CORRECCION" };
+  const r = await ejecutar(() => svc.actualizarVehiculo(u.id, id, datosVehiculo(fd), cambio));
   if (!r.ok) return r;
   revalidatePath(`/stock/${id}`);
   redirect(`/stock/${id}`);
@@ -148,6 +153,7 @@ export async function gastoAccion(id: number, _: Resultado, fd: FormData): Promi
       importe: importeRequerido(fd, "importe", "Importe"),
       estado: opcion(fd, "estado", ["PAGADO", "PENDIENTE"] as const, "PAGADO"),
       medio: opcion(fd, "medio", ["EFECTIVO", "BANCO"] as const, "EFECTIVO"),
+      pagadoPor: opcion(fd, "pagadoPor", ["SALON", "DUENO"] as const, "SALON"),
     });
     return "Gasto cargado.";
   });

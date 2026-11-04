@@ -62,7 +62,12 @@ export default async function InversoresPage() {
                   <AutoEnLinea auto={a} anio />
                   <span className="flex items-center gap-2">
                     <ChipEstado estado={a.estado} />
-                    <span className="num">{m(a.invertido)}</span>
+                    <span className="num text-right">
+                      {m(a.invertido)}
+                      {f.participe.tipo === "INVERSOR" && a.gastosDelDueno > 0 && (
+                        <span className="block text-xs text-apagado">incluye {m(a.gastosDelDueno)} de gastos que pagó</span>
+                      )}
+                    </span>
                   </span>
                 </Link>
               ))}

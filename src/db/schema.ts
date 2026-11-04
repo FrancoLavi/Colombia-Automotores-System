@@ -42,6 +42,8 @@ export const estadoDocumentoEnum = pgEnum("estado_documento", ["PENDIENTE", "REC
 export const resultadoPeritajeEnum = pgEnum("resultado_peritaje", ["APTO", "APTO_CON_OBS", "NO_APTO"]);
 export const tipoArchivoEnum = pgEnum("tipo_archivo", ["FOTO_PERITAJE", "DOCUMENTO", "OTRO"]);
 export const estadoGastoEnum = pgEnum("estado_gasto", ["PAGADO", "PENDIENTE"]);
+/** R8: quién pone la plata de un gasto del auto: el salón o el dueño (inversor que financia o consignante). */
+export const pagadorGastoEnum = pgEnum("pagador_gasto", ["SALON", "DUENO"]);
 
 export const estadoOperacionEnum = pgEnum("estado_operacion", ["PREVENTA", "SENIADA", "CERRADA", "ENTREGADA", "CAIDA"]);
 export const tipoPagoEnum = pgEnum("tipo_pago", ["SENIA", "EFECTIVO", "TRANSFERENCIA", "CREDITO", "PERMUTA", "OTRO"]);
@@ -305,6 +307,8 @@ export const gastos = pgTable(
     descripcion: text("descripcion"),
     importe: pesos("importe").notNull(),
     estado: estadoGastoEnum("estado").notNull(),
+    // R8: si lo pagó el dueño del auto no pasa por la caja del salón y se le devuelve al vender.
+    pagadoPor: pagadorGastoEnum("pagado_por").notNull().default("SALON"),
     // Gasto aparecido después de la venta: lo asume el salón y no suma al costo (R6).
     extraordinario: boolean("extraordinario").notNull().default(false),
     movimientoId: integer("movimiento_id"),

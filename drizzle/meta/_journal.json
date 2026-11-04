@@ -57,6 +57,13 @@
       "when": 1793713764404,
       "tag": "0007_seguridad_acceso",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793796413070,
+      "tag": "0008_gasto_pagado_por",
+      "breakpoints": true
     }
   ]
 }

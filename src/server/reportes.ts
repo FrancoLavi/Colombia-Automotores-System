@@ -282,7 +282,7 @@ export async function patrimonioSalonAl(dia: string) {
       .innerJoin(s.participes, eq(s.participes.id, s.vehiculos.participeId))
       .where(lte(s.vehiculos.fechaIngreso, dia)),
     db
-      .select({ vehiculoId: s.gastos.vehiculoId, total: sql<number>`coalesce(sum(${s.gastos.importe}), 0)::float` })
+      .select({ vehiculoId: s.gastos.vehiculoId, total: sql<number>`coalesce(sum(${s.gastos.importe}), 0)::float`, dueno: sql<number>`coalesce(sum(${s.gastos.importe}) filter (where ${s.gastos.pagadoPor} = 'DUENO'), 0)::float` })
       .from(s.gastos)
       .where(and(lte(s.gastos.fecha, dia), eq(s.gastos.extraordinario, false)))
       .groupBy(s.gastos.vehiculoId),
@@ -320,7 +320,7 @@ export async function patrimonioSalonAl(dia: string) {
       !(a.tipoIngreso === "PERMUTA" && a.operacionOrigenId != null && !cerradas.has(a.operacionOrigenId)),
   );
   const stock = r2(enStock.reduce((t, a) => t + a.valorCompraArs + (gastos.find((g) => g.vehiculoId === a.id)?.total ?? 0), 0));
-  const capitalInversores = r2(enStock.reduce((t, a) => t + capitalDelInversor({ tipoIngreso: a.tipoIngreso, financista: a.financista, valorCompraArs: a.valorCompraArs }), 0));
+  const capitalInversores = r2(enStock.reduce((t, a) => t + capitalDelInversor({ tipoIngreso: a.tipoIngreso, financista: a.financista, valorCompraArs: a.valorCompraArs, gastosDelDueno: gastos.find((g) => g.vehiculoId === a.id)?.dueno ?? 0 }), 0));
   const deudaInversores = r2(deudas.filter((d) => d.estado === "PENDIENTE" || (d.pagado != null && d.pagado > corte)).reduce((t, d) => t + d.importe, 0));
   const saldoCuenta = (c: (typeof cuentas)[number]) => r2(c.importe - (pagosCuentas.find((p) => p.cuentaId === c.id)?.total ?? 0));
   const aCobrar = r2(cuentas.filter((c) => c.tipo === "A_COBRAR").reduce((t, c) => t + Math.max(0, saldoCuenta(c)), 0));
