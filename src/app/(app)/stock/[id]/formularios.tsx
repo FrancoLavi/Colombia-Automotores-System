@@ -275,7 +275,20 @@ export function FormPeritaje({
   );
 }
 
-export function FormGasto({ id, categorias, vendido }: { id: number; categorias: { id: number; nombre: string }[]; vendido: boolean }) {
+export function FormGasto({
+  id,
+  categorias,
+  vendido,
+  dueno,
+  consignacion,
+}: {
+  id: number;
+  categorias: { id: number; nombre: string }[];
+  vendido: boolean;
+  /** R8: el inversor que financia o el consignante, que también puede pagar el gasto. Null si el auto es del salón. */
+  dueno: string | null;
+  consignacion: boolean;
+}) {
   const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
     const res = await a.gastoAccion(id, prev, fd);
     if (res.ok) formRef.current?.reset();
@@ -283,6 +296,9 @@ export function FormGasto({ id, categorias, vendido }: { id: number; categorias:
   }, INICIAL);
   const formRef = useRef<HTMLFormElement>(null);
   const [estado, setEstado] = useState("PAGADO");
+  const [pagador, setPagador] = useState<"SALON" | "DUENO">("SALON");
+  const puedeDueno = !!dueno && !vendido;
+  const delDueno = puedeDueno && pagador === "DUENO";
   return (
     <form action={enviar} ref={formRef} className="flex flex-col gap-3 rounded-lg bg-fondo p-3">
       {vendido && (
@@ -311,14 +327,27 @@ export function FormGasto({ id, categorias, vendido }: { id: number; categorias:
           Detalle
           <input name="descripcion" placeholder="Ej: paragolpe trasero" />
         </label>
-        <label className="campo">
-          Estado
-          <select name="estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
-            <option value="PAGADO">Pagado (sale de caja)</option>
-            <option value="PENDIENTE">Queda a pagar</option>
-          </select>
-        </label>
-        {estado === "PAGADO" && (
+        {puedeDueno && (
+          <label className="campo">
+            Lo paga
+            <select name="pagadoPor" value={pagador} onChange={(e) => setPagador(e.target.value as "SALON" | "DUENO")}>
+              <option value="SALON">El salón (sale de su caja)</option>
+              <option value="DUENO">
+                {dueno} ({consignacion ? "dueño del auto" : "inversor"})
+              </option>
+            </select>
+          </label>
+        )}
+        {!delDueno && (
+          <label className="campo">
+            Estado
+            <select name="estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
+              <option value="PAGADO">Pagado (sale de caja)</option>
+              <option value="PENDIENTE">Queda a pagar</option>
+            </select>
+          </label>
+        )}
+        {!delDueno && estado === "PAGADO" && (
           <label className="campo">
             Medio
             <select name="medio" defaultValue="EFECTIVO">
@@ -328,6 +357,12 @@ export function FormGasto({ id, categorias, vendido }: { id: number; categorias:
           </label>
         )}
       </div>
+      {delDueno && (
+        <p className="text-sm text-suave">
+          Lo paga {dueno} de su bolsillo: <b>no sale de la caja del salón</b>. Suma al costo del auto y, al venderlo, se le devuelve junto con{" "}
+          {consignacion ? "lo pactado" : "lo que puso en la compra"}.
+        </p>
+      )}
       <div className="flex items-center justify-between gap-3">
         <Mensaje r={r} />
         <BotonEnviar className="btn-primario ml-auto">Cargar gasto</BotonEnviar>

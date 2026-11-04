@@ -26,6 +26,16 @@ export default async function EditarVehiculoPage({ params }: { params: Promise<{
         contactos={contactos}
         marcas={marcas}
         inicial={{ ...v, valorCompraUsd: v.valorCompraUsd ?? null }}
+        cambio={
+          ficha.puesto
+            ? {
+                puesto: ficha.puesto.puesto,
+                permutaPendiente: ficha.puesto.permutaPendiente,
+                saldoCompra: ficha.puesto.saldoCompra,
+                enStock: ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"].includes(v.estado),
+              }
+            : undefined
+        }
       />
     </div>
   );

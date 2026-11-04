@@ -102,7 +102,7 @@ export default async function PatrimonioPage({ searchParams }: { searchParams: P
             { c: "var(--color-grafico-stock)", t: "Autos en stock, al costo", v: p.stock },
             { c: "var(--color-grafico-caja)", t: "Caja (efectivo + banco)", v: p.caja.total },
             { c: "var(--color-grafico-cobrar)", t: "A cobrar (créditos y saldos)", v: p.aCobrar },
-            { c: "", t: "A pagar (deudas, consignantes, gastos)", v: -p.aPagar },
+            { c: "", t: "A pagar (deudas, consignantes, gastos)", v: p.aPagar === 0 ? 0 : -p.aPagar },
           ].map((x) => (
             <div key={x.t} className="flex justify-between gap-3 border-t border-linea py-2 text-sm">
               <span className="flex items-center gap-2">

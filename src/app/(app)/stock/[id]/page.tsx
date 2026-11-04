@@ -154,6 +154,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
                 {categoria}
                 {g.descripcion && <span className="text-apagado"> · {g.descripcion}</span>}
                 <span className="text-apagado"> · {fecha(g.fecha)}</span>
+                {g.pagadoPor === "DUENO" && <span className="chip ml-2 bg-neutro-fondo text-neutro-texto">Lo pagó {f.dueno}</span>}
                 {g.estado === "PENDIENTE" && <span className="chip ml-2 bg-aviso-fondo text-aviso-texto">A pagar</span>}
                 {g.extraordinario && <span className="chip ml-2 bg-neutro-fondo text-neutro-texto">Extraordinario</span>}
               </span>
@@ -168,7 +169,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           <details className="mt-3">
             <summary className="btn-secundario cursor-pointer list-none">+ Cargar gasto</summary>
             <div className="mt-3">
-              <FormGasto id={id} categorias={categorias} vendido={vendido} />
+              <FormGasto id={id} categorias={categorias} vendido={vendido} dueno={f.dueno} consignacion={v.tipoIngreso === "CONSIGNACION"} />
             </div>
           </details>
         </section>

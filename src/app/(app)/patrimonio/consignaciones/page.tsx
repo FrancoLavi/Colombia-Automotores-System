@@ -33,7 +33,7 @@ export default async function ConsignacionesPage() {
         {[
           { icono: "persona" as const, t: "1. El dueño deja el auto", d: "Se carga en Stock → Ingresar auto → Consignación, con lo que pide." },
           { icono: "venta" as const, t: "2. Se vende", d: "El precio se cobra entero en la caja. Al dueño se le debe lo que pidió." },
-          { icono: "salon" as const, t: "3. Se le paga al dueño", d: "Lo que se sacó arriba, menos los gastos, es ganancia del salón." },
+          { icono: "salon" as const, t: "3. Se le paga al dueño", d: "Lo pactado, más los gastos que pagó él. Lo que se sacó arriba, menos los gastos, es ganancia del salón." },
         ].map((p) => (
           <li key={p.t} className="flex items-start gap-3 rounded-2xl bg-panel p-4">
             <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-superficie text-acento">
@@ -110,7 +110,10 @@ export default async function ConsignacionesPage() {
                       <ChipEstado estado={f.auto.estado} />
                     </td>
                     <td className="num text-right">{m(f.pide)}</td>
-                    <td className="num text-right">{f.gastos ? m(f.gastos) : "—"}</td>
+                    <td className="num text-right">
+                      {f.gastos ? m(f.gastos) : "—"}
+                      {f.gastosDelDueno > 0 && <span className="block text-xs text-apagado">{m(f.gastosDelDueno)} los pagó el dueño</span>}
+                    </td>
                     <td className="num text-right">
                       {m(f.precio)}
                       <span className="block text-xs text-apagado">

@@ -4,7 +4,7 @@ import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { hoyIso, fechaHora } from "@/lib/formato";
 import { cobertura, costoTotal, deudasPorVenta, liquidar, margenUsd, precioSugerido, r2 } from "@/domain/negocio";
-import { capitalDelInversor } from "@/domain/caja";
+import { capitalDelInversor, deudaConConsignante, gastosDelDueno } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
 import { ErrorNegocio } from "./errores";
@@ -24,8 +24,16 @@ async function cargarOperacion(t: Tx, id: number) {
 }
 
 async function costoVehiculo(t: Tx | typeof db, vehiculoId: number, valorCompraArs: number) {
-  const gastos = await t.select({ importe: s.gastos.importe, extraordinario: s.gastos.extraordinario }).from(s.gastos).where(eq(s.gastos.vehiculoId, vehiculoId));
-  return costoTotal(valorCompraArs, gastos);
+  return (await costoYGastosDelDueno(t, vehiculoId, valorCompraArs)).costo;
+}
+
+/** R1 + R8: el costo del auto y, de sus gastos, los que pagó el dueño (se le devuelven al vender). */
+async function costoYGastosDelDueno(t: Tx | typeof db, vehiculoId: number, valorCompraArs: number) {
+  const gastos = await t
+    .select({ importe: s.gastos.importe, extraordinario: s.gastos.extraordinario, pagadoPor: s.gastos.pagadoPor })
+    .from(s.gastos)
+    .where(eq(s.gastos.vehiculoId, vehiculoId));
+  return { costo: costoTotal(valorCompraArs, gastos), gastosDelDueno: gastosDelDueno(gastos) };
 }
 
 async function gastosVentaDe(t: Tx | typeof db, ids: number[]) {
@@ -383,7 +391,7 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
     if (faltan.length) throw new ErrorNegocio(faltan.join(" · "));
 
     const financista = (await t.query.participes.findFirst({ where: eq(s.participes.id, v.participeId) }))!;
-    const costo = await costoVehiculo(t, v.id, v.valorCompraArs);
+    const { costo, gastosDelDueno: gastosDueno } = await costoYGastosDelDueno(t, v.id, v.valorCompraArs);
     const l = liquidar({ costo, precio: op.precioVenta, financista: financista.tipo, tipoIngreso: v.tipoIngreso, margen: margenBase });
     const [liq] = await t
       .insert(s.liquidaciones)
@@ -418,7 +426,8 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
     // K10: al inversor se le devuelve el capital que puso (K9) además de su parte de la ganancia.
     const deudas = deudasPorVenta(l, {
       financista: financista.tipo,
-      capitalInversor: capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: financista.tipo, valorCompraArs: v.valorCompraArs }),
+      // R8: con lo que puso en gastos de su bolsillo.
+      capitalInversor: capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: financista.tipo, valorCompraArs: v.valorCompraArs, gastosDelDueno: gastosDueno }),
       capitalReinvertido: usadosDelInversor.reduce(
         (a, x) => a + capitalDelInversor({ tipoIngreso: x.tipoIngreso, financista: financista.tipo, valorCompraArs: x.valorCompraArs }),
         0,
@@ -462,8 +471,9 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
       await t.update(s.pagosOperacion).set({ cuentaPendienteId: cta.id }).where(eq(s.pagosOperacion.id, p.id));
     }
 
-    // S7: consignación → se le debe al dueño el monto pactado.
+    // S7: consignación → se le debe al dueño el monto pactado, más los gastos que pagó él (R8).
     if (v.tipoIngreso === "CONSIGNACION") {
+      const seLeDebe = deudaConConsignante(v.valorCompraArs, gastosDueno);
       const duenio = v.contactoOrigenId ? await t.query.contactos.findFirst({ where: eq(s.contactos.id, v.contactoOrigenId) }) : null;
       await t.insert(s.cuentasPendientes).values({
         tipo: "A_PAGAR",
@@ -472,8 +482,8 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
         contactoId: v.contactoOrigenId,
         vehiculoId: v.id,
         operacionId: id,
-        importe: v.valorCompraArs,
-        saldo: v.valorCompraArs,
+        importe: seLeDebe,
+        saldo: seLeDebe,
         notas: `Consignación ${etiquetaAuto(v)} · ${numeroOperacion(id)}`,
       });
     }

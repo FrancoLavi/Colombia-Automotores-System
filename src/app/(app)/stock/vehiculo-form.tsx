@@ -5,6 +5,8 @@ import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { Bandera } from "@/components/banderas";
 import { BotonEnviar, Mensaje } from "@/components/ui";
+import { BotonConfirmar } from "@/components/dialogo";
+import { efectoCambioFinancista } from "@/domain/caja";
 import { compraEnPesos, precioSugerido } from "@/domain/negocio";
 import { interpretarImporte } from "@/domain/importar";
 import { nombreContacto, pesos, usd, hoyIso } from "@/lib/formato";
@@ -39,6 +41,16 @@ export interface InicialVehiculo {
   prendaDetalle: string | null;
 }
 
+/** K15: lo que hace falta para avisar qué pasa si se cambia quién financia. */
+export interface DatosCambioFinancia {
+  /** Lo que tiene puesto hoy el que lo financia. */
+  puesto: number;
+  permutaPendiente: boolean;
+  /** Lo que el salón todavía le debe al vendedor. */
+  saldoCompra: number;
+  enStock: boolean;
+}
+
 const MARCAS_SUGERIDAS = ["Volkswagen", "Ford", "Renault", "Peugeot", "Fiat", "Chevrolet", "Toyota", "Citroën", "Honda", "Nissan", "Chery", "Jeep"];
 
 export function VehiculoForm({
@@ -48,6 +60,7 @@ export function VehiculoForm({
   marcas,
   inicial,
   tcSugerido,
+  cambio,
 }: {
   accion: (r: Resultado, fd: FormData) => Promise<Resultado>;
   participes: Participe[];
@@ -55,6 +68,7 @@ export function VehiculoForm({
   marcas: string[];
   inicial?: InicialVehiculo;
   tcSugerido?: number | null;
+  cambio?: DatosCambioFinancia;
 }) {
   const [r, enviar] = useActionState(accion, INICIAL);
   const esNuevo = !inicial;
@@ -72,6 +86,61 @@ export function VehiculoForm({
   );
   // K9: si el auto lo financia un inversor, la compra la paga él y no pasa por la caja del salón.
   const financiaInversor = tipo !== "CONSIGNACION" && participes.find((x) => String(x.id) === financistaId)?.tipo === "INVERSOR";
+
+  // K15: cambiar quién financia un auto que ya está cargado mueve la caja, salvo que sea una corrección.
+  const [cambioModo, setCambioModo] = useState<"PASE" | "CORRECCION">("PASE");
+  const anterior = inicial ? participes.find((p) => p.id === inicial.participeId) : undefined;
+  const nuevo = participes.find((p) => String(p.id) === financistaId);
+  const cambiaFinancista =
+    !!inicial && !!cambio && !!anterior && !!nuevo && anterior.id !== nuevo.id && tipo !== "CONSIGNACION" && inicial.tipoIngreso !== "CONSIGNACION";
+  const efecto =
+    cambiaFinancista && cambio
+      ? efectoCambioFinancista({ de: anterior.tipo, a: nuevo.tipo, puesto: cambio.puesto, permutaPendiente: cambio.permutaPendiente, correccion: false })
+      : null;
+  const [cambioMedio, setCambioMedio] = useState<"EFECTIVO" | "BANCO">("EFECTIVO");
+  const textoCambio = cambiaFinancista ? explicarCambio() : null;
+
+  function explicarCambio() {
+    if (!cambio || !anterior || !nuevo) return null;
+    if (!cambio.enStock) return <p>El auto ya no está en stock: el reparto de su venta quedó cerrado y no se puede cambiar quién lo financia.</p>;
+    if (cambioModo === "CORRECCION") {
+      return (
+        <p>
+          <b>No se mueve la caja.</b> Solo se corrige a nombre de quién está el auto: pasa de {anterior.nombre} a {nuevo.nombre} como si siempre hubiera sido así.
+        </p>
+      );
+    }
+    if (cambio.permutaPendiente) {
+      return <p>La venta que trajo esta permuta sigue abierta: se resuelve sola al cerrarla (K12). No se mueve la caja.</p>;
+    }
+    if (!efecto) {
+      return anterior.tipo === "INVERSOR" && nuevo.tipo === "INVERSOR" ? (
+        <p>
+          {nuevo.nombre} le paga a {anterior.nombre} directo: <b>la caja del salón no se mueve</b>.
+        </p>
+      ) : (
+        <p>No hay plata puesta en el auto: no se mueve la caja.</p>
+      );
+    }
+    const medio = cambioMedio === "EFECTIVO" ? "efectivo" : "banco";
+    return efecto.sentido === "INGRESO" ? (
+      <>
+        <p>
+          {nuevo.nombre} le devuelve al salón lo que había pagado: <b>entran {pesos(efecto.importe)} al {medio}</b>. El auto pasa a ser capital de {nuevo.nombre} y se le
+          devuelve al venderlo.
+        </p>
+        {cambio.saldoCompra > 0 && (
+          <p>
+            Lo que el salón todavía le debía al vendedor ({pesos(cambio.saldoCompra)}) ahora lo paga {nuevo.nombre} directo: esa cuenta a pagar se cierra.
+          </p>
+        )}
+      </>
+    ) : (
+      <p>
+        El salón le devuelve a {anterior.nombre} lo que había puesto: <b>salen {pesos(efecto.importe)} del {medio}</b>. Si no alcanza, no se guarda (K13).
+      </p>
+    );
+  }
 
   const nValor = interpretarImporte(valor) ?? 0;
   const nTc = interpretarImporte(tc) ?? 0;
@@ -296,9 +365,44 @@ export function VehiculoForm({
         </label>
       </section>
 
+      {cambiaFinancista && anterior && nuevo && (
+        <section className="tarjeta flex flex-col gap-4 border-aviso-texto">
+          <h2 className="text-lg font-semibold">
+            Cambia quién financia: {anterior.nombre} → {nuevo.nombre}
+          </h2>
+          {cambio?.enStock && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="campo">
+                ¿Qué pasó?
+                <select name="cambioModo" value={cambioModo} onChange={(e) => setCambioModo(e.target.value as "PASE" | "CORRECCION")}>
+                  <option value="PASE">El auto cambia de dueño (se devuelve la plata)</option>
+                  <option value="CORRECCION">Fue un error de carga (no mover la caja)</option>
+                </select>
+              </label>
+              {cambioModo === "PASE" && efecto && !cambio.permutaPendiente && (
+                <label className="campo">
+                  {efecto.sentido === "INGRESO" ? "Entra por" : "Sale por"}
+                  <select name="cambioMedio" value={cambioMedio} onChange={(e) => setCambioMedio(e.target.value as "EFECTIVO" | "BANCO")}>
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="BANCO">Banco</option>
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+          <div className="flex flex-col gap-2 text-sm text-suave">{textoCambio}</div>
+        </section>
+      )}
+
       <Mensaje r={r} />
       <div className="flex justify-end">
-        <BotonEnviar>{esNuevo ? "Ingresar auto" : "Guardar cambios"}</BotonEnviar>
+        {cambiaFinancista && anterior && nuevo ? (
+          <BotonConfirmar titulo={`¿Pasar el auto de ${anterior.nombre} a ${nuevo.nombre}?`} detalle={textoCambio} confirmar="Guardar cambios" peligro={efecto?.sentido === "EGRESO" && cambioModo === "PASE"}>
+            Guardar cambios
+          </BotonConfirmar>
+        ) : (
+          <BotonEnviar>{esNuevo ? "Ingresar auto" : "Guardar cambios"}</BotonEnviar>
+        )}
       </div>
     </form>
   );

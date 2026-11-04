@@ -218,8 +218,58 @@ export function compraSaleDeCaja(a: { tipoIngreso: TipoIngreso; financista: Tipo
  *
  * La consignación no cuenta: ese auto no es de nadie del salón (K3).
  */
-export function capitalDelInversor(a: { tipoIngreso: TipoIngreso; financista: TipoParticipe; valorCompraArs: number }): number {
-  return a.tipoIngreso !== "CONSIGNACION" && a.financista === "INVERSOR" ? r2(a.valorCompraArs) : 0;
+export function capitalDelInversor(a: { tipoIngreso: TipoIngreso; financista: TipoParticipe; valorCompraArs: number; gastosDelDueno?: number }): number {
+  return a.tipoIngreso !== "CONSIGNACION" && a.financista === "INVERSOR" ? r2(a.valorCompraArs + (a.gastosDelDueno ?? 0)) : 0;
+}
+
+// ---------- Quién paga cada gasto del auto (R8) ----------
+
+/** R8: un gasto del auto lo paga el salón (sale de su caja) o el dueño del auto: el inversor que lo financia o el consignante. */
+export type PagadorGasto = "SALON" | "DUENO";
+
+/**
+ * R8: lo que el dueño del auto puso en gastos de su bolsillo (sin los extraordinarios, que son
+ * siempre del salón, R6). No pasa por la caja del salón y se le devuelve al vender, junto con lo
+ * que puso en la compra (K10) o lo pactado (S7).
+ */
+export function gastosDelDueno(gastos: { importe: number; extraordinario: boolean; pagadoPor: PagadorGasto }[]): number {
+  return r2(gastos.filter((g) => g.pagadoPor === "DUENO" && !g.extraordinario).reduce((s, g) => s + g.importe, 0));
+}
+
+/** S7 + R8: lo que se le debe al dueño de un auto en consignación al venderlo. */
+export function deudaConConsignante(pactado: number, gastosDelDueno: number): number {
+  return r2(pactado + gastosDelDueno);
+}
+
+// ---------- Cambio de quién financia un auto en stock (K15) ----------
+
+export interface CambioFinancista {
+  de: TipoParticipe;
+  a: TipoParticipe;
+  /**
+   * Lo que tenía puesto el que financiaba hasta ahora: si era el salón, el valor de compra menos
+   * lo que todavía le debe al vendedor; si era un inversor, su capital (K10, con sus gastos, R8).
+   */
+  puesto: number;
+  /** El auto entró por permuta y la venta que lo trajo sigue abierta: el cierre lo resuelve (K12). */
+  permutaPendiente: boolean;
+  /** Se corrige un error de carga: nadie le pagó a nadie. */
+  correccion: boolean;
+}
+
+/**
+ * K15: al cambiar quién financia un auto en stock, el nuevo dueño le devuelve al anterior lo que
+ * había puesto, y eso se ve en la caja del salón:
+ * - Del salón a un inversor: el inversor le devuelve al salón lo que pagó → **ingreso**.
+ * - De un inversor al salón: el salón le devuelve al inversor su capital → **egreso** (K13).
+ * - Entre inversores: se pagan entre ellos, la caja no se entera.
+ * Si es una corrección de un error de carga, o una permuta cuya venta sigue abierta, no se mueve nada.
+ */
+export function efectoCambioFinancista(c: CambioFinancista): { sentido: "INGRESO" | "EGRESO"; importe: number } | null {
+  if (c.correccion || c.permutaPendiente || c.de === c.a) return null;
+  const importe = r2(c.puesto);
+  if (importe <= 0) return null;
+  return { sentido: c.de === "SALON" ? "INGRESO" : "EGRESO", importe };
 }
 
 export interface PiezasPatrimonio {

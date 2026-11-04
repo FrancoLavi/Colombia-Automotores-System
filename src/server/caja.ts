@@ -394,7 +394,7 @@ async function stockConCosto() {
   const ids = autos.map((a) => a.id);
   const gastos = ids.length
     ? await db
-        .select({ vehiculoId: s.gastos.vehiculoId, total: sql<number>`coalesce(sum(${s.gastos.importe}), 0)::float` })
+        .select({ vehiculoId: s.gastos.vehiculoId, total: sql<number>`coalesce(sum(${s.gastos.importe}), 0)::float`, dueno: sql<number>`coalesce(sum(${s.gastos.importe}) filter (where ${s.gastos.pagadoPor} = 'DUENO'), 0)::float` })
         .from(s.gastos)
         .where(and(inArray(s.gastos.vehiculoId, ids), eq(s.gastos.extraordinario, false)))
         .groupBy(s.gastos.vehiculoId)
@@ -402,11 +402,14 @@ async function stockConCosto() {
   const opsOrigen = autos.map((a) => a.operacionOrigenId).filter((x): x is number => x != null);
   const ops = opsOrigen.length ? await db.select({ id: s.operaciones.id, estado: s.operaciones.estado }).from(s.operaciones).where(inArray(s.operaciones.id, opsOrigen)) : [];
   return autos.map((a) => {
-    const costo = r2(a.valorCompraArs + (gastos.find((g) => g.vehiculoId === a.id)?.total ?? 0));
+    const g = gastos.find((x) => x.vehiculoId === a.id);
+    const costo = r2(a.valorCompraArs + (g?.total ?? 0));
     const estadoOperacionOrigen = ops.find((o) => o.id === a.operacionOrigenId)?.estado ?? null;
-    // K9/K10: del costo, lo que puso el inversor (el valor de compra). El resto lo puso el salon.
-    const capitalInversor = capitalDelInversor({ tipoIngreso: a.tipoIngreso, financista: a.financista ?? "SALON", valorCompraArs: a.valorCompraArs });
-    return { ...a, costo, capitalInversor, estadoOperacionOrigen, enPatrimonio: cuentaEnPatrimonio({ ...a, costo, estadoOperacionOrigen }) };
+    /** R8: de los gastos, los que pagó el dueño (inversor o consignante) de su bolsillo. */
+    const gastosDelDueno = g?.dueno ?? 0;
+    // K9/K10: del costo, lo que puso el inversor (la compra y los gastos que pagó él, R8). El resto lo puso el salón.
+    const capitalInversor = capitalDelInversor({ tipoIngreso: a.tipoIngreso, financista: a.financista ?? "SALON", valorCompraArs: a.valorCompraArs, gastosDelDueno });
+    return { ...a, costo, gastosDelDueno, capitalInversor, estadoOperacionOrigen, enPatrimonio: cuentaEnPatrimonio({ ...a, costo, estadoOperacionOrigen }) };
   });
 }
 
@@ -540,7 +543,7 @@ export async function consignaciones() {
   const { vehiculos } = await listarStock({ estado: "TODOS" });
   const autos = vehiculos.filter((v) => v.tipoIngreso === "CONSIGNACION" && v.estado !== "RECHAZADO");
   const ids = autos.map((a) => a.id);
-  const [duenos, cuentas, ventas] = ids.length
+  const [duenos, cuentas, ventas, gastosDueno] = ids.length
     ? await Promise.all([
         db
           .select({ id: s.contactos.id, nombre: s.contactos.nombre, apellido: s.contactos.apellido, telefono: s.contactos.telefono })
@@ -555,17 +558,27 @@ export async function consignaciones() {
           .from(s.operaciones)
           .innerJoin(s.liquidaciones, eq(s.liquidaciones.operacionId, s.operaciones.id))
           .where(and(inArray(s.operaciones.vehiculoId, ids), inArray(s.operaciones.estado, ["CERRADA", "ENTREGADA"]))),
+        // R8: los gastos que pagó el dueño de su bolsillo; se le devuelven al vender.
+        db
+          .select({ vehiculoId: s.gastos.vehiculoId, total: sql<number>`coalesce(sum(${s.gastos.importe}), 0)::float` })
+          .from(s.gastos)
+          .where(and(inArray(s.gastos.vehiculoId, ids), eq(s.gastos.pagadoPor, "DUENO"), eq(s.gastos.extraordinario, false)))
+          .groupBy(s.gastos.vehiculoId),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
   const filas = autos.map((a) => {
     const venta = ventas.find((v) => v.vehiculoId === a.id) ?? null;
     const cuenta = cuentas.find((c) => c.vehiculoId === a.id) ?? null;
     const gastos = r2(a.costo - a.valorCompraArs);
+    const gastosDelDueno = gastosDueno.find((g) => g.vehiculoId === a.id)?.total ?? 0;
     return {
       auto: a,
       /** Lo que pidió el dueño (monto pactado). */
       pide: a.valorCompraArs,
       gastos,
+      /** R8: de esos gastos, los que pagó el dueño (se le devuelven al vender) y los que puso el salón. */
+      gastosDelDueno,
+      gastosDelSalon: r2(gastos - gastosDelDueno),
       /** Precio publicado (o sugerido) mientras está en stock; el de venta, si se vendió. */
       precio: venta?.precio ?? a.precio,
       /** Lo que le queda al salón: todo lo que se saque arriba de lo pedido, menos los gastos. */
