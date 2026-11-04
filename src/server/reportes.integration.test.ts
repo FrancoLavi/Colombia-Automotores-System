@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { prepararBase } from "@/test/db";
-import { autoDisponible, baseContacto, U } from "@/test/fabricas";
+import { autoDisponible, baseContacto, U, fondear } from "@/test/fabricas";
 import { hoyIso } from "@/lib/formato";
 import { periodoDe } from "@/domain/dashboard";
 import * as con from "./contactos";
@@ -12,9 +12,12 @@ import * as rep from "./reportes";
 const anio = new Date().getFullYear();
 const mes = periodoDe(new Date());
 
-beforeAll(prepararBase);
+beforeAll(async () => {
+  await prepararBase();
+  await fondear();
+});
 
-describe("personas, ganancias pagadas e históricos", () => {
+describe("personas, ganancias por dueño e históricos", () => {
   let bruno = 0;
   let empleado = 0;
 
@@ -32,20 +35,49 @@ describe("personas, ganancias pagadas e históricos", () => {
     expect(movimientos.find((m) => m.m.concepto === "Publicidad")!.m.personaId).toBeNull();
   });
 
-  it("venta cerrada: el salón retira su parte a nombre de un socio y el inversor cobra la suya", async () => {
+  it("venta cerrada: la parte del salón queda en su caja, el socio la retira como movimiento y el inversor cobra la suya", async () => {
     const auto = await autoDisponible("AA111AA");
     const cliente = await con.crearContacto(U, { ...baseContacto, nombre: "Marcos", telefono: "2915550142" });
     const op = await ven.crearOperacion(U, { contactoId: cliente, vehiculoId: auto, precioVenta: 12_000_000, observaciones: null });
     await ven.agregarPago(U, op, { tipo: "TRANSFERENCIA", importe: 12_000_000, fecha: hoyIso(), medio: "BANCO", banco: null, vence: null, cobradoAhora: true });
     await ven.cerrarOperacion(U, op, null);
-    for (const g of await caja.pendientesPorPagar()) await caja.pagarDistribucion(U, g.d.id, "BANCO", g.participe.tipo === "SALON" ? bruno : null);
+    // K5: solo queda pendiente lo del inversor; la parte del salón no se "paga".
+    const pendientes = await caja.pendientesPorPagar();
+    expect(pendientes.every((g) => g.participe.tipo === "INVERSOR")).toBe(true);
+    for (const g of pendientes) await caja.pagarDistribucion(U, g.d.id, "BANCO");
+    await caja.crearMovimiento(U, { categoria: "RETIRO_SOCIO", sentido: null, medio: "BANCO", importe: 1_250_000, concepto: "Retiro ganancia V-0001", fecha: new Date(), participeId: null, personaId: bruno });
 
-    const g = await rep.gananciasPagadasPorMes(anio);
+    const g = await rep.gananciasPorDueno(anio);
     const deEsteMes = g.meses.find((m) => m.periodo === mes)!;
     // Ganancia 2 M sobre costo 10 M: base 1,5 M → inversor 750.000, salón 1.250.000.
     // La devolución del capital (K10) se paga igual pero no cuenta como ganancia de nadie.
     expect(Object.values(deEsteMes.porParticipe).sort()).toEqual([1_250_000, 750_000]);
     expect(g.total).toBe(2_000_000);
+    // El salón va primero; el inversor ya cobró la suya.
+    expect(g.porDueno.map((d) => [d.participe.tipo, d.total, d.cobrado, d.pendiente])).toEqual([
+      ["SALON", 1_250_000, 1_250_000, 0],
+      ["INVERSOR", 750_000, 750_000, 0],
+    ]);
+    expect(g.ventas).toHaveLength(1);
+    // Filtros: por mes y por auto.
+    const otroMes = `${anio}-${mes.endsWith("01") ? "02" : "01"}`;
+    expect((await rep.gananciasPorDueno(anio, { mes: otroMes })).total).toBe(0);
+    expect((await rep.gananciasPorDueno(anio, { mes })).total).toBe(2_000_000);
+    expect((await rep.gananciasPorDueno(anio, { auto: { patente: "aa 111" } })).total).toBe(2_000_000);
+    expect((await rep.gananciasPorDueno(anio, { auto: { marca: "Ford" } })).total).toBe(0);
+  });
+
+  it("balance del salón en el mes: foto al empezar, foto al terminar y qué pasó en el medio", async () => {
+    const b = (await rep.balanceSalon(anio, mes))!;
+    expect(b.ganancia).toBe(1_250_000);
+    expect(b.gastos).toBe(85_000); // publicidad
+    expect(b.sueldosEmpleados).toBe(500_000);
+    expect(b.retirosSocios).toBe(1_250_000); // el retiro de Bruno no resta del resultado
+    expect(b.resultado).toBe(1_250_000 - 85_000 - 500_000);
+    expect(b.otros).toBe(0);
+    expect(Math.round(b.fin - b.inicio)).toBe(b.resultado - b.retirosSocios + b.aportes);
+    // Hoy, la foto del salón coincide con Patrimonio.
+    expect(b.fin).toBe((await caja.patrimonio()).salon);
   });
 
   it("cuánto se llevó cada persona", async () => {

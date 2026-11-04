@@ -8,20 +8,23 @@ import { fecha, numero, porcentaje } from "@/lib/formato";
 import { ETIQUETA_ESTADO, ETIQUETA_UBICACION, type EstadoVehiculo, type Ubicacion } from "@/domain/stock";
 import { ChipAlerta, ChipEstado } from "@/components/ui";
 import { FormDolar } from "./form-dolar";
+import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { leerFiltroAuto } from "@/domain/autos";
 
 export const metadata = { title: "Stock · Colombia Automotores" };
 
-type Busqueda = { q?: string; estado?: string; ubicacion?: string; marca?: string; dias?: string };
+type Busqueda = { q?: string; estado?: string; ubicacion?: string; marca?: string; modelo?: string; patente?: string; dias?: string };
 
 export default async function StockPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
   const { m } = await vistaMoneda();
   const sp = await searchParams;
-  const { vehiculos, conteo, marcas, tc } = await listarStock({
+  const filtroAuto = leerFiltroAuto(sp);
+  const { vehiculos, conteo, marcas, modelos, tc } = await listarStock({
     q: sp.q,
     estado: sp.estado,
     ubicacion: sp.ubicacion,
-    marca: sp.marca,
+    ...filtroAuto,
     diasMin: sp.dias ? Number(sp.dias) : undefined,
   });
   const enStock = vehiculos.filter((v) => ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"].includes(v.estado));
@@ -64,10 +67,11 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <FormFiltros plegable porDefecto={{ estado: "ACTIVOS" }} className="tarjeta grid gap-3.5 p-4 sm:grid-cols-2 lg:grid-cols-6">
-        <label className="campo lg:col-span-2">
+      <FormFiltros plegable porDefecto={{ estado: "ACTIVOS" }} className="tarjeta grid gap-3.5 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <CamposFiltroAuto valores={filtroAuto} marcas={marcas} modelos={modelos} />
+        <label className="campo">
           Buscar
-          <input type="search" name="q" defaultValue={sp.q} placeholder="Patente, marca o modelo" />
+          <input type="search" name="q" defaultValue={sp.q} placeholder="Versión u otra cosa" />
         </label>
         <label className="campo">
           Estado
@@ -92,15 +96,6 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
             ))}
           </select>
         </label>
-        <label className="campo">
-          Marca
-          <select name="marca" defaultValue={sp.marca ?? ""}>
-            <option value="">Todas</option>
-            {marcas.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
-        </label>
         <div className="flex min-w-0 items-end gap-2">
           <label className="campo min-w-0 flex-1">
             Más de N días
@@ -119,8 +114,8 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
           <table className="tabla">
             <thead>
               <tr>
-                <th>Patente</th>
-                <th>Auto</th>
+                <ThAuto />
+                <th>Versión</th>
                 <th>Año</th>
                 <th className="hidden text-right xl:table-cell">Km</th>
                 <th>Estado</th>
@@ -135,16 +130,8 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
             <tbody>
               {vehiculos.map((v) => (
                 <FilaEnlace key={v.id} href={`/stock/${v.id}`}>
-                  <td>
-                    <Link href={`/stock/${v.id}`} className="num font-medium">
-                      {v.dominio ?? "Sin patente"}
-                    </Link>
-                  </td>
-                  <td>
-                    <Link href={`/stock/${v.id}`} className="text-tinta no-underline hover:underline">
-                      {v.marca} {v.modelo} <span className="text-apagado">{v.version}</span>
-                    </Link>
-                  </td>
+                  <TdAuto auto={v} href={`/stock/${v.id}`} />
+                  <td className="text-apagado">{v.version}</td>
                   <td>{v.anio}</td>
                   <td className="num hidden text-right xl:table-cell">{numero(v.km)}</td>
                   <td>

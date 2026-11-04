@@ -8,6 +8,7 @@ import { capitalDelInversor } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
 import { ErrorNegocio } from "./errores";
+import { exigirFondos, fotoFondos } from "./fondos";
 import { obtenerParametros } from "./parametros";
 import { crearVehiculo, tcHoy, type DatosVehiculo } from "./vehiculos";
 
@@ -346,12 +347,16 @@ export async function tomarUsado(usuarioId: number, id: number, datos: Omit<Dato
 /** Quita un pago antes del cierre. Si ya había entrado a caja, se anula el movimiento. La permuta da de baja el usado. */
 export async function quitarPago(usuarioId: number, id: number, pagoId: number) {
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const op = await cargarOperacion(t, id);
     if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("No se pueden quitar pagos de una operación cerrada");
     const p = await t.query.pagosOperacion.findFirst({ where: and(eq(s.pagosOperacion.id, pagoId), eq(s.pagosOperacion.operacionId, id)) });
     if (!p) throw new ErrorNegocio("El pago no existe");
     if (p.estado === "DEVUELTA" || p.estado === "RETENIDA") throw new ErrorNegocio("Ese pago ya fue resuelto");
-    if (p.movimientoId) await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: `Pago quitado de ${numeroOperacion(id)}` }).where(eq(s.movimientosCaja.id, p.movimientoId));
+    if (p.movimientoId) {
+      await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: `Pago quitado de ${numeroOperacion(id)}` }).where(eq(s.movimientosCaja.id, p.movimientoId));
+      await exigirFondos(t, antesFondos);
+    }
     if (p.vehiculoPermutaId) await cambiarEstadoVehiculo(t, p.vehiculoPermutaId, "BAJA", usuarioId, `Permuta quitada de ${numeroOperacion(id)}`);
     await t.delete(s.pagosOperacion).where(eq(s.pagosOperacion.id, pagoId));
     // Sin señas vigentes, la operación vuelve a preventa y el auto a disponible.
@@ -426,6 +431,9 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
           participeId: x.destino === "INVERSOR" ? financista.id : salon.id,
           tipo: x.tipo,
           importe: x.importe,
+          // K5: la parte del salón ya está en su caja; no queda pendiente. Lo que se lleva cada socio
+          // se registra aparte, como retiro. Solo queda pendiente lo que se les debe a los inversores.
+          estado: x.destino === "INVERSOR" ? ("PENDIENTE" as const) : ("PAGADO" as const),
         })),
       );
     }
@@ -515,6 +523,7 @@ export async function entregarOperacion(usuarioId: number, id: number, fechaEntr
 /** S3: la operación se cae. La seña se devuelve (egreso) o queda para el salón; los demás cobros se devuelven. */
 export async function caerOperacion(usuarioId: number, id: number, motivo: string, sena: "DEVOLVER" | "RETENER", medio: Medio) {
   await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const op = await cargarOperacion(t, id);
     if (!ABIERTAS.includes(op.estado)) throw new ErrorNegocio("Solo se pueden dar de baja operaciones abiertas");
     const pagos = await t.select().from(s.pagosOperacion).where(eq(s.pagosOperacion.operacionId, id));
@@ -547,6 +556,7 @@ export async function caerOperacion(usuarioId: number, id: number, motivo: strin
       await t.update(s.pagosOperacion).set({ estado: "DEVUELTA" }).where(eq(s.pagosOperacion.id, p.id));
       devuelto += p.importe;
     }
+    if (devuelto) await exigirFondos(t, antesFondos);
     await t.update(s.operaciones).set({ estado: "CAIDA", motivoCaida: motivo }).where(eq(s.operaciones.id, id));
     await cambiarEstadoVehiculo(t, op.vehiculoId, "DISPONIBLE", usuarioId, `Liberado: operación caída (${numeroOperacion(id)})`);
     await sincronizarEtapa(t, c.id, usuarioId);
@@ -558,8 +568,8 @@ export async function caerOperacion(usuarioId: number, id: number, motivo: strin
 }
 
 /** Cobra un pago que quedó pendiente al cerrar (crédito liquidado por el banco o saldo del cliente). */
-export async function cobrarPagoPendiente(usuarioId: number, id: number, pagoId: number, medio: Medio) {
-  await db.transaction(async (t) => {
+export async function cobrarPagoPendiente(usuarioId: number, id: number, pagoId: number, medio: Medio): Promise<number> {
+  return db.transaction(async (t) => {
     const op = await cargarOperacion(t, id);
     const p = await t.query.pagosOperacion.findFirst({ where: and(eq(s.pagosOperacion.id, pagoId), eq(s.pagosOperacion.operacionId, id)) });
     if (!p || p.estado !== "PENDIENTE" || p.tipo === "PERMUTA") throw new ErrorNegocio("Ese pago no está pendiente de cobro");
@@ -582,6 +592,7 @@ export async function cobrarPagoPendiente(usuarioId: number, id: number, pagoId:
     await t.update(s.pagosOperacion).set({ estado: "COBRADO", movimientoId: m.id }).where(eq(s.pagosOperacion.id, pagoId));
     if (p.cuentaPendienteId) await t.update(s.cuentasPendientes).set({ saldo: 0, estado: "CANCELADA" }).where(eq(s.cuentasPendientes.id, p.cuentaPendienteId));
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "MODIFICAR", descripcion: `Cobrado: ${ETIQUETA_PAGO[p.tipo].toLowerCase()} $ ${p.importe.toLocaleString("es-AR")}` });
+    return m.id;
   });
 }
 

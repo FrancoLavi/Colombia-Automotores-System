@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth";
-import { FilaEnlace } from "@/components/filtros";
+import { FilaEnlace, FormFiltros } from "@/components/filtros";
+import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { coincideAuto, leerFiltroAuto, opcionesAuto } from "@/domain/autos";
 import { Vacio } from "@/components/ilustraciones";
 import { vistaMoneda } from "@/lib/moneda";
 import { listarOperaciones } from "@/server/ventas";
@@ -16,12 +18,15 @@ const PESTANAS = [
   { clave: "CAIDAS", titulo: "Caídas", estados: ["CAIDA"] },
 ] as const;
 
-export default async function VentasPage({ searchParams }: { searchParams: Promise<{ ver?: string }> }) {
+export default async function VentasPage({ searchParams }: { searchParams: Promise<{ ver?: string; marca?: string; modelo?: string; patente?: string }> }) {
   await requerirUsuario();
   const { m } = await vistaMoneda();
-  const { ver: pedido } = await searchParams;
-  const ver = (PESTANAS.find((p) => p.clave === pedido)?.clave ?? "ABIERTAS") as (typeof PESTANAS)[number]["clave"];
-  const { operaciones, conteo } = await listarOperaciones(ver);
+  const sp = await searchParams;
+  const ver = (PESTANAS.find((p) => p.clave === sp.ver)?.clave ?? "ABIERTAS") as (typeof PESTANAS)[number]["clave"];
+  const filtroAuto = leerFiltroAuto(sp);
+  const { operaciones: todas, conteo } = await listarOperaciones(ver);
+  const operaciones = todas.filter((o) => coincideAuto(o.auto, filtroAuto));
+  const { marcas, modelos } = opcionesAuto(todas.map((o) => o.auto));
   const hoy = hoyIso();
 
   return (
@@ -53,6 +58,11 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         ))}
       </nav>
 
+      <FormFiltros plegable fijos={["ver"]} porDefecto={{ ver: "ABIERTAS" }} className="tarjeta grid gap-3.5 p-4 sm:grid-cols-3">
+        <input type="hidden" name="ver" value={ver} />
+        <CamposFiltroAuto valores={filtroAuto} marcas={marcas} modelos={modelos} />
+      </FormFiltros>
+
       <section className="tarjeta overflow-x-auto p-0">
         {operaciones.length === 0 ? (
           <Vacio>
@@ -65,7 +75,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                 <th>N°</th>
                 <th>Fecha</th>
                 <th>Cliente</th>
-                <th>Auto</th>
+                <ThAuto />
                 <th className="text-right">Precio</th>
                 <th>Cubierto</th>
                 <th>Estado</th>
@@ -88,9 +98,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                         {nombreContacto(o.contacto)}
                       </Link>
                     </td>
-                    <td>
-                      {o.auto.marca} {o.auto.modelo} {o.auto.anio} <span className="num text-apagado">{o.auto.dominio}</span>
-                    </td>
+                    <TdAuto auto={o.auto} href={`/stock/${o.auto.id}`} anio />
                     <td className="num text-right">{m(o.total)}</td>
                     <td>
                       <div className="flex items-center gap-2">

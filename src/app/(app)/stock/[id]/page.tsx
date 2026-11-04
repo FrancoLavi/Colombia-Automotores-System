@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Patente } from "@/components/auto";
 import { notFound } from "next/navigation";
 import { db, schema as s } from "@/db";
 import { eq } from "drizzle-orm";
@@ -62,13 +63,25 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
       <header className="tarjeta flex flex-wrap items-end justify-between gap-5">
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="num self-start rounded-md bg-invertido px-2.5 py-1 tracking-widest text-white">{v.dominio ?? "SIN PATENTE"}</span>
+            <Patente dominio={v.dominio} />
             <ChipEstado estado={v.estado} />
             {v.prendado && <span className="chip bg-aviso-fondo text-aviso-texto">Prendado</span>}
           </div>
           <h1 className="text-2xl font-bold sm:text-3xl">
             {v.marca} {v.modelo} {v.version}
           </h1>
+          <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            {[
+              ["Marca", v.marca],
+              ["Modelo", v.modelo],
+              ["Patente", v.dominio ?? "Sin patente"],
+            ].map(([k, x]) => (
+              <div key={k} className="flex gap-1.5">
+                <dt className="text-apagado">{k}</dt>
+                <dd className={`font-semibold ${k === "Patente" ? "num tracking-wider" : ""}`}>{x}</dd>
+              </div>
+            ))}
+          </dl>
           <p className="text-suave">
             {v.anio} · {numero(v.km)} km{v.color ? ` · ${v.color}` : ""} · ingresó por <b>{TIPO_INGRESO[v.tipoIngreso]}</b> el {fecha(v.fechaIngreso)}
             {v.estado !== "POR_INGRESAR" && ` · ${f.dias} días en stock`}
@@ -120,7 +133,8 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="tarjeta flex flex-col">
+        {/* #gastos: desde Caja se llega acá para corregir el gasto que generó un movimiento. */}
+        <section id="gastos" className="tarjeta flex scroll-mt-4 flex-col">
           <h2 className="pb-2 text-lg font-semibold">Costo real</h2>
           <Fila
             etiqueta={

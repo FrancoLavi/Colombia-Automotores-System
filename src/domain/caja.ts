@@ -39,6 +39,8 @@ export const MANUALES = {
 export type CategoriaManual = keyof typeof MANUALES;
 
 export const esManual = (categoria: string) => categoria in MANUALES || categoria === "TRANSFERENCIA_INTERNA";
+/** Un movimiento cargado a mano se puede corregir; un pase entre medios no (son dos movimientos): se anula y se carga de nuevo. */
+export const esEditable = (categoria: string) => categoria in MANUALES;
 
 /** Movimientos que se atribuyen a un socio o empleado: el sueldo la exige; retiros y aportes la admiten. */
 export const PIDEN_PERSONA = ["SUELDO", "RETIRO_SOCIO", "APORTE"] as const;
@@ -56,6 +58,95 @@ export function saldos(movs: MovimientoSaldo[]) {
   const s = { EFECTIVO: 0, BANCO: 0 };
   for (const m of movs) if (!m.anulado) s[m.medio] += m.sentido === "INGRESO" ? m.importe : -m.importe;
   return { efectivo: r2(s.EFECTIVO), banco: r2(s.BANCO), total: r2(s.EFECTIVO + s.BANCO) };
+}
+
+/** Cómo está la plata: por medio y lo que de toda la caja es del salón (K11). */
+export interface Fondos {
+  efectivo: number;
+  banco: number;
+  /** Plata de la caja que es de inversores y consignantes por autos ya vendidos. */
+  ajena: number;
+}
+
+const pesosAR = (n: number) => `$ ${n.toLocaleString("es-AR")}`;
+
+/**
+ * K13: no puede salir plata que no hay. Compara cómo estaba la caja antes de la operación y cómo
+ * queda: frena si el efectivo, el banco o la caja del salón (caja − lo ajeno, K11) quedan en
+ * negativo **por culpa de esta operación**. Si ya venían en negativo (datos viejos), no frena lo
+ * que no los empeora, como pagarle a un inversor lo que se le debe.
+ * Devuelve el error para mostrar, o null si se puede.
+ */
+export function faltaDeFondos(antes: Fondos, despues: Fondos, moneda: (n: number) => string = pesosAR): string | null {
+  const empeora = (a: number, d: number) => d < 0 && d < a - 0.005;
+  if (empeora(antes.efectivo, despues.efectivo)) {
+    return `No alcanza el efectivo: hay ${moneda(Math.max(0, antes.efectivo))} y faltarían ${moneda(-despues.efectivo)}. Si la plata sale del banco, elegí Banco o registrá primero la extracción (pase Banco → Efectivo).`;
+  }
+  if (empeora(antes.banco, despues.banco)) {
+    return `No alcanza la plata del banco: hay ${moneda(Math.max(0, antes.banco))} y faltarían ${moneda(-despues.banco)}. Si la plata sale del efectivo, elegí Efectivo o registrá primero el depósito (pase Efectivo → Banco).`;
+  }
+  const salonAntes = r2(antes.efectivo + antes.banco - antes.ajena);
+  const salonDespues = r2(despues.efectivo + despues.banco - despues.ajena);
+  if (empeora(salonAntes, salonDespues)) {
+    const medio = despues.efectivo < antes.efectivo ? "el efectivo" : despues.banco < antes.banco ? "el banco" : "la caja";
+    return `No alcanza la plata del salón en ${medio}: de la caja, ${moneda(antes.ajena)} son de inversores o consignantes por autos vendidos y al salón le quedan ${moneda(Math.max(0, salonAntes))}. Faltarían ${moneda(-salonDespues)}. Primero hay que cobrar lo pendiente o que los socios pongan plata (Aporte).`;
+  }
+  return null;
+}
+
+/**
+ * Para seguir de dónde sale un saldo: los movimientos en orden, cada uno con cómo queda el saldo
+ * después de él. Los anulados se muestran pero no lo mueven. El último saldo es el de la tarjeta.
+ */
+export function conSaldoAcumulado<T extends MovimientoSaldo>(movs: T[]): (T & { saldo: number })[] {
+  let saldo = 0;
+  return movs.map((m) => {
+    if (!m.anulado) saldo = r2(saldo + (m.sentido === "INGRESO" ? m.importe : -m.importe));
+    return { ...m, saldo };
+  });
+}
+
+export interface FiltroDetalle {
+  desde?: Date;
+  hasta?: Date;
+  categoria?: string;
+  /** Busca en el concepto, sin importar mayúsculas ni acentos. */
+  q?: string;
+  /** Rango de importe, en pesos. */
+  min?: number;
+  max?: number;
+}
+
+const sinAcentos = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Filtra los movimientos del detalle de un saldo. Se aplica después de acumular, así el saldo de cada fila sigue siendo el real. */
+export function filtrarDetalle<T extends MovimientoSaldo & { fecha: Date; categoria: string; concepto: string }>(movs: T[], f: FiltroDetalle): T[] {
+  const q = f.q?.trim() ? sinAcentos(f.q.trim()) : null;
+  return movs.filter(
+    (m) =>
+      (!f.desde || m.fecha >= f.desde) &&
+      (!f.hasta || m.fecha <= f.hasta) &&
+      (!f.categoria || m.categoria === f.categoria) &&
+      (!q || sinAcentos(m.concepto).includes(q)) &&
+      (f.min == null || m.importe >= f.min) &&
+      (f.max == null || m.importe <= f.max),
+  );
+}
+
+/** Cuánto entró y salió por cada tipo de movimiento (sin anulados), de mayor a menor peso. */
+export function resumenPorCategoria(movs: (MovimientoSaldo & { categoria: string })[]) {
+  const porCategoria = new Map<string, { categoria: string; ingresos: number; egresos: number; cantidad: number }>();
+  for (const m of movs) {
+    if (m.anulado) continue;
+    const c = porCategoria.get(m.categoria) ?? { categoria: m.categoria, ingresos: 0, egresos: 0, cantidad: 0 };
+    if (m.sentido === "INGRESO") c.ingresos = r2(c.ingresos + m.importe);
+    else c.egresos = r2(c.egresos + m.importe);
+    c.cantidad++;
+    porCategoria.set(m.categoria, c);
+  }
+  return [...porCategoria.values()]
+    .map((c) => ({ ...c, neto: r2(c.ingresos - c.egresos) }))
+    .sort((a, b) => Math.abs(b.neto) - Math.abs(a.neto));
 }
 
 export interface AutoPatrimonio {
@@ -140,4 +231,35 @@ export function patrimonioSalon(p: PiezasPatrimonio): number {
  */
 export function cajaDelSalon(cajaTotal: number, deudaInversores: number): number {
   return r2(cajaTotal - deudaInversores);
+}
+
+// ---------- Balance del salón en un período (HU-8.1) ----------
+
+export interface PiezasBalance {
+  /** Patrimonio del salón al empezar el período (K11). */
+  inicio: number;
+  /** Patrimonio del salón al terminar el período (o hoy, si no terminó). */
+  fin: number;
+  /** Parte del salón en las ventas cerradas en el período (R3). */
+  ganancia: number;
+  /** Gastos del salón y extraordinarios. */
+  gastos: number;
+  /** Sueldos de empleados (los de los socios van con los retiros). */
+  sueldosEmpleados: number;
+  /** Lo que se llevaron los socios: retiros y sueldos de socios. */
+  retirosSocios: number;
+  /** Lo que pusieron los socios: aportes e ingresos extraordinarios. */
+  aportes: number;
+}
+
+/**
+ * La foto del salón al empezar y al terminar el período, y qué pasó en el medio.
+ * El **resultado** es lo que generó el período antes de que los socios decidan qué hacer con eso:
+ * fin − inicio + lo que se llevaron − lo que pusieron. "Otros" es lo que no se explica con lo
+ * anterior (señas cobradas de ventas todavía abiertas, ajustes): así la cuenta siempre cierra.
+ */
+export function balanceDelSalon(p: PiezasBalance) {
+  const resultado = r2(p.fin - p.inicio + p.retirosSocios - p.aportes);
+  const otros = r2(resultado - (p.ganancia - p.gastos - p.sueldosEmpleados));
+  return { ...p, resultado, otros };
 }

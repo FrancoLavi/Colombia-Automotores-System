@@ -7,13 +7,26 @@ import { Ayuda, ChipEstado } from "@/components/ui";
 import { TarjetaEnlace } from "@/components/tarjeta";
 import { IlustracionPatrimonio, Vacio } from "@/components/ilustraciones";
 import { NavPatrimonio } from "../caja/nav";
+import { Icono, type NombreIcono } from "@/components/iconos-caja";
+import { FormFiltros } from "@/components/filtros";
+import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { coincideAuto, hayFiltroAuto, leerFiltroAuto, opcionesAuto } from "@/domain/autos";
 
 export const metadata = { title: "Patrimonio · Colombia Automotores" };
 
-export default async function PatrimonioPage() {
+type Busqueda = { marca?: string; modelo?: string; patente?: string; financia?: string };
+
+export default async function PatrimonioPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
+  const sp = await searchParams;
   const [{ m }, p, inversiones, cuentas] = await Promise.all([vistaMoneda(), patrimonio(), subcajas(), listarCuentas({})]);
   const conAutos = inversiones.filter((x) => x.autos.length);
+  // Filtros de la tabla de autos: por marca, modelo, patente y por quién lo financia.
+  const filtroAuto = leerFiltroAuto(sp);
+  const todasLasFilas = conAutos.flatMap((x) => x.autos.map((a) => ({ a, x })));
+  const filas = todasLasFilas.filter(({ a, x }) => coincideAuto(a, filtroAuto) && (!sp.financia || String(x.participe.id) === sp.financia));
+  const filtrado = hayFiltroAuto(filtroAuto) || Boolean(sp.financia);
+  const { marcas, modelos } = opcionesAuto(todasLasFilas.map((f) => f.a));
   const aCobrar = cuentas.filter((c) => c.c.tipo === "A_COBRAR");
   const aPagar = cuentas.filter((c) => c.c.tipo === "A_PAGAR");
   const activos = Math.max(1, Math.max(0, p.caja.total) + p.stock + p.aCobrar);
@@ -41,33 +54,39 @@ export default async function PatrimonioPage() {
       </header>
 
       <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="tarjeta flex flex-col gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Patrimonio total</span>
+        <TarjetaEnlace href="/patrimonio/desglose/total" pie="Ver qué lo compone" className="gap-1.5">
+          <Titulo icono="total">Patrimonio total</Titulo>
           <span className="num text-3xl">{m(p.total)}</span>
           <span className="text-[13px] text-apagado">Todo lo que hay, sea de quien sea</span>
-        </div>
-        <div className="tarjeta flex flex-col gap-1.5 border-tinta">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">
-            Del salón
-            <Ayuda>Del patrimonio total se resta lo que es de los inversores: lo que pusieron en los autos que siguen en stock y lo que se les debe por autos vendidos. Lo que queda es del salón (y ahí entran los gastos que el salón les puso a esos autos, que recupera al venderlos).</Ayuda>
+        </TarjetaEnlace>
+        {/* La ayuda queda por encima del enlace que cubre la tarjeta, para que se pueda abrir. */}
+        <div className="tarjeta relative flex flex-col gap-1.5 border-tinta transition-colors hover:bg-fondo">
+          <span className="relative z-10">
+            <Titulo icono="salon" tono="ok">
+              Del salón
+              <Ayuda>Del patrimonio total se resta lo que es de los inversores: lo que pusieron en los autos que siguen en stock y lo que se les debe por autos vendidos. Lo que queda es del salón (y ahí entran los gastos que el salón les puso a esos autos, que recupera al venderlos).</Ayuda>
+            </Titulo>
           </span>
           <span className={`num text-3xl ${p.salon < 0 ? "text-aviso-texto" : ""}`}>{m(p.salon)}</span>
           <span className="text-[13px] text-apagado">
-            {p.total - p.salon === 0 ? "No hay plata de inversores" : `${m(p.total - p.salon)} son de los inversores`}
+            {p.total - p.salon === 0 ? "Nada es de inversores" : `${m(p.total - p.salon)} son de los inversores`}
           </span>
+          <Link href="/patrimonio/desglose/salon" className="mt-auto pt-0.5 text-sm font-semibold text-acento no-underline after:absolute after:inset-0">
+            Ver qué lo compone →
+          </Link>
         </div>
-        <div className="tarjeta flex flex-col gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Invertido en autos</span>
+        <TarjetaEnlace href="/patrimonio/desglose/autos" pie="Ver auto por auto" className="gap-1.5">
+          <Titulo icono="auto">Invertido en autos</Titulo>
           <span className="num text-3xl">{m(p.stock)}</span>
           <span className="text-[13px] text-apagado">
             {p.autosEnStock} {p.autosEnStock === 1 ? "auto" : "autos"} al costo
             {p.stockInversores > 0 && ` · ${m(p.stockInversores)} de inversores`}
           </span>
-        </div>
-        <TarjetaEnlace href="/caja" pie="Ver caja" className="gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Líquido (caja)</span>
+        </TarjetaEnlace>
+        <TarjetaEnlace href="/patrimonio/desglose/liquido" pie="Ver qué lo compone" className="gap-1.5">
+          <Titulo icono="efectivo">Disponible en caja</Titulo>
           <span className={`num text-3xl ${p.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(p.caja.total)}</span>
-          <span className="text-[13px] text-apagado">{p.deudaInversores > 0 ? `Del salón ${m(p.cajaSalon)}` : "Toda del salón"}</span>
+          <span className="text-[13px] text-apagado">{p.deudaInversores > 0 ? `Del salón ${m(p.cajaSalon)}` : "Todo del salón"}</span>
         </TarjetaEnlace>
       </section>
 
@@ -128,15 +147,33 @@ export default async function PatrimonioPage() {
       </section>
 
       <section className="tarjeta flex flex-col p-0">
-        <h2 className="p-4 pb-2 text-lg font-semibold">Plata invertida en autos</h2>
+        <h2 className="p-4 pb-2 text-lg font-semibold">Capital invertido en autos</h2>
+        {conAutos.length > 0 && (
+          <FormFiltros claseBarra="mx-4" className="grid gap-3 px-4 pb-3 sm:grid-cols-2 lg:grid-cols-4">
+            <CamposFiltroAuto valores={filtroAuto} marcas={marcas} modelos={modelos} />
+            <label className="campo">
+              Financia
+              <select name="financia" defaultValue={sp.financia ?? ""}>
+                <option value="">Todos</option>
+                {conAutos.map((x) => (
+                  <option key={x.participe.id} value={x.participe.id}>
+                    {x.participe.tipo === "SALON" ? "Salón" : x.participe.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FormFiltros>
+        )}
         {conAutos.length === 0 ? (
           <Vacio>No hay autos en stock.</Vacio>
+        ) : filas.length === 0 ? (
+          <Vacio>Ningún auto coincide con los filtros.</Vacio>
         ) : (
           <div className="overflow-x-auto">
             <table className="tabla">
               <thead>
                 <tr>
-                  <th>Auto</th>
+                  <ThAuto />
                   <th>Estado</th>
                   <th>Financia</th>
                   <th className="text-right">Invertido</th>
@@ -144,28 +181,31 @@ export default async function PatrimonioPage() {
                 </tr>
               </thead>
               <tbody>
-                {conAutos.flatMap((x) =>
-                  x.autos.map((a) => (
-                    <tr key={a.id}>
-                      <td>
-                        <Link href={`/stock/${a.id}`} className="text-tinta">
-                          {a.marca} {a.modelo} {a.anio} <span className="num text-apagado">{a.dominio}</span>
-                        </Link>
-                      </td>
-                      <td>
-                        <ChipEstado estado={a.estado} />
-                      </td>
-                      <td>{x.participe.nombre}</td>
-                      <td className="num text-right">{m(a.invertido)}</td>
-                      <td className="num text-right text-apagado">{usd(a.invertido / a.tcIngreso)}</td>
-                    </tr>
-                  )),
-                )}
+                {filas.map(({ a, x }) => (
+                  <tr key={a.id}>
+                    <TdAuto auto={a} href={`/stock/${a.id}`} anio />
+                    <td>
+                      <ChipEstado estado={a.estado} />
+                    </td>
+                    <td>{x.participe.nombre}</td>
+                    <td className="num text-right">{m(a.invertido)}</td>
+                    <td className="num text-right text-apagado">{usd(a.invertido / a.tcIngreso)}</td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot>
-                {conAutos.map((x) => (
+                {filtrado && (
+                  <tr>
+                    <td colSpan={5} className="font-semibold">
+                      Total de lo filtrado ({filas.length} {filas.length === 1 ? "auto" : "autos"})
+                    </td>
+                    <td className="num text-right font-semibold">{m(filas.reduce((s, f) => s + f.a.invertido, 0))}</td>
+                    <td className="num text-right text-apagado">{usd(filas.reduce((s, f) => s + f.a.invertido / f.a.tcIngreso, 0))}</td>
+                  </tr>
+                )}
+                {!filtrado && conAutos.map((x) => (
                   <tr key={x.participe.id}>
-                    <td colSpan={3} className="font-semibold">
+                    <td colSpan={5} className="font-semibold">
                       {x.participe.tipo === "SALON" ? "Fondos propios del salón" : `Puesto por ${x.participe.nombre}`}
                     </td>
                     <td className="num text-right font-semibold">{m(x.capital)}</td>
@@ -203,5 +243,16 @@ export default async function PatrimonioPage() {
         </section>
       )}
     </div>
+  );
+}
+
+function Titulo({ icono, tono = "info", children }: { icono: NombreIcono; tono?: "info" | "ok"; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-apagado">
+      <span className={`inline-flex size-8 items-center justify-center rounded-lg ${tono === "ok" ? "bg-ok-fondo text-ok-texto" : "bg-info-fondo text-info-texto"}`}>
+        <Icono nombre={icono} className="size-[18px]" />
+      </span>
+      {children}
+    </span>
   );
 }

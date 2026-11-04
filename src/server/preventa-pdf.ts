@@ -12,16 +12,16 @@ import { obtenerDatosSalon } from "./parametros";
 // Modelo: la preventa del sistema anterior (encabezado del salón, datos del cliente, propuesta comercial,
 // gastos, forma de pago, leyendas y firmas; en la segunda hoja, la ficha de la unidad).
 
-const A4 = { ancho: 595.28, alto: 841.89 };
-const MARGEN = 42;
-const ANCHO = A4.ancho - 2 * MARGEN;
-const TINTA = rgb(0.106, 0.122, 0.141);
-const SUAVE = rgb(0.42, 0.45, 0.49);
-const LINEA = rgb(0.82, 0.8, 0.76);
-const FONDO = rgb(0.96, 0.95, 0.93);
+export const A4 = { ancho: 595.28, alto: 841.89 };
+export const MARGEN = 42;
+export const ANCHO = A4.ancho - 2 * MARGEN;
+export const TINTA = rgb(0.106, 0.122, 0.141);
+export const SUAVE = rgb(0.42, 0.45, 0.49);
+export const LINEA = rgb(0.82, 0.8, 0.76);
+export const FONDO = rgb(0.96, 0.95, 0.93);
 
 const pesosFmt = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
-const pesos = (n: number) => `${n < 0 ? "-" : ""}$ ${pesosFmt.format(Math.abs(n))}`;
+export const pesos = (n: number) => `${n < 0 ? "-" : ""}$ ${pesosFmt.format(Math.abs(n))}`;
 
 /** Helvetica estándar solo codifica WinAnsi: se quitan acentos raros y símbolos fuera de ese juego. */
 const EXTRA = new Set("–—‘’“”•…€·");
@@ -32,7 +32,7 @@ function limpio(t: string | null | undefined): string {
     .join("");
 }
 
-class Hoja {
+export class Hoja {
   page: PDFPage;
   y: number;
   constructor(

@@ -2,12 +2,16 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { prepararBase } from "@/test/db";
-import { autoDisponible, baseAuto as base, baseContacto as contacto, habilitar, INVERSOR, saldoCaja, SALON, U } from "@/test/fabricas";
+import { autoDisponible, baseAuto as base, baseContacto as contacto, habilitar, INVERSOR, saldoCaja, SALON, U, fondear } from "@/test/fabricas";
 import * as veh from "./vehiculos";
 import * as con from "./contactos";
 import * as ven from "./ventas";
+import * as caja from "./caja";
 
-beforeAll(prepararBase);
+beforeAll(async () => {
+  await prepararBase();
+  await fondear();
+});
 
 describe("venta completa: seña + permuta + crédito + efectivo", () => {
   let auto = 0;
@@ -192,6 +196,17 @@ describe("operación caída y consignación", () => {
     expect(f.liquidacion).toMatchObject({ regla: "SALON_TOTAL", ganancia: 1_000_000, parteSalon: 1_000_000, parteInversor: 0 });
     const deuda = await db.select().from(s.cuentasPendientes).where(eq(s.cuentasPendientes.operacionId, op));
     expect(deuda).toEqual([expect.objectContaining({ tipo: "A_PAGAR", origen: "CONSIGNANTE", contraparte: "Dueño Pérez", saldo: 8_000_000 })]);
+  });
+
+  it("consignación: lo que se le debe al dueño no es del salón y se ve en Consignaciones", async () => {
+    const p = await caja.patrimonio();
+    expect(p.deudaConsignantes).toBe(8_000_000);
+    // K11: está en la caja pero es del dueño, igual que lo de un inversor.
+    expect(p.cajaSalon).toBe(Math.round((p.caja.total - p.deudaInversores - 8_000_000) * 100) / 100);
+    const c = await caja.consignaciones();
+    const fila = c.grupos.flatMap((g) => g.filas).find((f) => f.auto.dominio === "EE555EE")!;
+    expect(fila).toMatchObject({ pide: 8_000_000, precio: 9_000_000, paraElSalon: 1_000_000, seLeDebe: 8_000_000 });
+    expect(c.totales.seLesDebe).toBe(8_000_000);
   });
 
   it("no se puede vender un auto que no está disponible", async () => {

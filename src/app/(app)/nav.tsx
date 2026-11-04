@@ -34,7 +34,7 @@ const GRUPOS: { titulo: string | null; items: { href: string; label: string; ico
     ],
   },
   {
-    titulo: "Plata",
+    titulo: "Finanzas",
     items: [
       { href: "/caja", label: "Caja", icono: "caja" },
       { href: "/patrimonio", label: "Patrimonio", icono: "patrimonio" },

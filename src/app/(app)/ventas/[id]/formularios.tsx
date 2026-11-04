@@ -5,7 +5,7 @@ import { BotonConfirmar } from "@/components/dialogo";
 import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { Bandera } from "@/components/banderas";
-import { BotonEnviar, Mensaje } from "@/components/ui";
+import { BotonEnviar, Mensaje, ErrorLinea } from "@/components/ui";
 import { compraEnPesos } from "@/domain/negocio";
 import { interpretarImporte } from "@/domain/importar";
 import { hoyIso, pesos } from "@/lib/formato";
@@ -170,6 +170,9 @@ export function FormPermuta({
               </option>
             ))}
           </select>
+          <span className="text-xs font-normal text-apagado">
+            Si el usado queda a nombre del inversor dueño del auto que se vende, se le devuelve la diferencia entre los dos autos más su ganancia (K12).
+          </span>
         </label>
         <label className="campo">
           Moneda
@@ -347,7 +350,7 @@ export function FormCobrar({ id, pagoId, tipo }: { id: number; pagoId: number; t
       <BotonEnviar className="btn-secundario" pendiente="…">
         {tipo === "CREDITO" ? "El banco liquidó" : "Cobrar"}
       </BotonEnviar>
-      {r.error && <span className="text-xs text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="text-xs text-aviso-texto" />
     </form>
   );
 }

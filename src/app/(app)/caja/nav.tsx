@@ -1,12 +1,13 @@
 import Link from "next/link";
 
 const PESTANAS_CAJA = [
-  { href: "/caja", texto: "Caja (plata líquida)" },
+  { href: "/caja", texto: "Caja (disponible)" },
   { href: "/caja/cuentas", texto: "Cuentas pendientes" },
 ];
 const PESTANAS_PATRIMONIO = [
   { href: "/patrimonio", texto: "Patrimonio" },
   { href: "/patrimonio/inversores", texto: "Inversores" },
+  { href: "/patrimonio/consignaciones", texto: "Consignaciones" },
 ];
 
 export function NavCaja({ actual }: { actual: string }) {

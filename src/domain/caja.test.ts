@@ -1,5 +1,37 @@
 import { describe, it, expect } from "vitest";
-import { cuentaEnPatrimonio, esManual, saldos, valorStock } from "./caja";
+import { conSaldoAcumulado, faltaDeFondos, cuentaEnPatrimonio, esManual, filtrarDetalle, resumenPorCategoria, saldos, valorStock } from "./caja";
+
+describe("detalle de un saldo", () => {
+  const movs = [
+    { sentido: "INGRESO" as const, medio: "EFECTIVO" as const, importe: 1_000_000, anulado: false, categoria: "INGRESO_EXTRAORDINARIO" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 200_000, anulado: false, categoria: "GASTO_VEHICULO" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 999_999, anulado: true, categoria: "GASTO_SALON" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 50_000.5, anulado: false, categoria: "GASTO_VEHICULO" },
+  ];
+
+  it("acumula el saldo movimiento a movimiento y termina en el saldo de la tarjeta", () => {
+    const filas = conSaldoAcumulado(movs);
+    expect(filas.map((f) => f.saldo)).toEqual([1_000_000, 800_000, 800_000, 749_999.5]);
+    expect(filas.at(-1)!.saldo).toBe(saldos(movs).efectivo);
+  });
+
+  it("filtra por fecha, tipo, concepto y rango de importe", () => {
+    const fechados = movs.map((m, i) => ({ ...m, fecha: new Date(`2026-10-0${i + 1}T12:00:00`), concepto: ["Caja inicial", "Gestoría Peugeot", "Luz", "Alistaje"][i] }));
+    const ids = (f: Parameters<typeof filtrarDetalle>[1]) => filtrarDetalle(fechados, f).map((m) => m.concepto);
+    expect(ids({ desde: new Date("2026-10-02T00:00:00"), hasta: new Date("2026-10-03T23:59:59") })).toEqual(["Gestoría Peugeot", "Luz"]);
+    expect(ids({ categoria: "GASTO_VEHICULO" })).toEqual(["Gestoría Peugeot", "Alistaje"]);
+    expect(ids({ q: "gestoria" })).toEqual(["Gestoría Peugeot"]);
+    expect(ids({ min: 100_000, max: 500_000 })).toEqual(["Gestoría Peugeot"]);
+    expect(ids({})).toHaveLength(4);
+  });
+
+  it("agrupa por tipo sin contar anulados", () => {
+    expect(resumenPorCategoria(movs)).toEqual([
+      { categoria: "INGRESO_EXTRAORDINARIO", ingresos: 1_000_000, egresos: 0, cantidad: 1, neto: 1_000_000 },
+      { categoria: "GASTO_VEHICULO", ingresos: 0, egresos: 250_000.5, cantidad: 2, neto: -250_000.5 },
+    ]);
+  });
+});
 
 describe("saldos de caja", () => {
   it("suma por medio y no cuenta anulados", () => {
@@ -126,5 +158,43 @@ describe("la plata del inversor no es del salón (K9–K11)", () => {
     const p = { caja: 1_000_000, stock: 0, capitalInversores: 0, aCobrar: 4_000_000, aPagar: 1_500_000, deudaInversores: 500_000 };
     expect(patrimonioTotal(p)).toBe(3_500_000);
     expect(patrimonioSalon(p)).toBe(3_000_000);
+  });
+});
+
+describe("saldos nunca negativos (K13)", () => {
+  const f = (efectivo: number, banco: number, ajena = 0) => ({ efectivo, banco, ajena });
+  it("acepta saldos en cero o más", () => {
+    expect(faltaDeFondos(f(100, 10), f(0, 10))).toBeNull();
+  });
+  it("frena si el efectivo queda negativo y sugiere el pase desde el banco", () => {
+    expect(faltaDeFondos(f(100, 1000), f(-500, 1000))).toMatch(/efectivo.*Banco → Efectivo/);
+  });
+  it("frena si el banco queda negativo", () => {
+    expect(faltaDeFondos(f(1000, 0), f(1000, -1))).toMatch(/banco/);
+  });
+  it("frena si la caja del salón queda negativa aunque haya plata (es de inversores)", () => {
+    // Hay 1.000 en el banco, pero 800 son del inversor: el salón tiene 200.
+    expect(faltaDeFondos(f(0, 1000, 800), f(0, 700, 800))).toMatch(/plata del salón en el banco/);
+    expect(faltaDeFondos(f(0, 1000, 800), f(0, 800, 800))).toBeNull();
+  });
+  it("no frena lo que no empeora un saldo que ya venía negativo (pagarle al inversor)", () => {
+    expect(faltaDeFondos(f(0, 1000, 1500), f(0, 500, 1000))).toBeNull();
+    expect(faltaDeFondos(f(-50, 1000), f(-50, 900))).toBeNull();
+  });
+});
+
+import { balanceDelSalon } from "./caja";
+
+describe("balance del salón en el mes", () => {
+  it("el resultado es la diferencia entre las dos fotos, sin contar lo que se llevaron ni lo que pusieron los socios", () => {
+    // Arrancó con 10 M, ganó 3 M en ventas, gastó 0,5 M y pagó 0,3 M de sueldos: generó 2,2 M.
+    // Los socios se llevaron 1 M y pusieron 0,2 M, así que terminó con 11,4 M.
+    const b = balanceDelSalon({ inicio: 10_000_000, fin: 11_400_000, ganancia: 3_000_000, gastos: 500_000, sueldosEmpleados: 300_000, retirosSocios: 1_000_000, aportes: 200_000 });
+    expect(b.resultado).toBe(2_200_000);
+    expect(b.otros).toBe(0);
+  });
+  it("lo que no se explica va a 'otros' (por ejemplo una seña cobrada de una venta abierta)", () => {
+    const b = balanceDelSalon({ inicio: 0, fin: 600_000, ganancia: 0, gastos: 0, sueldosEmpleados: 0, retirosSocios: 0, aportes: 0 });
+    expect(b.otros).toBe(600_000);
   });
 });

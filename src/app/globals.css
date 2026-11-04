@@ -55,6 +55,14 @@
   --color-celeste: #8fa9f0;
 }
 
+/* Series de los gráficos de Reportes, siempre en este orden (validadas para daltonismo, claro y
+   oscuro). Van fuera de @theme porque se usan solo desde style="", y Tailwind no emite las que no ve en clases. */
+:root {
+  --color-serie-1: #1e7a46;
+  --color-serie-2: #1f4fd1;
+  --color-serie-3: #c2410c;
+}
+
 [data-tema="oscuro"] {
   --color-fondo: #14181d;
   --color-superficie: #1d232a;
@@ -84,6 +92,9 @@
   --color-grafico-caja: #4ec07d;
   --color-grafico-cobrar: #6e8ee8;
   --color-grafico-suave: #aabef5;
+  --color-serie-1: #3da66a;
+  --color-serie-2: #6e8ee8;
+  --color-serie-3: #d9632b;
   --color-invertido: #e7eaee;
   --color-invertido-texto: #14181d;
   --color-nav: #0f1317;

@@ -9,6 +9,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
  *
  * - `porDefecto`: valores que no cuentan como filtro (ej. estado "ACTIVOS"); no van a la URL.
  * - `plegable`: en el celular arranca cerrado detrás de un botón "Filtros", para que se vea el listado.
+ * - `fijos`: parámetros que no son filtros (ej. la pestaña `ver`): no se cuentan y "Limpiar" los conserva.
  * Siempre muestra cuántos filtros hay puestos y deja limpiarlos de una.
  */
 export function FormFiltros({
@@ -17,6 +18,7 @@ export function FormFiltros({
   porDefecto = {},
   plegable = false,
   claseBarra = "",
+  fijos = [],
 }: {
   className?: string;
   children: React.ReactNode;
@@ -24,6 +26,7 @@ export function FormFiltros({
   plegable?: boolean;
   /** Margen del botón "Filtros" y de la línea de filtros aplicados, cuando el form va dentro de una tarjeta sin padding. */
   claseBarra?: string;
+  fijos?: string[];
 }) {
   const router = useRouter();
   const ruta = usePathname();
@@ -32,7 +35,7 @@ export function FormFiltros({
   const espera = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [abierto, setAbierto] = useState(false);
 
-  const activos = [...actuales.entries()].filter(([k, v]) => v && porDefecto[k] !== v).length;
+  const activos = [...actuales.entries()].filter(([k, v]) => v && porDefecto[k] !== v && !fijos.includes(k)).length;
 
   // Navegación suave: la página se actualiza sin recargar, así el campo donde se escribe no pierde el foco.
   const enviar = () => {
@@ -49,9 +52,10 @@ export function FormFiltros({
     form.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select").forEach((el) => {
       const defecto = porDefecto[el.name];
       if (el instanceof HTMLSelectElement) el.value = defecto ?? (Array.from(el.options).some((o) => o.value === "") ? "" : el.options[0]?.value ?? "");
-      else if (el.type !== "hidden") el.value = defecto ?? "";
+      else if (el.type !== "hidden" && !fijos.includes(el.name)) el.value = defecto ?? "";
     });
-    router.replace(ruta, { scroll: false });
+    const quedan = new URLSearchParams([...actuales.entries()].filter(([k]) => fijos.includes(k)));
+    router.replace(quedan.size ? `${ruta}?${quedan}` : ruta, { scroll: false });
   };
 
   return (
