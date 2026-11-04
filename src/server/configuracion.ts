@@ -1,6 +1,6 @@
 import "server-only";
 import bcrypt from "bcryptjs";
-import { problemaPassword } from "@/domain/seguridad";
+import { COSTO_BCRYPT, problemaPassword } from "@/domain/seguridad";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { auditar } from "@/lib/auditoria";
@@ -99,7 +99,7 @@ export async function crearUsuario(
     if (await t.query.usuarios.findFirst({ where: eq(s.usuarios.email, email) })) throw new ErrorNegocio("Ya existe un usuario con ese mail");
     const [u] = await t
       .insert(s.usuarios)
-      .values({ nombre: d.nombre.trim(), email, passwordHash: await bcrypt.hash(d.password, 10), rol: d.rol, participeId: d.rol === "INVERSOR" ? d.participeId : null })
+      .values({ nombre: d.nombre.trim(), email, passwordHash: await bcrypt.hash(d.password, COSTO_BCRYPT), rol: d.rol, participeId: d.rol === "INVERSOR" ? d.participeId : null })
       .returning();
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: u.id, accion: "CREAR", descripcion: `Usuario creado: ${u.nombre} (${u.rol === "ADMIN" ? "acceso total" : "inversor, solo consulta"})` });
   });
@@ -126,7 +126,7 @@ export async function cambiarPassword(usuarioId: number, id: number, nueva: stri
   const u = await db.query.usuarios.findFirst({ where: eq(s.usuarios.id, id) });
   if (!u) throw new ErrorNegocio("No existe");
   if (actual !== undefined && !(await bcrypt.compare(actual, u.passwordHash))) throw new ErrorNegocio("La contraseña actual no es correcta");
-  const passwordHash = await bcrypt.hash(nueva, 10);
+  const passwordHash = await bcrypt.hash(nueva, COSTO_BCRYPT);
   return db.transaction(async (t) => {
     const [despues] = await t
       .update(s.usuarios)

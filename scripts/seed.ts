@@ -6,6 +6,7 @@ import postgres from "postgres";
 import bcrypt from "bcryptjs";
 import { sql } from "drizzle-orm";
 import * as s from "../src/db/schema";
+import { COSTO_BCRYPT } from "../src/domain/seguridad";
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -68,7 +69,7 @@ async function main() {
       await db.insert(s.usuarios).values({
         nombre: process.env.SEED_ADMIN_NOMBRE ?? "Administrador",
         email,
-        passwordHash: await bcrypt.hash(password, 10),
+        passwordHash: await bcrypt.hash(password, COSTO_BCRYPT),
         rol: "ADMIN",
       });
       console.log(`Usuario inicial creado: ${email}`);
