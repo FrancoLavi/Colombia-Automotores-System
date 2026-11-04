@@ -1,5 +1,37 @@
 import { describe, it, expect } from "vitest";
-import { cuentaEnPatrimonio, esManual, saldos, valorStock } from "./caja";
+import { conSaldoAcumulado, faltaDeFondos, cuentaEnPatrimonio, esManual, filtrarDetalle, resumenPorCategoria, saldos, valorStock } from "./caja";
+
+describe("detalle de un saldo", () => {
+  const movs = [
+    { sentido: "INGRESO" as const, medio: "EFECTIVO" as const, importe: 1_000_000, anulado: false, categoria: "INGRESO_EXTRAORDINARIO" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 200_000, anulado: false, categoria: "GASTO_VEHICULO" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 999_999, anulado: true, categoria: "GASTO_SALON" },
+    { sentido: "EGRESO" as const, medio: "EFECTIVO" as const, importe: 50_000.5, anulado: false, categoria: "GASTO_VEHICULO" },
+  ];
+
+  it("acumula el saldo movimiento a movimiento y termina en el saldo de la tarjeta", () => {
+    const filas = conSaldoAcumulado(movs);
+    expect(filas.map((f) => f.saldo)).toEqual([1_000_000, 800_000, 800_000, 749_999.5]);
+    expect(filas.at(-1)!.saldo).toBe(saldos(movs).efectivo);
+  });
+
+  it("filtra por fecha, tipo, concepto y rango de importe", () => {
+    const fechados = movs.map((m, i) => ({ ...m, fecha: new Date(`2026-10-0${i + 1}T12:00:00`), concepto: ["Caja inicial", "Gestoría Peugeot", "Luz", "Alistaje"][i] }));
+    const ids = (f: Parameters<typeof filtrarDetalle>[1]) => filtrarDetalle(fechados, f).map((m) => m.concepto);
+    expect(ids({ desde: new Date("2026-10-02T00:00:00"), hasta: new Date("2026-10-03T23:59:59") })).toEqual(["Gestoría Peugeot", "Luz"]);
+    expect(ids({ categoria: "GASTO_VEHICULO" })).toEqual(["Gestoría Peugeot", "Alistaje"]);
+    expect(ids({ q: "gestoria" })).toEqual(["Gestoría Peugeot"]);
+    expect(ids({ min: 100_000, max: 500_000 })).toEqual(["Gestoría Peugeot"]);
+    expect(ids({})).toHaveLength(4);
+  });
+
+  it("agrupa por tipo sin contar anulados", () => {
+    expect(resumenPorCategoria(movs)).toEqual([
+      { categoria: "INGRESO_EXTRAORDINARIO", ingresos: 1_000_000, egresos: 0, cantidad: 1, neto: 1_000_000 },
+      { categoria: "GASTO_VEHICULO", ingresos: 0, egresos: 250_000.5, cantidad: 2, neto: -250_000.5 },
+    ]);
+  });
+});
 
 describe("saldos de caja", () => {
   it("suma por medio y no cuenta anulados", () => {
@@ -63,7 +95,7 @@ describe("vista en dólares", () => {
   });
 });
 
-import { cajaDelSalon, capitalDelInversor, compraSaleDeCaja, patrimonioSalon, patrimonioTotal, medioSugerido } from "./caja";
+import { cajaDelSalon, capitalDelInversor, compraSaleDeCaja, patrimonioSalon, patrimonioTotal } from "./caja";
 
 describe("la plata del inversor no es del salón (K9–K11)", () => {
   it("la compra sale de caja solo si la financia el salón", () => {
@@ -129,7 +161,47 @@ describe("la plata del inversor no es del salón (K9–K11)", () => {
   });
 });
 
-describe("medio sugerido para pagar (K13)", () => {
+describe("saldos nunca negativos (K13)", () => {
+  const f = (efectivo: number, banco: number, ajena = 0) => ({ efectivo, banco, ajena });
+  it("acepta saldos en cero o más", () => {
+    expect(faltaDeFondos(f(100, 10), f(0, 10))).toBeNull();
+  });
+  it("frena si el efectivo queda negativo y sugiere el pase desde el banco", () => {
+    expect(faltaDeFondos(f(100, 1000), f(-500, 1000))).toMatch(/efectivo.*Banco → Efectivo/);
+  });
+  it("frena si el banco queda negativo", () => {
+    expect(faltaDeFondos(f(1000, 0), f(1000, -1))).toMatch(/banco/);
+  });
+  it("frena si la caja del salón queda negativa aunque haya plata (es de inversores)", () => {
+    // Hay 1.000 en el banco, pero 800 son del inversor: el salón tiene 200.
+    expect(faltaDeFondos(f(0, 1000, 800), f(0, 700, 800))).toMatch(/plata del salón en el banco/);
+    expect(faltaDeFondos(f(0, 1000, 800), f(0, 800, 800))).toBeNull();
+  });
+  it("no frena lo que no empeora un saldo que ya venía negativo (pagarle al inversor)", () => {
+    expect(faltaDeFondos(f(0, 1000, 1500), f(0, 500, 1000))).toBeNull();
+    expect(faltaDeFondos(f(-50, 1000), f(-50, 900))).toBeNull();
+  });
+});
+
+import { balanceDelSalon } from "./caja";
+
+describe("balance del salón en el mes", () => {
+  it("el resultado es la diferencia entre las dos fotos, sin contar lo que se llevaron ni lo que pusieron los socios", () => {
+    // Arrancó con 10 M, ganó 3 M en ventas, gastó 0,5 M y pagó 0,3 M de sueldos: generó 2,2 M.
+    // Los socios se llevaron 1 M y pusieron 0,2 M, así que terminó con 11,4 M.
+    const b = balanceDelSalon({ inicio: 10_000_000, fin: 11_400_000, ganancia: 3_000_000, gastos: 500_000, sueldosEmpleados: 300_000, retirosSocios: 1_000_000, aportes: 200_000 });
+    expect(b.resultado).toBe(2_200_000);
+    expect(b.otros).toBe(0);
+  });
+  it("lo que no se explica va a 'otros' (por ejemplo una seña cobrada de una venta abierta)", () => {
+    const b = balanceDelSalon({ inicio: 0, fin: 600_000, ganancia: 0, gastos: 0, sueldosEmpleados: 0, retirosSocios: 0, aportes: 0 });
+    expect(b.otros).toBe(600_000);
+  });
+});
+
+import { medioSugerido } from "./caja";
+
+describe("medio sugerido para pagar (K14)", () => {
   it("efectivo cuando alcanza: es como opera el salón", () => {
     expect(medioSugerido({ efectivo: 5_000_000, banco: 1_000_000 }, 3_000_000)).toBe("EFECTIVO");
     expect(medioSugerido({ efectivo: 3_000_000, banco: 0 }, 3_000_000)).toBe("EFECTIVO"); // justo
@@ -150,5 +222,23 @@ describe("medio sugerido para pagar (K13)", () => {
 
   it("un reintegro entra, así que no hay nada que cubrir", () => {
     expect(medioSugerido({ efectivo: -144_000_000, banco: 0 }, -500_000)).toBe("EFECTIVO");
+  });
+
+  it("sugiere el medio que K13 acepta, y el otro lo habría rechazado", () => {
+    // La sugerencia y la validación tienen que estar de acuerdo, si no el que paga se come un
+    // error y tiene que adivinar. El efectivo no alcanza pero el banco sí, y al salón le sobra.
+    const fondos = { efectivo: -10_000_000, banco: 100_000_000, ajena: 0 };
+    const importe = 16_500_000;
+    expect(medioSugerido(fondos, importe)).toBe("BANCO");
+    expect(faltaDeFondos(fondos, { ...fondos, banco: fondos.banco - importe })).toBeNull();
+    expect(faltaDeFondos(fondos, { ...fondos, efectivo: fondos.efectivo - importe })).toContain("No alcanza el efectivo");
+  });
+
+  it("si lo que falta es la plata del salón, ningún medio salva: eso lo decide K13", () => {
+    // Los saldos reales de hoy: entre los dos medios hay $ 7.492.798, así que pagar 16,5 M se
+    // rechaza se elija lo que se elija. medioSugerido no promete que el pago vaya a entrar.
+    const fondos = { efectivo: -144_107_201.52, banco: 151_600_000, ajena: 0 };
+    expect(medioSugerido(fondos, 16_500_000)).toBe("BANCO");
+    expect(faltaDeFondos(fondos, { ...fondos, banco: fondos.banco - 16_500_000 })).toContain("No alcanza la plata del salón");
   });
 });

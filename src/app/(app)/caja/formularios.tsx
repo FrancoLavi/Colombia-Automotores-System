@@ -2,9 +2,10 @@
 
 import { useActionState, useRef, useState } from "react";
 import { BotonConfirmar } from "@/components/dialogo";
+import { ofrecerComprobante } from "@/components/alertas";
 import { InputMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
-import { BotonEnviar, Mensaje } from "@/components/ui";
+import { BotonEnviar, Mensaje, ErrorLinea } from "@/components/ui";
 import { hoyIso, pesos } from "@/lib/formato";
 import { medioSugerido } from "@/domain/caja";
 import * as a from "./actions";
@@ -119,6 +120,63 @@ export function FormMovimiento({ participes, personas }: { participes: { id: num
   );
 }
 
+/** Corrige un movimiento cargado a mano (fecha, medio, importe, concepto y persona). */
+export function FormEditarMovimiento({
+  mov,
+  personas,
+}: {
+  mov: { id: number; fecha: Date; medio: "EFECTIVO" | "BANCO"; importe: number; concepto: string; personaId: number | null; categoria: string };
+  personas: Persona[];
+}) {
+  const [r, enviar] = useActionState(a.editarMovimientoAccion.bind(null, mov.id), INICIAL);
+  const dia = hoyIso(mov.fecha);
+  const conPersona = ["SUELDO", "RETIRO_SOCIO", "APORTE"].includes(mov.categoria);
+  return (
+    <form action={enviar} className="flex flex-col gap-3">
+      <input type="hidden" name="fechaOriginal" value={dia} />
+      <input type="hidden" name="fechaHora" value={mov.fecha.toISOString()} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="campo">
+          Fecha
+          <input type="date" name="fecha" defaultValue={dia} required />
+        </label>
+        <label className="campo">
+          Medio
+          <select name="medio" defaultValue={mov.medio}>
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="BANCO">Banco</option>
+          </select>
+        </label>
+        <label className="campo">
+          Importe ($)
+          <InputMoneda name="importe" defaultValue={mov.importe} required />
+        </label>
+        {conPersona && (
+          <label className="campo">
+            {mov.categoria === "SUELDO" ? "A quién *" : "Socio o empleado"}
+            <select name="personaId" defaultValue={mov.personaId ?? ""} required={mov.categoria === "SUELDO"}>
+              <option value="">—</option>
+              {personas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} ({p.rol === "SOCIO" ? "socio" : "empleado"})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label className="campo sm:col-span-2">
+          Concepto *
+          <input name="concepto" defaultValue={mov.concepto} required />
+        </label>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <Mensaje r={r} />
+        <BotonEnviar className="btn-primario ml-auto">Guardar cambios</BotonEnviar>
+      </div>
+    </form>
+  );
+}
+
 export function FormAnular({ id }: { id: number }) {
   const [r, enviar] = useActionState(a.anularAccion.bind(null, id), INICIAL);
   const [abierto, setAbierto] = useState(false);
@@ -137,7 +195,7 @@ export function FormAnular({ id }: { id: number }) {
       <BotonEnviar className="btn min-h-11 border border-aviso-texto px-2 text-xs text-aviso-texto" pendiente="…">
         Anular
       </BotonEnviar>
-      {r.error && <span className="text-xs text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="text-xs text-aviso-texto" />
     </form>
   );
 }
@@ -146,34 +204,26 @@ export function FormPagarGanancia({
   id,
   importe,
   etiqueta,
-  socios,
   capital = false,
   saldos,
 }: {
   id: number;
   importe: number;
   etiqueta: string;
-  socios?: Persona[];
   /** K10: devolución del capital del inversor (no es ganancia). */
   capital?: boolean;
-  /** K13: para sugerir el medio que tiene con qué pagar. */
+  /** K14: para preseleccionar el medio que tiene con qué pagar. */
   saldos: { efectivo: number; banco: number };
 }) {
   const sugerido = medioSugerido(saldos, importe);
-  const [r, enviar] = useActionState(a.pagarGananciaAccion.bind(null, id), INICIAL);
+  const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
+    const res = await a.pagarGananciaAccion(id, prev, fd);
+    if (res.ok && res.id) void ofrecerComprobante(res.id, capital ? "Devolución registrada" : "Pago registrado");
+    return res;
+  }, INICIAL);
   if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Pagado</span>;
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
-      {socios && socios.length > 0 && importe > 0 && (
-        <select name="personaId" aria-label="Socio que retira" defaultValue="" className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
-          <option value="">Queda en el salón (sin retirar a nombre de nadie)</option>
-          {socios.map((p) => (
-            <option key={p.id} value={p.id}>
-              Lo retira {p.nombre}
-            </option>
-          ))}
-        </select>
-      )}
       <select name="medio" aria-label="Medio" defaultValue={sugerido} className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
         <option value="EFECTIVO">Efectivo</option>
         <option value="BANCO">Banco</option>
@@ -194,8 +244,8 @@ export function FormPagarGanancia({
       >
         {importe < 0 ? "Registrar reintegro" : etiqueta}
       </BotonConfirmar>
-      {r.error && <span className="w-full text-right text-xs text-aviso-texto">{r.error}</span>}
-      {/* K13: si no se avisa, el medio por defecto hunde el efectivo sin que nadie lo note. */}
+      <ErrorLinea r={r} className="w-full text-right text-xs text-aviso-texto" />
+      {/* K14: avisarlo antes, así no se come el rechazo de K13 para enterarse. */}
       {sugerido === "BANCO" && (
         <span className="w-full text-right text-xs text-apagado">El efectivo no alcanza para {pesos(importe)}: sugerido banco.</span>
       )}
@@ -251,12 +301,26 @@ export function FormPagoCuenta({
   saldo: number;
   tipo: "A_COBRAR" | "A_PAGAR";
   deVenta: boolean;
-  /** K13: solo se sugiere al pagar; cobrar es plata que entra y no hay nada que cubrir. */
+  /** K14: solo al pagar; cobrar es plata que entra y no hay nada que cubrir. */
   saldos: { efectivo: number; banco: number };
 }) {
-  const [r, enviar] = useActionState(a.pagoCuentaAccion.bind(null, id), INICIAL);
   const sugerido = tipo === "A_PAGAR" ? medioSugerido(saldos, saldo) : deVenta ? "BANCO" : "EFECTIVO";
-  if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Registrado</span>;
+  const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
+    const res = await a.pagoCuentaAccion(id, prev, fd);
+    if (res.ok && res.id) void ofrecerComprobante(res.id, tipo === "A_COBRAR" ? "Cobro registrado" : "Pago registrado");
+    return res;
+  }, INICIAL);
+  if (r.ok)
+    return (
+      <span className="flex flex-wrap items-center justify-end gap-2">
+        <span className="chip bg-ok-fondo text-ok-texto">{tipo === "A_COBRAR" ? "Cobrado" : "Pagado"}</span>
+        {r.id && (
+          <a href={`/caja/movimiento/${r.id}/comprobante`} target="_blank" rel="noreferrer" className="text-sm font-semibold">
+            Comprobante PDF
+          </a>
+        )}
+      </span>
+    );
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
       <label className="sr-only" htmlFor={`imp-${id}`}>
@@ -275,9 +339,10 @@ export function FormPagoCuenta({
         <option value="BANCO">Banco</option>
       </select>
       <BotonEnviar className="btn-secundario" pendiente="…">
-        {tipo === "A_COBRAR" ? "Cobrar" : "Pagar"}
+        {/* Se marca cuando la plata ya está imputada: entró (cobrado) o salió (pagado). */}
+        {tipo === "A_COBRAR" ? "Cobrado" : "Pagado"}
       </BotonEnviar>
-      {r.error && <span className="w-full text-right text-xs text-aviso-texto">{r.error}</span>}
+      <ErrorLinea r={r} className="w-full text-right text-xs text-aviso-texto" />
       {!r.error && tipo === "A_PAGAR" && sugerido === "BANCO" && (
         <span className="w-full text-right text-xs text-apagado">El efectivo no alcanza para {pesos(saldo)}: sugerido banco.</span>
       )}

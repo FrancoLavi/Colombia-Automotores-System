@@ -3,7 +3,11 @@ import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { tablero } from "@/server/dashboard";
 import { nombreContacto, fecha, porcentaje, hora } from "@/lib/formato";
-import { avance, nombreMes } from "@/domain/dashboard";
+import { avance, periodoDe } from "@/domain/dashboard";
+import { FormFiltros } from "@/components/filtros";
+
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const nombreMesLargo = (p: string) => `${MESES[Number(p.slice(5, 7)) - 1]} ${p.slice(0, 4)}`;
 import { ChipAlerta } from "@/components/ui";
 import { TarjetaEnlace } from "@/components/tarjeta";
 import { Telefono } from "./contactos/chips";
@@ -20,10 +24,12 @@ function Barra({ valor, color }: { valor: number; color: string }) {
   );
 }
 
-export default async function InicioPage() {
+export default async function InicioPage({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const u = await requerirUsuario();
   const { m } = await vistaMoneda();
-  const t = await tablero();
+  const { mes } = await searchParams;
+  const t = await tablero(new Date(), mes);
+  const delMes = t.esteMes ? "del mes" : `de ${nombreMesLargo(t.periodo)}`;
   const maxVentas = Math.max(1, ...t.ventas12.map((m) => m.ventas));
   const agendaItems = [
     ...t.agenda.actividades.map(({ a, contacto }) => ({
@@ -41,16 +47,22 @@ export default async function InicioPage() {
         <div className="flex items-center gap-5">
           <IlustracionAuto className="hidden h-20 w-auto sm:block" />
           <div>
-          <p className="text-sm text-apagado">{nombreMes(t.periodo).replace(/ \d+$/, "")} · stock al inicio del mes: {t.stockInicio}</p>
+          <p className="text-sm text-apagado">{nombreMesLargo(t.periodo)} · stock al inicio del mes: {t.stockInicio}</p>
           <h1 className="text-3xl font-bold">Hola, {u.nombre}</h1>
           </div>
         </div>
+        <FormFiltros porDefecto={{ mes: periodoDe(new Date()) }} className="flex items-end gap-2">
+          <label className="campo">
+            Mes
+            <input type="month" name="mes" defaultValue={t.periodo} max={periodoDe(new Date())} />
+          </label>
+        </FormFiltros>
         <FormDolar actual={t.tc ? { fecha: fecha(t.tc.fecha), valor: t.tc.valor, fuente: t.tc.fuente } : null} />
       </header>
 
       <section aria-label="Objetivos del mes" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="tarjeta flex flex-col gap-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Autos vendidos</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Autos vendidos {t.esteMes ? "" : delMes}</span>
           <div>
             <span className="num text-3xl">{t.vendidos}</span>
             <span className="text-apagado"> / {t.objetivo.unidades.valor} objetivo</span>
@@ -61,7 +73,7 @@ export default async function InicioPage() {
           </span>
         </div>
         <div className="tarjeta flex flex-col gap-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Ganancia del mes</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Ganancia {delMes}</span>
           <div>
             <span className="num text-3xl">{m(t.ganancia)}</span>
             {t.objetivo.ganancia ? <span className="text-apagado"> / {m(t.objetivo.ganancia)}</span> : null}
@@ -72,7 +84,7 @@ export default async function InicioPage() {
           </span>
         </div>
         <TarjetaEnlace href="/caja" pie="Ver caja" className="gap-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Caja (líquido)</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Caja (disponible)</span>
           <span className={`num text-3xl ${t.patrimonio.caja.total < 0 ? "text-aviso-texto" : ""}`}>{m(t.patrimonio.caja.total)}</span>
           <span className="text-[13px] text-apagado">
             Efectivo {m(t.patrimonio.caja.efectivo)} · Banco {m(t.patrimonio.caja.banco)}

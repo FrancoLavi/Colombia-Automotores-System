@@ -1,6 +1,7 @@
 import { interpretarImporte } from "@/domain/importar";
 
-export type Resultado = { ok: boolean; error?: string; mensaje?: string };
+/** `id`: lo que se creó, cuando la pantalla lo necesita (ej. el movimiento, para su comprobante). */
+export type Resultado = { ok: boolean; error?: string; mensaje?: string; id?: number };
 export const INICIAL: Resultado = { ok: false };
 
 export class ErrorValidacion extends Error {}

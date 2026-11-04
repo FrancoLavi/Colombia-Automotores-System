@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { alerta, CLASES_ALERTA } from "./alertas";
 
 /**
- * Diálogo de confirmación propio (en lugar del confirm() del navegador): dice qué va a pasar
- * con palabras del negocio y deja el foco en "Cancelar", así un Enter apurado no confirma.
- * Esc o un clic afuera lo cierran sin hacer nada.
+ * Diálogo de confirmación (SweetAlert): dice qué va a pasar con palabras del negocio y deja el
+ * foco en "Cancelar", así un Enter apurado no confirma. Esc o un clic afuera lo cierran sin hacer nada.
  */
 export function Dialogo({
   abierto,
@@ -25,49 +25,32 @@ export function Dialogo({
   onConfirmar: () => void;
   onCerrar: () => void;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const idTitulo = useId();
-  const cancelar = useRef<HTMLButtonElement>(null);
+  // Las funciones cambian en cada render: se leen de una ref para no volver a abrir el diálogo.
+  const fn = useRef({ onConfirmar, onCerrar });
+  fn.current = { onConfirmar, onCerrar };
+  const mostrando = useRef(false);
   useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (abierto && !d.open) {
-      d.showModal();
-      cancelar.current?.focus();
-    } else if (!abierto && d.open) d.close();
-  }, [abierto]);
-
-  return (
-    <dialog
-      ref={ref}
-      onClose={onCerrar}
-      onClick={(e) => e.target === ref.current && onCerrar()}
-      aria-labelledby={idTitulo}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-borde bg-superficie p-0 text-tinta shadow-xl backdrop:bg-black/45"
-    >
-      <div className="flex flex-col gap-3 p-5">
-        <h2 id={idTitulo} className="text-lg font-semibold">
-          {titulo}
-        </h2>
-        {children && <div className="flex flex-col gap-2 text-sm text-suave">{children}</div>}
-        <div className="mt-2 flex flex-wrap justify-end gap-2">
-          <button ref={cancelar} type="button" className="btn-secundario" onClick={onCerrar}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            className={peligro ? "btn bg-aviso-texto text-white hover:opacity-90" : "btn-primario"}
-            onClick={() => {
-              onConfirmar();
-              onCerrar();
-            }}
-          >
-            {confirmar}
-          </button>
-        </div>
-      </div>
-    </dialog>
-  );
+    if (!abierto || mostrando.current) return;
+    mostrando.current = true;
+    alerta
+      .fire({
+        title: titulo,
+        html: children ? <div className="flex flex-col gap-2 text-left text-sm text-suave">{children}</div> : undefined,
+        icon: peligro ? "warning" : "question",
+        showCancelButton: true,
+        confirmButtonText: confirmar,
+        cancelButtonText: "Cancelar",
+        focusCancel: true,
+        reverseButtons: true,
+        customClass: { ...CLASES_ALERTA, confirmButton: peligro ? "btn bg-aviso-texto text-white hover:opacity-90" : "btn-primario" },
+      })
+      .then((r) => {
+        mostrando.current = false;
+        if (r.isConfirmed) fn.current.onConfirmar();
+        fn.current.onCerrar();
+      });
+  }, [abierto, titulo, children, confirmar, peligro]);
+  return null;
 }
 
 /**

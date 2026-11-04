@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoEnLinea } from "@/components/auto";
 import { requerirUsuario } from "@/lib/auth";
 import { vistaMoneda } from "@/lib/moneda";
 import { subcajas } from "@/server/caja";
@@ -58,9 +59,7 @@ export default async function InversoresPage() {
               {f.autos.length === 0 && <p className="text-sm text-apagado">Sin autos en stock.</p>}
               {f.autos.map((a) => (
                 <Link key={a.id} href={`/stock/${a.id}`} className="flex flex-wrap items-center justify-between gap-2 border-t border-linea py-2 text-sm text-tinta">
-                  <span>
-                    {a.marca} {a.modelo} {a.anio} <span className="num text-apagado">{a.dominio}</span>
-                  </span>
+                  <AutoEnLinea auto={a} anio />
                   <span className="flex items-center gap-2">
                     <ChipEstado estado={a.estado} />
                     <span className="num">{m(a.invertido)}</span>
@@ -69,8 +68,8 @@ export default async function InversoresPage() {
               ))}
             </div>
             <div className="flex flex-wrap gap-4 text-sm font-semibold">
-              {(f.pendiente !== 0 || f.capitalPorCobrar !== 0) && <Link href="/caja">Pagar lo pendiente →</Link>}
-              <Link href="/reportes">Ganancias pagadas por mes →</Link>
+              {(f.pendiente !== 0 || f.capitalPorCobrar !== 0) && <Link href="/caja/cuentas#inversores">Pagar lo pendiente →</Link>}
+              <Link href="/reportes?ver=ganancias">Ganancias por mes →</Link>
             </div>
           </section>
         ))}

@@ -2,13 +2,16 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { prepararBase } from "@/test/db";
-import { autoDisponible, baseAuto, baseContacto, INVERSOR, saldoCaja, U } from "@/test/fabricas";
+import { autoDisponible, baseAuto, baseContacto, INVERSOR, saldoCaja, U, fondear } from "@/test/fabricas";
 import { desdeArgentina } from "@/domain/entregas";
 import * as veh from "./vehiculos";
 import * as con from "./contactos";
 import * as ven from "./ventas";
 
-beforeAll(prepararBase);
+beforeAll(async () => {
+  await prepararBase();
+  await fondear();
+});
 
 const datos = (d: Partial<veh.DatosVehiculo> = {}): veh.DatosVehiculo => ({
   ...baseAuto, dominio: "PR123EN", marca: "Fiat", modelo: "Cronos", anio: 2021, tipoIngreso: "COMPRA", participeId: INVERSOR,

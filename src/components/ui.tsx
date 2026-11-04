@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { alertaError, aviso } from "./alertas";
 import { useFormStatus } from "react-dom";
 import type { Resultado } from "@/lib/form";
 import { Dialogo } from "./dialogo";
@@ -30,7 +31,19 @@ export function ChipAlerta({ severidad, children }: { severidad: Severidad; chil
   return <span className={`chip ${COLOR_SEVERIDAD[severidad]}`}>{children}</span>;
 }
 
+/**
+ * Resultado de un formulario. El error queda escrito al lado del form y además salta como alerta
+ * (SweetAlert) para que no pase desapercibido; lo que salió bien avisa con un cartelito que se va solo.
+ */
 export function Mensaje({ r }: { r: Resultado }) {
+  useEffect(() => {
+    if (r.error) {
+      // Los de plata (K13) dicen de dónde no alcanza: van con su propio título.
+      void alertaError(r.error, /alcanza/i.test(r.error) ? "No alcanza la plata" : "No se pudo hacer");
+    } else if (r.ok && r.mensaje) {
+      void aviso.fire({ icon: "success", title: r.mensaje });
+    }
+  }, [r]);
   if (r.error)
     return (
       <p role="alert" className="rounded-lg bg-aviso-fondo px-3 py-2 text-sm text-aviso-texto">
@@ -44,6 +57,14 @@ export function Mensaje({ r }: { r: Resultado }) {
       </p>
     );
   return null;
+}
+
+/** Error de un formulario chico, escrito al lado del botón y además como alerta (SweetAlert). */
+export function ErrorLinea({ r, className = "text-sm text-aviso-texto" }: { r: Resultado; className?: string }) {
+  useEffect(() => {
+    if (r.error) void alertaError(r.error, /alcanza/i.test(r.error) ? "No alcanza la plata" : "No se pudo hacer");
+  }, [r]);
+  return r.error ? <span className={className}>{r.error}</span> : null;
 }
 
 export function BotonEnviar({ children, className = "btn-primario", pendiente = "Guardando…" }: { children: React.ReactNode; className?: string; pendiente?: string }) {
@@ -88,6 +109,7 @@ export function BotonQuitar({ etiqueta, accion, soloIcono = false }: { etiqueta:
           iniciar(async () => {
             const r = await accion();
             setError(r.error ?? "");
+            if (r.error) void alertaError(r.error);
           })
         }
       >

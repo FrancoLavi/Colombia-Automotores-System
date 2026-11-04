@@ -11,7 +11,10 @@ import * as svc from "@/server/caja";
 const MEDIOS = ["EFECTIVO", "BANCO"] as const;
 
 function revalidar() {
-  for (const p of ["/caja", "/caja/cuentas", "/patrimonio", "/patrimonio/inversores", "/reportes", "/", "/ventas"]) revalidatePath(p);
+  // "layout": también el detalle de cada saldo y la ficha de cada movimiento.
+  revalidatePath("/caja", "layout");
+  revalidatePath("/patrimonio", "layout");
+  for (const p of ["/reportes", "/", "/ventas"]) revalidatePath(p);
 }
 
 /** Fecha del formulario con la hora actual (para ordenar bien los movimientos del día). */
@@ -46,6 +49,23 @@ export async function movimientoAccion(_: Resultado, fd: FormData): Promise<Resu
   return r;
 }
 
+export async function editarMovimientoAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await svc.editarMovimiento(u.id, id, {
+      medio: opcion(fd, "medio", MEDIOS),
+      importe: importeRequerido(fd, "importe", "Importe"),
+      concepto: requerido(fd, "concepto", "Concepto"),
+      // Si no cambió el día, conserva la hora original para que no se mueva de lugar en la planilla.
+      fecha: fechaIso(fd, "fecha") === texto(fd, "fechaOriginal") ? new Date(requerido(fd, "fechaHora", "Fecha")) : fechaConHora(fd),
+      personaId: texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null,
+    });
+    return "Movimiento corregido.";
+  });
+  revalidar();
+  return r;
+}
+
 export async function anularAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(() => svc.anularMovimiento(u.id, id, requerido(fd, "motivo", "Motivo")));
@@ -56,8 +76,8 @@ export async function anularAccion(id: number, _: Resultado, fd: FormData): Prom
 export async function pagarGananciaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"), texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null);
-    return "Pagado.";
+    const movimiento = await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
+    return { mensaje: "Pagado.", id: movimiento };
   });
   revalidar();
   return r;
@@ -82,8 +102,8 @@ export async function crearCuentaAccion(_: Resultado, fd: FormData): Promise<Res
 export async function pagoCuentaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    await svc.registrarPagoCuenta(u.id, id, importeRequerido(fd, "importe", "Importe"), opcion(fd, "medio", MEDIOS, "EFECTIVO"));
-    return "Registrado.";
+    const movimiento = await svc.registrarPagoCuenta(u.id, id, importeRequerido(fd, "importe", "Importe"), opcion(fd, "medio", MEDIOS, "EFECTIVO"));
+    return { mensaje: "Registrado.", id: movimiento };
   });
   revalidar();
   return r;

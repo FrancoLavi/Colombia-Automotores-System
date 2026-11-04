@@ -6,125 +6,449 @@ import { nombreContacto, fecha, porcentaje, fechaHora } from "@/lib/formato";
 import { nombreMes } from "@/domain/dashboard";
 import { ETIQUETA_CATEGORIA } from "@/domain/caja";
 import { ETIQUETA_ESTADO } from "@/domain/stock";
-import { IlustracionReportes, Vacio } from "@/components/ilustraciones";
+import { IlustracionGanancias, IlustracionIngresosEgresos, IlustracionMovimientoAutos, IlustracionPersonas, IlustracionVentas, Vacio } from "@/components/ilustraciones";
+import { Icono, InsigniaMovimiento, type NombreIcono } from "@/components/iconos-caja";
+import { FilaEnlace, FormFiltros } from "@/components/filtros";
+import { AutoEnLinea, CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
+import { hayFiltroAuto, leerFiltroAuto } from "@/domain/autos";
+import { r2 } from "@/domain/negocio";
+import { GraficoBarras } from "@/components/grafico";
+import { marcasDelEje } from "@/lib/grafico";
+import { opcionesDeAutos } from "@/server/caja";
 
 export const metadata = { title: "Reportes · Colombia Automotores" };
 
 const PESTANAS = [
-  { clave: "ganancias", texto: "Ganancias pagadas" },
-  { clave: "personas", texto: "Sueldos y retiros" },
-  { clave: "ventas", texto: "Ventas" },
-  { clave: "autos", texto: "Movimiento de autos" },
-  { clave: "movimientos", texto: "Ingresos y egresos" },
-] as const;
+  {
+    clave: "ganancias",
+    texto: "Ganancias",
+    icono: "inversor",
+    porAuto: true,
+    bajada:
+      "Del salón: una foto al empezar y otra al terminar el período, y qué pasó en el medio. De cada inversor: solo su ganancia por los autos vendidos (cuánto cobró y cuánto falta); el capital que se le devuelve no es ganancia.",
+  },
+  { clave: "personas", texto: "Sueldos y retiros", icono: "persona", porAuto: false, bajada: "Lo que se llevó cada socio y cada empleado: sueldos y retiros. Un aporte resta." },
+  { clave: "ventas", texto: "Ventas", icono: "venta", porAuto: true, bajada: "Autos vendidos, cuánto se facturó y cuánto se ganó, y cómo se repartió entre el salón y los inversores." },
+  { clave: "autos", texto: "Movimiento de autos", icono: "auto", porAuto: true, bajada: "Qué autos entraron y cuáles salieron, cuántos días estuvieron y en cuánto se vendieron." },
+  { clave: "movimientos", texto: "Ingresos y egresos", icono: "pase", porAuto: false, bajada: "Toda la plata que entró y salió de la caja, por tipo. Los pases entre efectivo y banco no cuentan." },
+] as const satisfies readonly { clave: string; texto: string; icono: NombreIcono; bajada: string; porAuto: boolean }[];
 type Clave = (typeof PESTANAS)[number]["clave"];
 type Fmt = (n: number | null | undefined) => string;
+type Filtros = rep.FiltrosReporte;
 
+/** Un dibujo por pestaña, para saber de un vistazo qué mide cada una. */
+const DIBUJOS: Record<Clave, (p: { className?: string }) => React.ReactElement> = {
+  ganancias: IlustracionGanancias,
+  personas: IlustracionPersonas,
+  ventas: IlustracionVentas,
+  autos: IlustracionMovimientoAutos,
+  movimientos: IlustracionIngresosEgresos,
+};
+
+const MESES_LARGOS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const mesCorto = (p: string) => nombreMes(p).slice(0, 3);
+const mesLargo = (p: string) => `${MESES_LARGOS[Number(p.slice(5, 7)) - 1]} ${p.slice(0, 4)}`;
 
-export default async function ReportesPage({ searchParams }: { searchParams: Promise<{ ver?: string; anio?: string }> }) {
+type Busqueda = { ver?: string; anio?: string; mes?: string; marca?: string; modelo?: string; patente?: string };
+
+export default async function ReportesPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
   await requerirUsuario();
   const sp = await searchParams;
-  const ver: Clave = (PESTANAS.find((p) => p.clave === sp.ver)?.clave ?? "ganancias") as Clave;
+  const pestana = PESTANAS.find((p) => p.clave === sp.ver) ?? PESTANAS[0];
+  const ver: Clave = pestana.clave;
   const anios = await rep.aniosDisponibles();
   const anio = sp.anio && anios.includes(Number(sp.anio)) ? Number(sp.anio) : anios[0];
-  const { m } = await vistaMoneda();
+  // El mes viene como "01".."12" y se combina con el año elegido.
+  const mes = sp.mes && /^(0[1-9]|1[0-2])$/.test(sp.mes) ? `${anio}-${sp.mes}` : undefined;
+  const auto = pestana.porAuto ? leerFiltroAuto(sp) : {};
+  const f: Filtros = { mes, auto };
+  const [{ m, enDolares, tc }, opciones] = await Promise.all([vistaMoneda(), opcionesDeAutos()]);
+  const ej: Fmt = (n) => abreviar(enDolares && tc ? (n ?? 0) / tc : (n ?? 0), enDolares ? "US$" : "$");
+  const periodo = mes ? mesLargo(mes) : `todo ${anio}`;
+  const Dibujo = DIBUJOS[ver];
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-3xl font-bold">Reportes</h1>
-          <nav aria-label="Reportes" className="flex flex-wrap gap-2.5">
-            {PESTANAS.map((p) => (
-              <Link
-                key={p.clave}
-                href={`/reportes?ver=${p.clave}&anio=${anio}`}
-                aria-current={ver === p.clave ? "page" : undefined}
-                className={`chip px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
-              >
-                {p.texto}
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <div className="ml-auto flex items-end gap-4">
-          <form method="get" className="flex items-end gap-2">
-            <input type="hidden" name="ver" value={ver} />
-            <label className="campo">
-              Año
-              <select name="anio" defaultValue={anio}>
-                {anios.map((a) => (
-                  <option key={a}>{a}</option>
-                ))}
-              </select>
-            </label>
-            <button className="btn-secundario">Ver</button>
-          </form>
-          <IlustracionReportes className="hidden h-20 w-auto lg:block" />
-        </div>
+      <header className="flex flex-col gap-3">
+        <h1 className="text-3xl font-bold">Reportes</h1>
+        <nav aria-label="Reportes" className="flex flex-wrap gap-2.5">
+          {PESTANAS.map((p) => (
+            <Link
+              key={p.clave}
+              href={`/reportes?ver=${p.clave}&anio=${anio}${sp.mes ? `&mes=${sp.mes}` : ""}`}
+              aria-current={ver === p.clave ? "page" : undefined}
+              className={`chip inline-flex flex-row items-center gap-1.5 px-3.5 py-2 text-[13px] ${ver === p.clave ? "bg-invertido text-invertido-texto" : "border border-borde bg-superficie text-tinta"}`}
+            >
+              <Icono nombre={p.icono} className="size-4" />
+              {p.texto}
+            </Link>
+          ))}
+        </nav>
       </header>
 
-      {ver === "ganancias" && <Ganancias anio={anio} m={m} />}
-      {ver === "personas" && <Personas anio={anio} m={m} />}
-      {ver === "ventas" && <Ventas anio={anio} m={m} />}
-      {ver === "autos" && <Autos anio={anio} m={m} />}
-      {ver === "movimientos" && <Movimientos anio={anio} m={m} />}
+      {/* Qué muestra esta pestaña, con su dibujo. */}
+      <section className="flex flex-wrap items-center gap-5 rounded-2xl bg-panel px-5 py-4">
+        <Dibujo className="h-20 w-auto shrink-0" />
+        <div className="min-w-60 flex-1">
+          <h2 className="text-lg font-semibold">
+            {pestana.texto} · <span className="font-normal">{periodo}</span>
+          </h2>
+          <p className="max-w-2xl text-sm text-suave">{pestana.bajada}</p>
+        </div>
+      </section>
+
+      <FormFiltros
+        plegable
+        fijos={["ver"]}
+        porDefecto={{ ver: "ganancias", anio: String(anios[0]) }}
+        className={`tarjeta grid gap-3.5 p-4 sm:grid-cols-2 ${pestana.porAuto ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+      >
+        <input type="hidden" name="ver" value={ver} />
+        <label className="campo">
+          Año
+          <select name="anio" defaultValue={anio}>
+            {anios.map((a) => (
+              <option key={a}>{a}</option>
+            ))}
+          </select>
+        </label>
+        <label className="campo">
+          Mes
+          <select name="mes" defaultValue={sp.mes ?? ""}>
+            <option value="">Todo el año</option>
+            {MESES_LARGOS.map((n, i) => (
+              <option key={n} value={String(i + 1).padStart(2, "0")}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        {pestana.porAuto && <CamposFiltroAuto valores={auto} marcas={opciones.marcas} modelos={opciones.modelos} id="reporte" />}
+      </FormFiltros>
+
+      {ver === "ganancias" && <Ganancias anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "personas" && <Personas anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "ventas" && <Ventas anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "autos" && <Autos anio={anio} f={f} m={m} ej={ej} />}
+      {ver === "movimientos" && <Movimientos anio={anio} f={f} m={m} ej={ej} />}
     </div>
   );
 }
 
-async function Ganancias({ anio, m }: { anio: number; m: Fmt }) {
-  const g = await rep.gananciasPagadasPorMes(anio);
-  if (!g.participes.length) return <section className="tarjeta"><Vacio>Todavía no se pagaron ganancias en {anio}. Se pagan desde Caja después de cerrar cada venta.</Vacio></section>;
+/** "$ 12,5 M", "$ 850 mil": para el eje de los gráficos, donde no entra el monto entero. */
+function abreviar(n: number, signo: string) {
+  const a = Math.abs(n);
+  const num = (x: number) => x.toLocaleString("es-AR", { maximumFractionDigits: 1 });
+  const t = a >= 1_000_000 ? `${num(a / 1_000_000)} M` : a >= 1_000 ? `${num(a / 1_000)} mil` : num(a);
+  return `${n < 0 ? "-" : ""}${signo} ${t}`;
+}
+
+const contar: Fmt = (n) => String(n ?? 0);
+
+/** Arma el gráfico de barras con los montos ya formateados (los textos viajan al navegador, las funciones no). */
+function Grafico({
+  titulo,
+  anio,
+  mes,
+  series,
+  m,
+  ej,
+  etiquetas,
+}: {
+  titulo: string;
+  anio: number;
+  mes?: string;
+  series: { nombre: string; color: 1 | 2 | 3; valores: number[] }[];
+  m: Fmt;
+  ej: Fmt;
+  /** Si no es por mes (ej. por persona). */
+  etiquetas?: string[];
+}) {
+  const meses = rep.mesesDelAnio(anio);
+  const max = Math.max(0, ...series.flatMap((x) => x.valores));
   return (
-    <section className="tarjeta flex flex-col gap-3 p-0">
-      <p className="px-4 pt-4 text-sm text-suave">Lo efectivamente pagado o retirado de cada venta, según el mes del pago.</p>
-      <div className="tabla-scroll">
-        <table className="tabla">
-          <thead>
-            <tr>
-              <th>Mes</th>
-              {g.participes.map((p) => (
-                <th key={p.id} className="text-right">
-                  {p.tipo === "SALON" ? "Salón" : p.nombre}
-                </th>
+    <GraficoBarras
+      titulo={titulo}
+      etiquetas={etiquetas ?? meses.map(mesCorto)}
+      etiquetasLargas={etiquetas ?? meses.map(mesLargo)}
+      resaltar={mes && !etiquetas ? meses.indexOf(mes) : undefined}
+      series={series.map((x) => ({ ...x, textos: x.valores.map((v) => m(v)) }))}
+      marcas={marcasDelEje(max).map((v) => ({ valor: v, texto: ej(v) }))}
+    />
+  );
+}
+
+/** Barras de los 12 meses; con un mes elegido, ese queda resaltado. */
+function BarrasMes({ valores, anio, mes, m, color = "bg-acento/70" }: { valores: number[]; anio: number; mes?: string; m: Fmt; color?: string }) {
+  const max = Math.max(1, ...valores.map((v) => Math.abs(v)));
+  const meses = rep.mesesDelAnio(anio);
+  return (
+    <div>
+      <div className="flex h-14 items-end gap-0.5" role="img" aria-label={`Por mes: ${valores.map((v, i) => `${mesCorto(meses[i])} ${m(v)}`).join(", ")}`}>
+        {valores.map((v, i) => (
+          <div
+            key={i}
+            className={`flex-1 rounded-t ${mes && meses[i] !== mes ? "bg-linea" : color}`}
+            style={{ height: `${Math.max(v ? 4 : 0, (Math.max(0, v) / max) * 100)}%` }}
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex gap-0.5 text-[10px] text-apagado" aria-hidden="true">
+        {meses.map((p) => (
+          <span key={p} className={`flex-1 text-center ${p === mes ? "font-bold text-tinta" : ""}`}>
+            {mesCorto(p).slice(0, 1)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function Ganancias({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [g, b, delAnio] = await Promise.all([rep.gananciasPorDueno(anio, f), rep.balanceSalon(anio, f.mes), rep.historicoVentas(anio, { auto: f.auto })]);
+  const inversores = g.porDueno.filter((d) => d.participe.tipo !== "SALON");
+  return (
+    <>
+      {b && <BalanceSalon b={b} m={m} filtroAuto={hayFiltroAuto(f.auto ?? {})} />}
+
+      <Grafico
+        titulo="Ganancia de las ventas, mes por mes"
+        anio={anio}
+        mes={f.mes}
+        m={m}
+        ej={ej}
+        series={[
+          { nombre: "Salón", color: 1, valores: delAnio.porMes.map((x) => x.salon) },
+          { nombre: "Inversores", color: 2, valores: delAnio.porMes.map((x) => x.inversores) },
+        ]}
+      />
+
+      <h2 className="flex items-center gap-2 pt-1 text-lg font-semibold">
+        <Icono nombre="inversor" /> Inversores: su ganancia
+      </h2>
+      {inversores.length === 0 && (
+        <p className="tarjeta text-sm text-apagado">Ningún inversor tuvo ventas cerradas en este período.</p>
+      )}
+      <section aria-label="Ganancia de cada inversor" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {inversores.map((d) => {
+          const esSalon = d.participe.tipo === "SALON";
+          const pct = d.total > 0 ? Math.min(100, Math.round((d.cobrado / d.total) * 100)) : 0;
+          return (
+            <div key={d.participe.id} className={`tarjeta flex flex-col gap-2 ${esSalon ? "border-tinta" : ""}`}>
+              <div className="flex items-center gap-2.5">
+                <span className={`inline-flex size-10 items-center justify-center rounded-xl ${esSalon ? "bg-ok-fondo text-ok-texto" : "bg-info-fondo text-info-texto"}`}>
+                  <Icono nombre={esSalon ? "salon" : "inversor"} />
+                </span>
+                <div>
+                  <h3 className="font-semibold leading-tight">{esSalon ? "Salón" : d.participe.nombre}</h3>
+                  <span className="text-[13px] text-apagado">
+                    {esSalon ? "Los dueños" : "Inversor"} · {d.ventas} {d.ventas === 1 ? "venta" : "ventas"}
+                  </span>
+                </div>
+              </div>
+              <span className={`num text-3xl ${d.total < 0 ? "text-aviso-texto" : ""}`}>{m(d.total)}</span>
+              {esSalon ? (
+                <span className="text-[13px] text-apagado">Quedó en la caja del salón al cerrar cada venta. Lo que se lleva cada socio está en Sueldos y retiros.</span>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="h-2 rounded-full bg-aviso-fondo" aria-hidden="true">
+                    <div className="h-2 rounded-full bg-ok" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-[13px] text-apagado">
+                    Cobró <b className="num text-ok-texto">{m(d.cobrado)}</b>
+                    {d.pendiente !== 0 && (
+                      <>
+                        {" · falta "}
+                        <Link href="/caja/cuentas#inversores" className="num font-semibold text-aviso-texto">
+                          {m(d.pendiente)}
+                        </Link>
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
+              <BarrasMes valores={d.porMes} anio={anio} mes={f.mes} m={m} color={esSalon ? "bg-ok/70" : "bg-acento/70"} />
+            </div>
+          );
+        })}
+      </section>
+
+      {!f.mes && g.total !== 0 && (
+        <section className="tarjeta tabla-scroll p-0">
+          <h2 className="p-4 pb-2 text-lg font-semibold">Mes por mes</h2>
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th>Mes</th>
+                {g.porDueno.map((d) => (
+                  <th key={d.participe.id} className="text-right">
+                    {d.participe.tipo === "SALON" ? "Salón" : d.participe.nombre}
+                  </th>
+                ))}
+                <th className="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {g.meses.map((x) => (
+                <tr key={x.periodo} className={x.total ? "" : "text-apagado"}>
+                  <td>{mesLargo(x.periodo)}</td>
+                  {g.porDueno.map((d) => (
+                    <td key={d.participe.id} className="num text-right">
+                      {x.porParticipe[d.participe.id] ? m(x.porParticipe[d.participe.id]) : "—"}
+                    </td>
+                  ))}
+                  <td className="num text-right font-semibold">{x.total ? m(x.total) : "—"}</td>
+                </tr>
               ))}
-              <th className="text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {g.meses.map((x) => (
-              <tr key={x.periodo} className={x.total ? "" : "text-apagado"}>
-                <td>{nombreMes(x.periodo)}</td>
-                {g.participes.map((p) => (
-                  <td key={p.id} className="num text-right">
-                    {x.porParticipe[p.id] ? m(x.porParticipe[p.id]) : "—"}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="font-semibold">Total {anio}</td>
+                {g.porDueno.map((d) => (
+                  <td key={d.participe.id} className="num text-right font-semibold">
+                    {m(d.total)}
                   </td>
                 ))}
-                <td className="num text-right font-semibold">{x.total ? m(x.total) : "—"}</td>
+                <td className="num text-right font-semibold">{m(g.total)}</td>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td className="font-semibold">Total {anio}</td>
-              {g.participes.map((p) => (
-                <td key={p.id} className="num text-right font-semibold">
-                  {m(g.totales[p.id])}
-                </td>
-              ))}
-              <td className="num text-right font-semibold">{m(g.total)}</td>
-            </tr>
-          </tfoot>
-        </table>
+            </tfoot>
+          </table>
+        </section>
+      )}
+
+      <section className="tarjeta flex flex-col p-0">
+        <h2 className="p-4 pb-2 text-lg font-semibold">Venta por venta</h2>
+        {g.ventas.length === 0 ? (
+          <Vacio>No hay ventas cerradas con estos filtros. La ganancia se reparte al cerrar cada venta.</Vacio>
+        ) : (
+          <div className="tabla-scroll">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>N°</th>
+                  <th>Cierre</th>
+                  <ThAuto />
+                  {g.porDueno.map((d) => (
+                    <th key={d.participe.id} className="text-right">
+                      {d.participe.tipo === "SALON" ? "Salón" : d.participe.nombre}
+                    </th>
+                  ))}
+                  <th className="text-right">Ganancia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.ventas.map((v) => (
+                  <FilaEnlace key={v.op.id} href={`/ventas/${v.op.id}`}>
+                    <td>
+                      <Link href={`/ventas/${v.op.id}`} className="num">
+                        {v.numero}
+                      </Link>
+                    </td>
+                    <td className="num">{fecha(v.op.fechaCierre)}</td>
+                    <TdAuto auto={v.auto} href={`/stock/${v.auto.id}`} anio />
+                    {g.porDueno.map((d) => {
+                      const x = v.partes[d.participe.id];
+                      return (
+                        <td key={d.participe.id} className="num text-right">
+                          {x ? m(x.importe) : "—"}
+                          {x?.pendiente && <span className="chip ml-1 bg-aviso-fondo text-aviso-texto">falta pagar</span>}
+                        </td>
+                      );
+                    })}
+                    <td className={`num text-right font-semibold ${v.total < 0 ? "text-aviso-texto" : ""}`}>{m(v.total)}</td>
+                  </FilaEnlace>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+type Balance = NonNullable<Awaited<ReturnType<typeof rep.balanceSalon>>>;
+
+/**
+ * El salón en el período: la foto al empezar, la foto al terminar y qué pasó en el medio.
+ * El resultado es lo que generó el mes; después los socios deciden si lo dejan o lo retiran.
+ */
+function BalanceSalon({ b, m, filtroAuto }: { b: Balance; m: Fmt; filtroAuto: boolean }) {
+  const Fila = ({ signo, texto, detalle, v, fuerte = false }: { signo: string; texto: string; detalle?: string; v: number; fuerte?: boolean }) => (
+    <div className={`flex items-center justify-between gap-3 py-2.5 text-sm ${fuerte ? "border-t-2 border-tinta" : "border-t border-linea"}`}>
+      <span className="flex items-center gap-2.5">
+        <span
+          aria-hidden="true"
+          className={`inline-flex size-7 shrink-0 items-center justify-center rounded-full font-bold ${signo === "+" ? "bg-ok-fondo text-ok-texto" : signo === "−" ? "bg-aviso-fondo text-aviso-texto" : "bg-info-fondo text-info-texto"}`}
+        >
+          {signo}
+        </span>
+        <span>
+          {fuerte ? <b>{texto}</b> : texto}
+          {detalle && <span className="block text-[13px] text-apagado">{detalle}</span>}
+        </span>
+      </span>
+      <span className={`num ${fuerte ? "text-lg font-bold" : ""} ${v < 0 ? "text-aviso-texto" : ""}`}>{m(v === 0 ? 0 : v)}</span>
+    </div>
+  );
+  const dif = r2(b.fin - b.inicio);
+  return (
+    <section className="tarjeta flex flex-col gap-3 border-tinta">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex size-10 items-center justify-center rounded-xl bg-ok-fondo text-ok-texto">
+          <Icono nombre="salon" />
+        </span>
+        <div>
+          <h2 className="text-lg font-semibold leading-tight">Salón: balance del período</h2>
+          <span className="text-[13px] text-apagado">Una foto de lo que era del salón al empezar y otra al terminar{b.enCurso ? " (hoy, porque el período sigue)" : ""}.</span>
+        </div>
       </div>
+
+      {/* Las dos fotos */}
+      <div className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+        <div className="rounded-xl bg-fondo p-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">Al empezar · {fecha(b.diaAntes)}</span>
+          <div className="num text-2xl">{m(b.inicio)}</div>
+        </div>
+        <div className="flex flex-col items-center text-sm">
+          <Icono nombre="flecha" className="size-6 max-sm:rotate-90" />
+          <span className={`num font-semibold ${dif < 0 ? "text-aviso-texto" : "text-ok-texto"}`}>
+            {dif >= 0 ? "+" : ""}
+            {m(dif)}
+          </span>
+        </div>
+        <div className="rounded-xl bg-fondo p-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-apagado">
+            {b.enCurso ? "Hoy" : "Al terminar"} · {fecha(b.hasta)}
+          </span>
+          <div className="num text-2xl">{m(b.fin)}</div>
+        </div>
+      </div>
+
+      <div className="flex flex-col">
+        <Fila signo="=" texto="Lo que era del salón al empezar" v={b.inicio} />
+        <Fila signo="+" texto="Ganancia de las ventas cerradas" detalle="La parte del salón de cada venta (R3)" v={b.ganancia} />
+        <Fila signo="−" texto="Gastos del salón" detalle="Gastos del salón y gastos extraordinarios" v={-b.gastos} />
+        <Fila signo="−" texto="Sueldos de empleados" v={-b.sueldosEmpleados} />
+        {b.otros !== 0 && <Fila signo="±" texto="Otros" detalle="Deudas o créditos cargados a mano, señas de ventas todavía abiertas y ajustes" v={b.otros} />}
+        <Fila signo="=" texto="Resultado del período" detalle="Lo que generó el salón, antes de que los socios decidan qué hacer con eso" v={b.resultado} fuerte />
+        <Fila signo="−" texto="Lo que se llevaron los socios" detalle="Sueldos de socios y retiros" v={-b.retirosSocios} />
+        {b.aportes !== 0 && <Fila signo="+" texto="Lo que pusieron los socios" detalle="Aportes e ingresos extraordinarios" v={b.aportes} />}
+        <Fila signo="=" texto={b.enCurso ? "Lo que es del salón hoy" : "Lo que era del salón al terminar"} v={b.fin} fuerte />
+      </div>
+
+      <p className="rounded-lg bg-panel px-3 py-2 text-sm text-suave">
+        Con el resultado, los socios deciden: dejarlo en la caja para el mes que viene o llevárselo como sueldo o retiro (
+        <Link href="/caja">Caja → Registrar movimiento</Link>). La foto cuenta la caja, los autos al costo y las cuentas; ver{" "}
+        <Link href="/patrimonio/desglose/salon">qué la compone hoy</Link>.
+        {filtroAuto && " El balance es de todo el salón: no se filtra por auto."}
+      </p>
     </section>
   );
 }
 
-async function Personas({ anio, m }: { anio: number; m: Fmt }) {
-  const { resumen, detalle } = await rep.retirosPorPersona(anio);
+async function Personas({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const { resumen, detalle } = await rep.retirosPorPersona(anio, f);
   if (!resumen.length)
     return (
       <section className="tarjeta">
@@ -135,6 +459,17 @@ async function Personas({ anio, m }: { anio: number; m: Fmt }) {
     );
   return (
     <>
+      <Grafico
+        titulo={`Lo que se llevó cada persona${f.mes ? ` en ${mesLargo(f.mes)}` : ` en ${anio}`}`}
+        anio={anio}
+        m={m}
+        ej={ej}
+        etiquetas={resumen.map((r) => r.persona.nombre)}
+        series={[
+          { nombre: "Sueldos", color: 2, valores: resumen.map((r) => r.sueldos) },
+          { nombre: "Retiros", color: 3, valores: resumen.map((r) => r.retiros) },
+        ]}
+      />
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {resumen.map((r) => (
           <div key={r.persona.id} className="tarjeta flex flex-col gap-2">
@@ -147,12 +482,7 @@ async function Personas({ anio, m }: { anio: number; m: Fmt }) {
               Sueldos {m(r.sueldos)} · Retiros {m(r.retiros)}
               {r.aportes ? ` · Aportes −${m(r.aportes)}` : ""}
             </div>
-            <div className="flex h-12 items-end gap-0.5" role="img" aria-label={`Por mes: ${r.porMes.map((v, i) => `${mesCorto(rep.mesesDelAnio(anio)[i])} ${m(v)}`).join(", ")}`}>
-              {r.porMes.map((v, i) => {
-                const max = Math.max(1, ...r.porMes);
-                return <div key={i} className="flex-1 rounded-t bg-acento/70" style={{ height: `${Math.max(0, (v / max) * 100)}%` }} />;
-              })}
-            </div>
+            <BarrasMes valores={r.porMes} anio={anio} mes={f.mes} m={m} />
           </div>
         ))}
       </section>
@@ -170,6 +500,13 @@ async function Personas({ anio, m }: { anio: number; m: Fmt }) {
               </tr>
             </thead>
             <tbody>
+              {detalle.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-apagado">
+                    Nada en este período.
+                  </td>
+                </tr>
+              )}
               {detalle.map((d) => (
                 <tr key={d.m.id}>
                   <td className="num">{fecha(d.m.fecha)}</td>
@@ -187,11 +524,25 @@ async function Personas({ anio, m }: { anio: number; m: Fmt }) {
   );
 }
 
-async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
-  const { ventas, porMes } = await rep.historicoVentas(anio);
+async function Ventas({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [{ ventas, porMes }, delAnio] = await Promise.all([rep.historicoVentas(anio, f), rep.historicoVentas(anio, { auto: f.auto })]);
   const tot = porMes.reduce((a, x) => ({ u: a.u + x.unidades, f: a.f + x.facturado, g: a.g + x.ganancia, s: a.s + x.salon, i: a.i + x.inversores }), { u: 0, f: 0, g: 0, s: 0, i: 0 });
   return (
     <>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Grafico titulo="Autos vendidos por mes" anio={anio} mes={f.mes} m={contar} ej={contar} series={[{ nombre: "Autos vendidos", color: 2, valores: delAnio.porMes.map((x) => x.unidades) }]} />
+        <Grafico
+          titulo="Facturado y ganado por mes"
+          anio={anio}
+          mes={f.mes}
+          m={m}
+          ej={ej}
+          series={[
+            { nombre: "Facturado", color: 2, valores: delAnio.porMes.map((x) => x.facturado) },
+            { nombre: "Ganancia", color: 1, valores: delAnio.porMes.map((x) => x.ganancia) },
+          ]}
+        />
+      </div>
       <section className="tarjeta tabla-scroll p-0">
         <table className="tabla">
           <thead>
@@ -207,7 +558,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
           <tbody>
             {porMes.map((x) => (
               <tr key={x.periodo} className={x.unidades ? "" : "text-apagado"}>
-                <td>{nombreMes(x.periodo)}</td>
+                <td>{mesLargo(x.periodo)}</td>
                 <td className="num text-right">{x.unidades || "—"}</td>
                 <td className="num text-right">{x.unidades ? m(x.facturado) : "—"}</td>
                 <td className="num text-right">{x.unidades ? m(x.ganancia) : "—"}</td>
@@ -218,7 +569,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
           </tbody>
           <tfoot>
             <tr className="font-semibold">
-              <td>Total {anio}</td>
+              <td>{f.mes ? "Total" : `Total ${anio}`}</td>
               <td className="num text-right">{tot.u}</td>
               <td className="num text-right">{m(tot.f)}</td>
               <td className="num text-right">{m(tot.g)}</td>
@@ -229,9 +580,9 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
         </table>
       </section>
       <section className="tarjeta flex flex-col p-0">
-        <h2 className="p-4 pb-2 text-lg font-semibold">Ventas del año</h2>
+        <h2 className="p-4 pb-2 text-lg font-semibold">{f.mes ? "Ventas del mes" : "Ventas del año"}</h2>
         {ventas.length === 0 ? (
-          <Vacio>No hay ventas cerradas en {anio}.</Vacio>
+          <Vacio>No hay ventas cerradas con estos filtros.</Vacio>
         ) : (
           <div className="tabla-scroll">
             <table className="tabla">
@@ -239,7 +590,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
                 <tr>
                   <th>N°</th>
                   <th>Cierre</th>
-                  <th>Auto</th>
+                  <ThAuto />
                   <th>Cliente</th>
                   <th>Financia</th>
                   <th className="text-right">Precio</th>
@@ -257,9 +608,7 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
                       </Link>
                     </td>
                     <td className="num">{fecha(v.op.fechaCierre)}</td>
-                    <td>
-                      {v.auto.marca} {v.auto.modelo} {v.auto.anio} <span className="num text-apagado">{v.auto.dominio}</span>
-                    </td>
+                    <TdAuto auto={v.auto} href={`/stock/${v.auto.id}`} anio />
                     <td>
                       {nombreContacto(v.cliente)}
                     </td>
@@ -279,20 +628,34 @@ async function Ventas({ anio, m }: { anio: number; m: Fmt }) {
   );
 }
 
-async function Autos({ anio, m }: { anio: number; m: Fmt }) {
-  const { autos, movimientos } = await rep.historicoAutos(anio);
+async function Autos({ anio, f, m }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [{ autos, movimientos }, delAnio] = await Promise.all([rep.historicoAutos(anio, f), rep.historicoAutos(anio, { auto: f.auto })]);
+  const meses = rep.mesesDelAnio(anio);
+  const porMes = (fechaDe: (a: (typeof delAnio.autos)[number]) => string | null | undefined) =>
+    meses.map((p) => delAnio.autos.filter((a) => fechaDe(a)?.slice(0, 7) === p).length);
   return (
     <>
+      <Grafico
+        titulo="Autos que entraron y que se vendieron"
+        anio={anio}
+        mes={f.mes}
+        m={contar}
+        ej={contar}
+        series={[
+          { nombre: "Entraron", color: 1, valores: porMes((a) => a.v.fechaIngreso) },
+          { nombre: "Se vendieron", color: 2, valores: porMes((a) => a.venta?.fechaCierre) },
+        ]}
+      />
       <section className="tarjeta flex flex-col p-0">
-        <h2 className="p-4 pb-2 text-lg font-semibold">Autos que entraron o salieron en {anio}</h2>
+        <h2 className="p-4 pb-2 text-lg font-semibold">Autos que entraron o salieron</h2>
         {autos.length === 0 ? (
-          <Vacio>No hubo movimiento de autos en {anio}.</Vacio>
+          <Vacio>No hubo movimiento de autos con estos filtros.</Vacio>
         ) : (
           <div className="tabla-scroll">
             <table className="tabla">
               <thead>
                 <tr>
-                  <th>Auto</th>
+                  <ThAuto />
                   <th>Ingreso</th>
                   <th>Tipo</th>
                   <th>Financia</th>
@@ -307,11 +670,7 @@ async function Autos({ anio, m }: { anio: number; m: Fmt }) {
               <tbody>
                 {autos.map((a) => (
                   <tr key={a.v.id}>
-                    <td>
-                      <Link href={`/stock/${a.v.id}`} className="text-tinta">
-                        {a.v.marca} {a.v.modelo} {a.v.anio} <span className="num text-apagado">{a.v.dominio}</span>
-                      </Link>
-                    </td>
+                    <TdAuto auto={a.v} href={`/stock/${a.v.id}`} anio />
                     <td className="num">{fecha(a.v.fechaIngreso)}</td>
                     <td className="lowercase">{a.v.tipoIngreso}</td>
                     <td>{a.financista}</td>
@@ -335,8 +694,8 @@ async function Autos({ anio, m }: { anio: number; m: Fmt }) {
           {movimientos.map(({ a, usuario, auto }) => (
             <div key={a.id} className="flex flex-wrap gap-x-4 border-t border-linea py-2 text-sm">
               <span className="num min-w-36 text-apagado">{fechaHora(a.fecha)}</span>
-              <Link href={`/stock/${auto.id}`} className="min-w-48 text-tinta">
-                {auto.marca} {auto.modelo} <span className="num text-apagado">{auto.dominio}</span>
+              <Link href={`/stock/${auto.id}`} className="min-w-56 text-tinta no-underline">
+                <AutoEnLinea auto={auto} />
               </Link>
               <span>
                 {a.descripcion} <span className="text-apagado">· {usuario ?? "Sistema"}</span>
@@ -349,11 +708,22 @@ async function Autos({ anio, m }: { anio: number; m: Fmt }) {
   );
 }
 
-async function Movimientos({ anio, m }: { anio: number; m: Fmt }) {
-  const { meses, categorias } = await rep.resumenMensual(anio);
+async function Movimientos({ anio, f, m, ej }: { anio: number; f: Filtros; m: Fmt; ej: Fmt }) {
+  const [{ meses, categorias }, delAnio] = await Promise.all([rep.resumenMensual(anio, f), rep.resumenMensual(anio)]);
   const total = (f: (x: (typeof meses)[number]) => number) => meses.reduce((a, x) => a + f(x), 0);
   return (
     <>
+      <Grafico
+        titulo="Lo que entró y lo que salió de la caja"
+        anio={anio}
+        mes={f.mes}
+        m={m}
+        ej={ej}
+        series={[
+          { nombre: "Ingresos", color: 1, valores: delAnio.meses.map((x) => x.ingresos) },
+          { nombre: "Egresos", color: 3, valores: delAnio.meses.map((x) => x.egresos) },
+        ]}
+      />
       <section className="tarjeta tabla-scroll p-0">
         <table className="tabla">
           <thead>
@@ -368,7 +738,7 @@ async function Movimientos({ anio, m }: { anio: number; m: Fmt }) {
           <tbody>
             {meses.map((x) => (
               <tr key={x.periodo} className={x.ingresos || x.egresos ? "" : "text-apagado"}>
-                <td>{nombreMes(x.periodo)}</td>
+                <td>{mesLargo(x.periodo)}</td>
                 <td className="num text-right text-ok-texto">{x.ingresos ? m(x.ingresos) : "—"}</td>
                 <td className="num text-right text-aviso-texto">{x.egresos ? m(x.egresos) : "—"}</td>
                 <td className="num text-right font-semibold">{x.ingresos || x.egresos ? m(x.ingresos - x.egresos) : "—"}</td>
@@ -378,7 +748,7 @@ async function Movimientos({ anio, m }: { anio: number; m: Fmt }) {
           </tbody>
           <tfoot>
             <tr className="font-semibold">
-              <td>Total {anio}</td>
+              <td>{f.mes ? "Total" : `Total ${anio}`}</td>
               <td className="num text-right">{m(total((x) => x.ingresos))}</td>
               <td className="num text-right">{m(total((x) => x.egresos))}</td>
               <td className="num text-right">{m(total((x) => x.ingresos - x.egresos))}</td>
@@ -409,7 +779,10 @@ async function Movimientos({ anio, m }: { anio: number; m: Fmt }) {
                   return (
                     <tr key={c}>
                       <td>
-                        <span className={sentido === "INGRESO" ? "text-ok-texto" : "text-aviso-texto"}>{sentido === "INGRESO" ? "+" : "−"}</span> {ETIQUETA_CATEGORIA[cat]}
+                        <span className="flex items-center gap-2.5">
+                          <InsigniaMovimiento categoria={cat} sentido={sentido as "INGRESO" | "EGRESO"} />
+                          {ETIQUETA_CATEGORIA[cat]}
+                        </span>
                       </td>
                       {meses.map((x) => (
                         <td key={x.periodo} className="num text-right">
