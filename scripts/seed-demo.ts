@@ -541,6 +541,13 @@ async function main() {
   // Las operaciones se crearon todas hoy. Se corren hacia atrás, junto con los movimientos de
   // caja que generaron, para que Reportes muestre cuatro meses en vez de un solo día.
   console.log(SALIDA.gris("  Acomodando las fechas…"));
+
+  // `habilitarVenta` marca la fecha de disponible con la de hoy, así que todos los autos
+  // aparecerían con 0 días en stock. Se la corre a dos días después del ingreso, que es lo que
+  // tarda en la realidad entre que entra y queda publicado.
+  await db.execute(sql`update ${s.vehiculos}
+                          set fecha_disponible = fecha_ingreso + interval '2 days'
+                        where fecha_disponible is not null`);
   for (const { id, dias } of fechasOperacion) {
     const preventa = iso(diasAtras(dias));
     const cierre = iso(diasAtras(Math.max(0, dias - 1)));
