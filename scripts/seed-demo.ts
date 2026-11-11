@@ -167,18 +167,25 @@ async function main() {
   const HECTOR = await inversor("Héctor Benítez");
   const SILVANA = await inversor("Silvana Rossi");
 
-  // Usuario para entrar a la demo.
+  // Usuario para entrar a la demo. Un nombre común y nada más: en una captura o un video,
+  // "Usuario de demostración" delata que es una maqueta. Es el mismo nombre que el socio, para
+  // que cierre con el resto de la demo.
+  const NOMBRE_DEMO = "Daniel Soler";
   let usuario = await db.query.usuarios.findFirst({ where: eq(s.usuarios.email, EMAIL_DEMO) });
   if (!usuario) {
     [usuario] = await db
       .insert(s.usuarios)
       .values({
-        nombre: "Usuario de demostración",
+        nombre: NOMBRE_DEMO,
         email: EMAIL_DEMO,
         passwordHash: await bcrypt.hash(PASSWORD_DEMO, COSTO_BCRYPT),
         rol: "ADMIN",
       })
       .returning();
+  } else if (usuario.nombre !== NOMBRE_DEMO) {
+    // El DEMO_RESET no vacía `usuarios` (la auditoría les apunta), así que un usuario de una
+    // corrida anterior sobrevive con su nombre viejo. Se actualiza acá.
+    [usuario] = await db.update(s.usuarios).set({ nombre: NOMBRE_DEMO }).where(eq(s.usuarios.id, usuario.id)).returning();
   }
   const U = usuario.id;
 
