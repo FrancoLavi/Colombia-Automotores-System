@@ -18,8 +18,12 @@ npm run build
 npm run db:generate   # nueva migración a partir de src/db/schema.ts
 npm run db:migrate    # aplica migraciones (PGlite local en ./.data/pglite o DATABASE_URL)
 npm run db:seed       # datos base + usuario inicial desde .env.local
+npm run db:seed-demo  # salón ficticio con 4 meses de actividad, en ./.data/demo (correlo con dev:demo apagado)
+npm run dev:demo      # levanta la app contra esa base de demostración
 ```
 Antes de dar una tarea por terminada: `npm test`, `npm run lint`, `npm run typecheck` y `npm run build` tienen que pasar. Lo mismo corre en CI en cada PR.
+
+**Para mostrarle el sistema a alguien de afuera —demo, video, captura— se usa siempre la base de demostración, nunca producción.** En pantalla aparecen nombres y teléfonos de clientes reales, cuánto gana el salón por cada auto y el capital de cada inversor.
 
 ## Arquitectura (capas)
 | Capa | Carpeta | Qué va |
