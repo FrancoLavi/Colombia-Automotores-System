@@ -109,7 +109,7 @@ describe("movimientos y cuentas manuales", () => {
 
   it("un gasto a pagar se marca pagado al cancelar su cuenta", async () => {
     const auto = await autoDisponible("BB222BB");
-    await veh.agregarGasto(U, auto, { categoriaId: 1, fecha: "2026-10-05", descripcion: "Chapista", importe: 500_000, estado: "PENDIENTE", medio: "EFECTIVO" });
+    await veh.agregarGasto(U, auto, { categoriaId: 1, fecha: "2026-10-05", descripcion: "Puerta", importe: 500_000, estado: "PENDIENTE", medio: "EFECTIVO", proveedor: "Chapista" });
     const c = (await caja.listarCuentas({ tipo: "A_PAGAR" })).find((x) => x.c.contraparte === "Chapista")!;
     await caja.registrarPagoCuenta(U, c.c.id, 500_000, "EFECTIVO");
     const ficha = (await veh.fichaVehiculo(auto))!;

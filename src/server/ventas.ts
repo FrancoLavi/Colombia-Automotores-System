@@ -561,7 +561,7 @@ export async function caerOperacion(usuarioId: number, id: number, motivo: strin
         medio,
         categoria: "DEVOLUCION_SENIA",
         importe: p.importe,
-        concepto: `Devolución ${ETIQUETA_PAGO[p.tipo].toLowerCase()} ${numeroOperacion(id)} · ${nombre(c)}`,
+        concepto: `Devolución de ${ETIQUETA_PAGO[p.tipo].toLowerCase()} (venta caída) ${numeroOperacion(id)} · ${nombre(c)}`,
         operacionId: id,
         vehiculoId: op.vehiculoId,
         usuarioId,

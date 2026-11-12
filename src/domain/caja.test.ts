@@ -180,6 +180,11 @@ describe("saldos nunca negativos (K13)", () => {
   it("no frena lo que no empeora un saldo que ya venía negativo (pagarle al inversor)", () => {
     expect(faltaDeFondos(f(0, 1000, 1500), f(0, 500, 1000))).toBeNull();
     expect(faltaDeFondos(f(-50, 1000), f(-50, 900))).toBeNull();
+    // Al anular un ingreso no se sugiere cambiar de medio: no hay medio para elegir.
+    const anular = faltaDeFondos(f(100, 1000), f(-500, 1000), undefined, true)!;
+    expect(anular).toMatch(/No se puede anular.*efectivo/);
+    expect(anular).not.toMatch(/elegí/);
+    expect(faltaDeFondos(f(100, 1000), f(50, 1000), undefined, true)).toBeNull();
   });
 });
 

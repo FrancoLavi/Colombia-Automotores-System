@@ -284,7 +284,7 @@ export async function anularMovimiento(usuarioId: number, id: number, motivo: st
       detalle = ` · la cuenta con ${c.contraparte} vuelve a quedar abierta`;
     }
     await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: motivo }).where(inArray(s.movimientosCaja.id, ids));
-    await exigirFondos(t, antesFondos);
+    await exigirFondos(t, antesFondos, { anulando: true });
     await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "ELIMINAR", antes: m, descripcion: `Anulado: ${m.concepto} (${motivo})${detalle}` });
   });
 }

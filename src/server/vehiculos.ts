@@ -669,6 +669,8 @@ export interface DatosGasto {
   medio: "EFECTIVO" | "BANCO";
   /** R8: quién pone la plata. Si no se dice, el salón. */
   pagadoPor?: PagadorGasto;
+  /** Si queda a pagar: a quién se le debe (chapista, gomería…). Va a la cuenta a pagar. */
+  proveedor?: string | null;
 }
 
 async function insertarGasto(t: Tx, usuarioId: number, v: Vehiculo, g: DatosGasto) {
@@ -711,7 +713,16 @@ async function insertarGasto(t: Tx, usuarioId: number, v: Vehiculo, g: DatosGast
   } else {
     const [c] = await t
       .insert(s.cuentasPendientes)
-      .values({ tipo: "A_PAGAR", origen: "GASTO", contraparte: g.descripcion || categoria.nombre, vehiculoId, importe: g.importe, saldo: g.importe, notas: etiqueta })
+      .values({
+        tipo: "A_PAGAR",
+        origen: "GASTO",
+        // Antes se usaba el detalle ("Le debemos a Puerta y guardabarros"); el detalle va a las notas.
+        contraparte: g.proveedor?.trim() || `Proveedor de ${categoria.nombre.toLowerCase()}`,
+        vehiculoId,
+        importe: g.importe,
+        saldo: g.importe,
+        notas: g.descripcion ? `${etiqueta} (${g.descripcion})` : etiqueta,
+      })
       .returning();
     cuentaPendienteId = c.id;
   }
