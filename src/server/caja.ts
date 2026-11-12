@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
-import { db, schema as s } from "@/db";
+import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { r2 } from "@/domain/negocio";
 import {
@@ -11,6 +11,7 @@ import {
   esEditable,
   esManual,
   filtrarDetalle,
+  pagoAlInversor,
   exigePersona,
   patrimonioSalon,
   patrimonioTotal,
@@ -140,7 +141,23 @@ export async function fichaMovimiento(id: number) {
   } else if (auto) {
     origen = { texto: `Auto ${nombreAuto}`, href: `/stock/${auto.id}`, ayuda: "Lo generó la compra o el ingreso del auto: se corrige desde su ficha." };
   }
-  return { ...m, usuario: x.usuario, persona: x.persona, participe: x.participe, origen, manual: esManual(m.categoria), editable: esEditable(m.categoria) && !m.anulado };
+  const deshacer = await comoSeDeshace(db, m);
+  if (deshacer === "INVERSOR") {
+    origen = { texto: `Pago al inversor por la venta ${m.operacionId ? numeroOperacion(m.operacionId) : ""}`.trim(), href: "/caja/cuentas#inversores", ayuda: "Si se cargó mal, anulalo acá: vuelve a quedar pendiente en Cuentas pendientes y lo registrás de nuevo." };
+  } else if (deshacer === "CUENTA") {
+    origen = { ...(origen ?? { texto: "Cuenta pendiente", href: "/caja/cuentas" }), ayuda: "Si se cargó mal, anulalo acá: la cuenta vuelve a quedar abierta y lo registrás de nuevo." };
+  }
+  return {
+    ...m,
+    usuario: x.usuario,
+    persona: x.persona,
+    participe: x.participe,
+    origen,
+    /** Se puede anular desde su ficha (cargado a mano, o un cobro o pago que vuelve a quedar pendiente). */
+    deshacer: m.anulado ? null : deshacer,
+    manual: deshacer === "MANUAL",
+    editable: esEditable(m.categoria) && deshacer === "MANUAL" && !m.anulado,
+  };
 }
 
 /** Corrige un movimiento cargado a mano. Los que generó otra operación se corrigen desde su origen. */
@@ -155,7 +172,7 @@ export async function editarMovimiento(
     const m = await t.query.movimientosCaja.findFirst({ where: eq(s.movimientosCaja.id, id) });
     if (!m) throw new ErrorNegocio("El movimiento no existe");
     if (m.anulado) throw new ErrorNegocio("El movimiento está anulado");
-    if (!esEditable(m.categoria)) {
+    if (!esEditable(m.categoria) || (await comoSeDeshace(t, m)) !== "MANUAL") {
       throw new ErrorNegocio(
         m.categoria === "TRANSFERENCIA_INTERNA" ? "Un pase entre efectivo y banco no se edita: anulalo y cargalo de nuevo" : "Este movimiento lo generó otra operación: corregilo desde su origen",
       );
@@ -202,26 +219,73 @@ export async function transferenciaInterna(usuarioId: number, d: { desde: Medio;
   });
 }
 
-/** Solo se anulan movimientos cargados a mano; los demás se corrigen desde su origen (gasto, venta, cuenta). */
+/**
+ * Cómo se deshace un movimiento:
+ * - MANUAL: cargado a mano desde Caja; se anula y listo.
+ * - CUENTA: un cobro o pago hecho desde Cuentas pendientes; al anularlo la cuenta vuelve a quedar abierta por ese importe.
+ * - INVERSOR: lo que se le pagó (o reintegró) un inversor por una venta; vuelve a quedar pendiente.
+ * - null: lo generó otra operación (un gasto, una venta, la compra de un auto) y se corrige desde ahí.
+ */
+export type ComoSeDeshace = "MANUAL" | "CUENTA" | "INVERSOR" | null;
+
+async function comoSeDeshace(t: Tx | typeof db, m: typeof s.movimientosCaja.$inferSelect): Promise<ComoSeDeshace> {
+  const [dist] = await t.select({ id: s.distribuciones.id }).from(s.distribuciones).where(eq(s.distribuciones.movimientoId, m.id)).limit(1);
+  if (dist) return "INVERSOR";
+  if (m.cuentaPendienteId) return "CUENTA";
+  return esManual(m.categoria) ? "MANUAL" : null;
+}
+
+/**
+ * Anula un movimiento sin borrarlo (queda tachado, con el motivo). Si salió de Cuentas pendientes o de
+ * un pago a un inversor, lo que se había saldado vuelve a quedar pendiente, así se puede cargar de nuevo
+ * con el medio o el importe correctos.
+ */
 export async function anularMovimiento(usuarioId: number, id: number, motivo: string) {
   await db.transaction(async (t) => {
     const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const m = await t.query.movimientosCaja.findFirst({ where: eq(s.movimientosCaja.id, id) });
     if (!m) throw new ErrorNegocio("El movimiento no existe");
     if (m.anulado) return;
-    if (!esManual(m.categoria)) throw new ErrorNegocio("Este movimiento lo generó otra operación: corregilo desde su origen (gasto, venta o cuenta)");
+    const como = await comoSeDeshace(t, m);
+    if (!como) throw new ErrorNegocio("Este movimiento lo generó otra operación: corregilo desde su origen (gasto, venta o compra del auto)");
     const ids = [id];
+    let detalle = "";
     if (m.categoria === "TRANSFERENCIA_INTERNA") {
-      // Anula también la contrapartida del pase.
+      // Anula también la contrapartida del pase: el mismo importe y fecha, el otro sentido y el otro medio.
       const par = await t
         .select()
         .from(s.movimientosCaja)
-        .where(and(eq(s.movimientosCaja.categoria, "TRANSFERENCIA_INTERNA"), eq(s.movimientosCaja.importe, m.importe), eq(s.movimientosCaja.fecha, m.fecha), eq(s.movimientosCaja.anulado, false)));
-      ids.push(...par.filter((p) => p.id !== id && p.sentido !== m.sentido).slice(0, 1).map((p) => p.id));
+        .where(
+          and(
+            eq(s.movimientosCaja.categoria, "TRANSFERENCIA_INTERNA"),
+            eq(s.movimientosCaja.importe, m.importe),
+            eq(s.movimientosCaja.fecha, m.fecha),
+            eq(s.movimientosCaja.anulado, false),
+            sql`${s.movimientosCaja.medio} <> ${m.medio}`,
+            sql`${s.movimientosCaja.sentido} <> ${m.sentido}`,
+          ),
+        )
+        // Las dos patas se cargan juntas: la más cercana por número es la suya.
+        .orderBy(sql`abs(${s.movimientosCaja.id} - ${id})`)
+        .limit(1);
+      ids.push(...par.map((p) => p.id));
+    }
+    if (como === "INVERSOR") {
+      await t.update(s.distribuciones).set({ estado: "PENDIENTE", movimientoId: null }).where(eq(s.distribuciones.movimientoId, id));
+      detalle = " · vuelve a quedar pendiente con el inversor";
+    }
+    if (como === "CUENTA") {
+      const c = (await t.query.cuentasPendientes.findFirst({ where: eq(s.cuentasPendientes.id, m.cuentaPendienteId!) }))!;
+      await t.update(s.cuentasPendientes).set({ saldo: r2(c.saldo + m.importe), estado: "ABIERTA" }).where(eq(s.cuentasPendientes.id, c.id));
+      // Si era el cobro de un pago de una venta (crédito, saldo del cliente), el pago vuelve a pendiente.
+      await t.update(s.pagosOperacion).set({ estado: "PENDIENTE", movimientoId: null }).where(eq(s.pagosOperacion.movimientoId, id));
+      // Si era el pago de un gasto de un auto, el gasto vuelve a "a pagar".
+      await t.update(s.gastos).set({ estado: "PENDIENTE", movimientoId: null }).where(and(eq(s.gastos.movimientoId, id), eq(s.gastos.cuentaPendienteId, c.id)));
+      detalle = ` · la cuenta con ${c.contraparte} vuelve a quedar abierta`;
     }
     await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: motivo }).where(inArray(s.movimientosCaja.id, ids));
     await exigirFondos(t, antesFondos);
-    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "ELIMINAR", antes: m, descripcion: `Anulado: ${m.concepto} (${motivo})` });
+    await auditar(t, { usuarioId, entidad: ENTIDAD, entidadId: id, accion: "ELIMINAR", antes: m, descripcion: `Anulado: ${m.concepto} (${motivo})${detalle}` });
   });
 }
 
@@ -251,45 +315,74 @@ export async function pendientesPorPagar() {
   return filas.map((x) => ({ ...x, numero: numeroOperacion(x.operacionId) }));
 }
 
-/**
- * K5/K10: le paga al inversor lo que quedó de una venta: su ganancia o su capital.
- * Si la parte es negativa (venta con pérdida), el inversor la reintegra.
- */
+/** K5/K10: le paga al inversor una sola parte de lo que quedó de una venta (su capital o su ganancia). */
 export async function pagarDistribucion(usuarioId: number, id: number, medio: Medio): Promise<number> {
+  const d = await db.query.distribuciones.findFirst({ where: eq(s.distribuciones.id, id) });
+  if (!d) throw new ErrorNegocio("No existe");
+  const ids = await liquidarAlInversor(usuarioId, d.liquidacionId, d.participeId, medio, [id]);
+  return ids[0];
+}
+
+/**
+ * K10/R3: le paga al inversor todo lo que quedó pendiente de una venta, en un paso (ver pagoAlInversor):
+ * con ganancia, su capital y su ganancia; con pérdida, el capital menos su mitad de la pérdida, en un
+ * solo pago; y si la pérdida supera lo que tenía puesto, registra lo que él le devuelve al salón.
+ * Devuelve los movimientos de caja (para el comprobante).
+ */
+export async function liquidarAlInversor(usuarioId: number, liquidacionId: number, participeId: number, medio: Medio, soloIds?: number[]): Promise<number[]> {
   return db.transaction(async (t) => {
     const antesFondos = await fotoFondos(t); // K13: para comparar al final
-    const d = await t.query.distribuciones.findFirst({ where: eq(s.distribuciones.id, id) });
-    if (!d) throw new ErrorNegocio("No existe");
-    if (d.estado === "PAGADO") throw new ErrorNegocio("Ya está pagado");
-    const p = (await t.query.participes.findFirst({ where: eq(s.participes.id, d.participeId) }))!;
+    const p = await t.query.participes.findFirst({ where: eq(s.participes.id, participeId) });
+    if (!p) throw new ErrorNegocio("No existe");
     if (p.tipo !== "INVERSOR") {
       throw new ErrorNegocio("La ganancia del salón ya está en la caja. Si un socio se lleva plata, cargalo en Caja → Registrar movimiento → Retiro de un socio");
     }
-    const liq = (await t.query.liquidaciones.findFirst({ where: eq(s.liquidaciones.id, d.liquidacionId) }))!;
+    const todas = await t
+      .select()
+      .from(s.distribuciones)
+      .where(and(eq(s.distribuciones.liquidacionId, liquidacionId), eq(s.distribuciones.participeId, participeId), eq(s.distribuciones.estado, "PENDIENTE")));
+    const ds = soloIds ? todas.filter((d) => soloIds.includes(d.id)) : todas;
+    if (!ds.length) throw new ErrorNegocio("Ya está pagado");
+    const liq = (await t.query.liquidaciones.findFirst({ where: eq(s.liquidaciones.id, liquidacionId) }))!;
     const op = (await t.query.operaciones.findFirst({ where: eq(s.operaciones.id, liq.operacionId) }))!;
-    const reintegro = d.importe < 0;
-    const capital = d.tipo === "CAPITAL";
-    const [m] = await t
-      .insert(s.movimientosCaja)
-      .values({
-        sentido: reintegro ? "INGRESO" : "EGRESO",
-        medio,
-        categoria: reintegro ? "AJUSTE" : capital ? "DEVOLUCION_CAPITAL" : "PAGO_INVERSOR",
-        importe: Math.abs(d.importe),
-        concepto: `${reintegro ? "Reintegro de pérdida" : capital ? "Devolución de capital" : "Ganancia"} ${numeroOperacion(op.id)} · ${p.nombre}`,
-        operacionId: op.id,
-        vehiculoId: op.vehiculoId,
-        participeId: p.id,
-        usuarioId,
-      })
-      .returning();
-    await t.update(s.distribuciones).set({ estado: "PAGADO", movimientoId: m.id }).where(eq(s.distribuciones.id, id));
+    const suma = (tipo: "CAPITAL" | "GANANCIA") => r2(ds.filter((d) => d.tipo === tipo).reduce((a, d) => a + d.importe, 0));
+    const capital = suma("CAPITAL");
+    const ganancia = suma("GANANCIA");
+    const plan = pagoAlInversor(capital, ganancia);
+    const venta = numeroOperacion(op.id);
+    const conceptoDe = (x: (typeof plan)[number]) => {
+      if (x.categoria === "REINTEGRO_INVERSOR") {
+        return ganancia < 0
+          ? `Reintegro ${venta} · ${p.nombre}: su parte de la pérdida ($ ${(-ganancia).toLocaleString("es-AR")}) supera lo que se le debía`
+          : `Reintegro ${venta} · ${p.nombre}: se llevó en usados más de lo que tenía puesto`;
+      }
+      if (x.salda.length === 2 && ganancia < 0) {
+        return `Devolución de capital ${venta} · ${p.nombre}: $ ${capital.toLocaleString("es-AR")} menos su parte de la pérdida $ ${(-ganancia).toLocaleString("es-AR")}`;
+      }
+      return `${x.categoria === "DEVOLUCION_CAPITAL" ? "Devolución de capital" : "Ganancia"} ${venta} · ${p.nombre}`;
+    };
+    const movs: number[] = [];
+    for (const x of plan) {
+      const [m] = await t
+        .insert(s.movimientosCaja)
+        .values({ sentido: x.sentido, medio, categoria: x.categoria, importe: x.importe, concepto: conceptoDe(x), operacionId: op.id, vehiculoId: op.vehiculoId, participeId: p.id, usuarioId })
+        .returning();
+      movs.push(m.id);
+      const saldadas = ds.filter((d) => x.salda.includes(d.tipo)).map((d) => d.id);
+      if (saldadas.length) await t.update(s.distribuciones).set({ estado: "PAGADO", movimientoId: m.id }).where(inArray(s.distribuciones.id, saldadas));
+    }
+    // Si se compensan justo (capital = su parte de la pérdida), no se mueve plata pero queda saldado.
+    if (!plan.length) await t.update(s.distribuciones).set({ estado: "PAGADO" }).where(inArray(s.distribuciones.id, ds.map((d) => d.id)));
     await exigirFondos(t, antesFondos);
+    const neto = r2(capital + ganancia);
     await auditar(t, {
       usuarioId, entidad: "operacion", entidadId: op.id, accion: "MODIFICAR",
-      descripcion: `${reintegro ? "Reintegro" : capital ? "Devolución de capital" : "Pago de ganancia"} a ${p.nombre}: $ ${Math.abs(d.importe).toLocaleString("es-AR")}`,
+      descripcion:
+        neto < 0
+          ? `Reintegro de ${p.nombre}: $ ${(-neto).toLocaleString("es-AR")}`
+          : `Pagado a ${p.nombre}: $ ${neto.toLocaleString("es-AR")}${ganancia < 0 ? ` (capital $ ${capital.toLocaleString("es-AR")} menos su parte de la pérdida)` : ""}`,
     });
-    return m.id;
+    return movs;
   });
 }
 
@@ -616,7 +709,7 @@ export async function ultimosCobrosYPagos(limite = 15) {
     .from(s.movimientosCaja)
     .leftJoin(s.vehiculos, eq(s.vehiculos.id, s.movimientosCaja.vehiculoId))
     .where(
-      sql`(${s.movimientosCaja.cuentaPendienteId} is not null or ${s.movimientosCaja.categoria} in ('PAGO_INVERSOR', 'DEVOLUCION_CAPITAL') or (${s.movimientosCaja.categoria} = 'AJUSTE' and ${s.movimientosCaja.participeId} is not null))`,
+      sql`(${s.movimientosCaja.cuentaPendienteId} is not null or ${s.movimientosCaja.categoria} in ('PAGO_INVERSOR', 'DEVOLUCION_CAPITAL', 'REINTEGRO_INVERSOR') or (${s.movimientosCaja.categoria} = 'AJUSTE' and ${s.movimientosCaja.participeId} is not null))`,
     )
     .orderBy(desc(s.movimientosCaja.fecha), desc(s.movimientosCaja.id))
     .limit(limite);

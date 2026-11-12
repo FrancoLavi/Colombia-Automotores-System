@@ -6,7 +6,7 @@ import { INICIAL, type Resultado } from "@/lib/form";
 import { Bandera } from "@/components/banderas";
 import { BotonEnviar, Mensaje } from "@/components/ui";
 import { BotonConfirmar } from "@/components/dialogo";
-import { efectoCambioFinancista } from "@/domain/caja";
+import { efectoCambioFinancista, medioSugerido } from "@/domain/caja";
 import { compraEnPesos, precioSugerido } from "@/domain/negocio";
 import { interpretarImporte } from "@/domain/importar";
 import { nombreContacto, pesos, usd, hoyIso } from "@/lib/formato";
@@ -49,6 +49,8 @@ export interface DatosCambioFinancia {
   /** Lo que el salón todavía le debe al vendedor. */
   saldoCompra: number;
   enStock: boolean;
+  /** K14: para sugerir el medio cuando sale plata. */
+  saldos: { efectivo: number; banco: number };
 }
 
 const MARCAS_SUGERIDAS = ["Volkswagen", "Ford", "Renault", "Peugeot", "Fiat", "Chevrolet", "Toyota", "Citroën", "Honda", "Nissan", "Chery", "Jeep"];
@@ -97,7 +99,9 @@ export function VehiculoForm({
     cambiaFinancista && cambio
       ? efectoCambioFinancista({ de: anterior.tipo, a: nuevo.tipo, puesto: cambio.puesto, permutaPendiente: cambio.permutaPendiente, correccion: false })
       : null;
-  const [cambioMedio, setCambioMedio] = useState<"EFECTIVO" | "BANCO">("EFECTIVO");
+  // K14: si sale plata, se sugiere el medio que alcanza; el que carga siempre puede cambiarlo.
+  const [medioElegido, setCambioMedio] = useState<"EFECTIVO" | "BANCO" | null>(null);
+  const cambioMedio = medioElegido ?? (efecto?.sentido === "EGRESO" && cambio ? medioSugerido(cambio.saldos, efecto.importe) : "EFECTIVO");
   const textoCambio = cambiaFinancista ? explicarCambio() : null;
 
   function explicarCambio() {
@@ -386,6 +390,9 @@ export function VehiculoForm({
                     <option value="EFECTIVO">Efectivo</option>
                     <option value="BANCO">Banco</option>
                   </select>
+                  {efecto.sentido === "EGRESO" && !medioElegido && cambioMedio === "BANCO" && (
+                    <span className="text-xs text-apagado">El efectivo no alcanza: sugerido banco.</span>
+                  )}
                 </label>
               )}
             </div>

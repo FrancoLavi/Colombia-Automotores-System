@@ -4,7 +4,7 @@ import { vistaMoneda } from "@/lib/moneda";
 import { listarCuentas, pendientesPorPagar, saldosActuales, ultimosCobrosYPagos } from "@/server/caja";
 import { fecha, hoyIso } from "@/lib/formato";
 import { NavCaja } from "../nav";
-import { FormCuenta, FormPagarGanancia, FormPagoCuenta } from "../formularios";
+import { FormCuenta, FormLiquidarInversor, FormPagoCuenta } from "../formularios";
 import { Ayuda } from "@/components/ui";
 import { Icono } from "@/components/iconos-caja";
 import { FormFiltros } from "@/components/filtros";
@@ -41,6 +41,11 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
   const inversores = inversoresTodos.filter((g) => coincideAuto(g.auto, filtro));
   const { marcas, modelos } = opcionesAuto([...[...cobrarTodas, ...pagarTodas].map((x) => x.auto), ...inversoresTodos.map((g) => g.auto)]);
   const totalInversores = inversores.reduce((a, g) => a + g.d.importe, 0);
+  // K10/R3: lo de cada venta con cada inversor va junto (capital y ganancia, o capital menos su parte de la pérdida).
+  const porVenta = [...Map.groupBy(inversores, (g) => `${g.d.liquidacionId}-${g.participe.id}`).values()].map((gs) => {
+    const suma = (tipo: string) => gs.filter((g) => g.d.tipo === tipo).reduce((a, g) => a + g.d.importe, 0);
+    return { ...gs[0], capital: suma("CAPITAL"), ganancia: suma("GANANCIA") };
+  });
   const hoy = hoyIso();
   const total = (xs: typeof aCobrar) => xs.reduce((a, x) => a + x.c.saldo, 0);
 
@@ -142,14 +147,14 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
           <span className="num font-semibold text-aviso-texto">{m(totalInversores)}</span>
         </div>
         {inversores.length === 0 && <p className="p-4 pt-0 text-sm text-apagado">No se les debe nada a los inversores.</p>}
-        {inversores.map((g) => (
+        {porVenta.map((g) => (
           <div key={g.d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-linea px-4 py-2.5 text-sm">
             <span className="flex min-w-48 items-center gap-2.5">
               <span className="inline-flex size-8 items-center justify-center rounded-full bg-aviso-fondo text-aviso-texto">
                 <Icono nombre="inversor" className="size-4" />
               </span>
               <span>
-                <b>{g.participe.nombre}</b> · {g.d.tipo === "CAPITAL" ? "devolución de capital" : "su ganancia"}
+                <b>{g.participe.nombre}</b>
                 <span className="block text-apagado">
                   Venta{" "}
                   <Link href={`/ventas/${g.operacionId}`} className="num">
@@ -162,9 +167,26 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
                 </span>
               </span>
             </span>
-            <span className="flex flex-wrap items-center justify-end gap-2">
-              <span className={`num font-semibold ${g.d.importe < 0 ? "text-ok-texto" : ""}`}>{m(g.d.importe)}</span>
-              <FormPagarGanancia id={g.d.id} importe={g.d.importe} capital={g.d.tipo === "CAPITAL"} etiqueta={g.d.tipo === "CAPITAL" ? "Devolver" : "Pagar"} saldos={saldos} />
+            <span className="flex flex-col items-end gap-1.5">
+              {/* El desglose: qué se le debe por esta venta y cuánto plata cambia de manos. */}
+              <span className="grid grid-cols-[auto_auto] gap-x-4 text-right text-xs text-apagado">
+                {g.capital !== 0 && (
+                  <>
+                    <span>{g.capital > 0 ? "Capital que puso" : "Se llevó en usados de más"}</span>
+                    <span className="num">{m(g.capital)}</span>
+                  </>
+                )}
+                {g.ganancia !== 0 && (
+                  <>
+                    <span>{g.ganancia > 0 ? "Su ganancia" : "Su mitad de la pérdida"}</span>
+                    <span className={`num ${g.ganancia < 0 ? "text-aviso-texto" : ""}`}>{m(g.ganancia)}</span>
+                  </>
+                )}
+              </span>
+              <span className={`num font-semibold ${g.capital + g.ganancia < 0 ? "text-ok-texto" : ""}`}>
+                {g.capital + g.ganancia < 0 ? `Nos devuelve ${m(-(g.capital + g.ganancia))}` : `Se le paga ${m(g.capital + g.ganancia)}`}
+              </span>
+              <FormLiquidarInversor liquidacionId={g.d.liquidacionId} participeId={g.participe.id} nombre={g.participe.nombre} capital={g.capital} ganancia={g.ganancia} saldos={saldos} />
             </span>
           </div>
         ))}

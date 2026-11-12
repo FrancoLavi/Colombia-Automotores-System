@@ -59,6 +59,8 @@ export const categoriaMovimientoEnum = pgEnum("categoria_movimiento", [
   "PAGO_COMPRA", "PAGO_CONSIGNANTE", "GASTO_VEHICULO", "GASTO_SALON", "GASTO_EXTRAORDINARIO",
   "RETIRO_SOCIO", "PAGO_INVERSOR", "DEVOLUCION_CAPITAL", "APORTE", "INGRESO_EXTRAORDINARIO", "PAGO_CUENTA", "COBRO_CUENTA",
   "TRANSFERENCIA_INTERNA", "AJUSTE", "SUELDO",
+  // R3/K10: lo que devuelve el inversor cuando la venta da pérdida. K15: el auto que pasa del salón a un inversor o al revés.
+  "REINTEGRO_INVERSOR", "CAMBIO_FINANCISTA",
 ]);
 export const tipoCuentaEnum = pgEnum("tipo_cuenta", ["A_COBRAR", "A_PAGAR"]);
 export const origenCuentaEnum = pgEnum("origen_cuenta", ["CREDITO_BANCARIO", "SALDO_COMPRA", "CONSIGNANTE", "GASTO", "MANUAL"]);

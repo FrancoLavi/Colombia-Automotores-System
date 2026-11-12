@@ -73,11 +73,12 @@ export async function anularAccion(id: number, _: Resultado, fd: FormData): Prom
   return r;
 }
 
-export async function pagarGananciaAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
+/** K10/R3: todo lo pendiente de una venta con un inversor, en un paso (con pérdida, un solo pago neto o el reintegro). */
+export async function liquidarInversorAccion(liquidacionId: number, participeId: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    const movimiento = await svc.pagarDistribucion(u.id, id, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
-    return { mensaje: "Pagado.", id: movimiento };
+    const movimientos = await svc.liquidarAlInversor(u.id, liquidacionId, participeId, opcion(fd, "medio", MEDIOS, "EFECTIVO"));
+    return { mensaje: "Registrado.", id: movimientos[0] };
   });
   revalidar();
   return r;

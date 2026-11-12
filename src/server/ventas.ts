@@ -162,7 +162,8 @@ export async function fichaOperacion(id: number) {
     : [];
 
   // Liquidación prevista (antes del cierre) con el costo actual del auto.
-  const costo = liq?.costo ?? (await costoVehiculo(db, v.id, v.valorCompraArs));
+  const actual = await costoYGastosDelDueno(db, v.id, v.valorCompraArs);
+  const costo = liq?.costo ?? actual.costo;
   const p = await obtenerParametros();
   const prevista = liquidar({ costo, precio: op.precioVenta, financista: financista?.tipo ?? "SALON", tipoIngreso: v.tipoIngreso, margen: p.margenBase });
   const tcRef = op.tcVenta ?? tc?.valor ?? null;
@@ -182,6 +183,8 @@ export async function fichaOperacion(id: number) {
 
   return {
     op,
+    /** R8: lo que pagó el dueño en gastos de su bolsillo (se le devuelve al vender). */
+    gastosDelDueno: actual.gastosDelDueno,
     numero: numeroOperacion(op.id),
     contacto,
     v,

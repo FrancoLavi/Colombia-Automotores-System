@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requerirUsuario } from "@/lib/auth";
 import { datosFormulario, fichaVehiculo, marcasUsadas } from "@/server/vehiculos";
+import { saldosActuales } from "@/server/caja";
 import { VehiculoForm } from "../../vehiculo-form";
 import { editarVehiculoAccion } from "../../actions";
 
@@ -10,7 +11,7 @@ export default async function EditarVehiculoPage({ params }: { params: Promise<{
   const id = Number((await params).id);
   const ficha = await fichaVehiculo(id);
   if (!ficha) notFound();
-  const [{ participes, contactos }, marcas] = await Promise.all([datosFormulario(), marcasUsadas()]);
+  const [{ participes, contactos }, marcas, saldos] = await Promise.all([datosFormulario(), marcasUsadas(), saldosActuales()]);
   const v = ficha.v;
   return (
     <div className="flex max-w-5xl flex-col gap-5">
@@ -33,6 +34,7 @@ export default async function EditarVehiculoPage({ params }: { params: Promise<{
                 permutaPendiente: ficha.puesto.permutaPendiente,
                 saldoCompra: ficha.puesto.saldoCompra,
                 enStock: ["POR_INGRESAR", "DISPONIBLE", "RESERVADO"].includes(v.estado),
+                saldos,
               }
             : undefined
         }
