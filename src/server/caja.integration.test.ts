@@ -131,6 +131,8 @@ describe("movimientos y cuentas manuales", () => {
   it("ajuste exige sentido; el importe tiene que ser positivo", async () => {
     await expect(caja.crearMovimiento(U, { categoria: "AJUSTE", sentido: null, medio: "EFECTIVO", importe: 10, concepto: "x", fecha: new Date(), participeId: null })).rejects.toThrow(/ingreso o egreso/);
     await expect(caja.crearMovimiento(U, { categoria: "GASTO_SALON", sentido: null, medio: "EFECTIVO", importe: 0, concepto: "x", fecha: new Date(), participeId: null })).rejects.toThrow(/mayor a cero/);
+    // K7: un inversor no hace aportes de capital; su plata va atada a un auto.
+    await expect(caja.crearMovimiento(U, { categoria: "APORTE", sentido: null, medio: "EFECTIVO", importe: 1_000, concepto: "x", fecha: new Date(), participeId: INVERSOR })).rejects.toThrow(/auto que financia/);
   });
 });
 

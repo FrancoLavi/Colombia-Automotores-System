@@ -25,7 +25,7 @@ const TIPOS = [
   { valor: "SUELDO", texto: "Sueldo de un empleado o socio" },
   { valor: "RETIRO_SOCIO", texto: "Retiro de un socio" },
   { valor: "INGRESO_EXTRAORDINARIO", texto: "Ingreso extraordinario (ej. saldo inicial)" },
-  { valor: "APORTE", texto: "Aporte de capital (inversor o socio)" },
+  { valor: "APORTE", texto: "Aporte de un socio (pone plata en el salón)" },
   { valor: "GASTO_EXTRAORDINARIO", texto: "Gasto extraordinario" },
   { valor: "TRANSFERENCIA_INTERNA", texto: "Pase entre efectivo y banco" },
   { valor: "AJUSTE", texto: "Ajuste (diferencia de caja)" },
@@ -50,7 +50,7 @@ function SelectorPersona({ personas, requerido, etiqueta = "Persona" }: { person
   );
 }
 
-export function FormMovimiento({ participes, personas }: { participes: { id: number; nombre: string }[]; personas: Persona[] }) {
+export function FormMovimiento({ personas }: { personas: Persona[] }) {
   const { form, r, enviar } = useReset(a.movimientoAccion);
   const [tipo, setTipo] = useState("GASTO_SALON");
   const pase = tipo === "TRANSFERENCIA_INTERNA";
@@ -95,23 +95,17 @@ export function FormMovimiento({ participes, personas }: { participes: { id: num
           Concepto {pase ? "" : "*"}
           <input name="concepto" required={!pase} placeholder={pase ? "Depósito en banco" : "Ej: alquiler octubre"} />
         </label>
-        {(tipo === "SUELDO" || tipo === "RETIRO_SOCIO" || tipo === "APORTE") && (
+        {(tipo === "SUELDO" || tipo === "RETIRO_SOCIO") && (
           <SelectorPersona personas={personas} requerido={tipo === "SUELDO"} etiqueta={tipo === "SUELDO" ? "A quién" : "Socio o empleado"} />
         )}
-        {tipo === "APORTE" && (
-          <label className="campo">
-            Inversor (si aporta un inversor)
-            <select name="participeId" defaultValue="">
-              <option value="">—</option>
-              {participes.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        {tipo === "APORTE" && <SelectorPersona personas={personas.filter((p) => p.rol === "SOCIO")} etiqueta="Qué socio" />}
       </div>
+      {tipo === "APORTE" && (
+        <p className="text-sm text-suave">
+          La plata de un inversor no entra por acá: va siempre atada a un auto. Si compra uno, cargalo con él como financista; si se queda con uno del
+          salón, cambiá quién financia en la ficha del auto (K15).
+        </p>
+      )}
       <div className="flex items-center justify-between gap-3">
         <Mensaje r={r} />
         <BotonEnviar className="btn-primario ml-auto">Registrar</BotonEnviar>

@@ -191,6 +191,8 @@ export async function crearMovimiento(
 ) {
   if (!(d.importe > 0)) throw new ErrorNegocio("El importe debe ser mayor a cero");
   if (exigePersona(d.categoria) && !d.personaId) throw new ErrorNegocio("Indicá a quién corresponde el sueldo");
+  // K7: un aporte es plata de los socios. La de un inversor va siempre atada a un auto (K9, K15).
+  if (d.participeId) throw new ErrorNegocio("La plata de un inversor se carga en el auto que financia, no como aporte de capital.");
   const personaId = (PIDEN_PERSONA as readonly string[]).includes(d.categoria) ? (d.personaId ?? null) : null;
   const sentido = MANUALES[d.categoria] ?? d.sentido;
   if (!sentido) throw new ErrorNegocio("Indicá si el ajuste es ingreso o egreso");

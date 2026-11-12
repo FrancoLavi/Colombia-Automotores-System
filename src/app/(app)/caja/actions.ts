@@ -40,7 +40,7 @@ export async function movimientoAccion(_: Resultado, fd: FormData): Promise<Resu
       importe: importeRequerido(fd, "importe", "Importe"),
       concepto: requerido(fd, "concepto", "Concepto"),
       fecha: fechaConHora(fd),
-      participeId: texto(fd, "participeId") ? Number(texto(fd, "participeId")) : null,
+      participeId: null,
       personaId: texto(fd, "personaId") ? Number(texto(fd, "personaId")) : null,
     });
     return "Movimiento registrado.";
