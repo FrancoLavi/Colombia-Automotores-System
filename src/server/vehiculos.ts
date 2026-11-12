@@ -426,8 +426,8 @@ async function registrarCambioFinancista(t: Tx, usuarioId: number, v: Vehiculo, 
     await t.insert(s.movimientosCaja).values({
       sentido: efecto.sentido,
       medio: cambio.medio,
-      // Es la compra del auto que pasa de manos: no es ganancia ni gasto de nadie.
-      categoria: efecto.sentido === "INGRESO" ? "PAGO_COMPRA" : "DEVOLUCION_CAPITAL",
+      // Es el auto que pasa de manos: no es ganancia ni gasto de nadie, ni la devolución de una venta.
+      categoria: "CAMBIO_FINANCISTA",
       importe: efecto.importe,
       concepto:
         efecto.sentido === "INGRESO"
@@ -741,13 +741,21 @@ async function borrarGasto(t: Tx, usuarioId: number, gasto: typeof s.gastos.$inf
   const gastoId = gasto.id;
   if (gasto.cuentaPendienteId) {
     const c = await t.query.cuentasPendientes.findFirst({ where: eq(s.cuentasPendientes.id, gasto.cuentaPendienteId) });
-    if (c && c.saldo !== c.importe) throw new ErrorNegocio("El gasto ya tiene pagos parciales: anulalos desde Caja primero");
+    if (c && c.saldo !== c.importe) throw new ErrorNegocio("El gasto ya tiene pagos registrados: anulalos primero desde Caja (Ver → Anular en cada pago) y después eliminalo");
   }
   await t.delete(s.gastos).where(eq(s.gastos.id, gastoId));
   if (gasto.movimientoId) {
     await t.update(s.movimientosCaja).set({ anulado: true, motivoAnulacion: "Gasto eliminado" }).where(eq(s.movimientosCaja.id, gasto.movimientoId));
   }
-  if (gasto.cuentaPendienteId) await t.delete(s.cuentasPendientes).where(eq(s.cuentasPendientes.id, gasto.cuentaPendienteId));
+  if (gasto.cuentaPendienteId) {
+    // Si la cuenta tuvo pagos (ya anulados), queda en el historial de la caja: se cierra en cero en vez de borrarse.
+    const usada = await t.query.movimientosCaja.findFirst({ where: eq(s.movimientosCaja.cuentaPendienteId, gasto.cuentaPendienteId) });
+    if (usada) {
+      await t.update(s.cuentasPendientes).set({ importe: 0, saldo: 0, estado: "CANCELADA", notas: sql`coalesce(${s.cuentasPendientes.notas}, '') || ' · Gasto eliminado'` }).where(eq(s.cuentasPendientes.id, gasto.cuentaPendienteId));
+    } else {
+      await t.delete(s.cuentasPendientes).where(eq(s.cuentasPendientes.id, gasto.cuentaPendienteId));
+    }
+  }
   await auditar(t, {
     usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: "ELIMINAR", antes: gasto,
     descripcion: `Gasto eliminado: $ ${gasto.importe.toLocaleString("es-AR")}`,

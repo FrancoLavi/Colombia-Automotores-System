@@ -2,7 +2,10 @@ const pesosFmt = new Intl.NumberFormat("es-AR", { style: "currency", currency: "
 const usdFmt = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
 const numFmt = new Intl.NumberFormat("es-AR");
 
-export const pesos = (n: number | null | undefined) => (n == null ? "—" : pesosFmt.format(n));
+const pesosCentavosFmt = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** $ 1.234.567; con centavos solo si los tiene ($ 9.449.999,50), así no se redondea plata que existe. */
+export const pesos = (n: number | null | undefined) =>
+  n == null ? "—" : Math.round(n * 100) % 100 === 0 ? pesosFmt.format(n) : pesosCentavosFmt.format(n);
 export const usd = (n: number | null | undefined) => (n == null ? "—" : `USD ${usdFmt.format(n)}`);
 export const numero = (n: number | null | undefined) => (n == null ? "—" : numFmt.format(n));
 export const porcentaje = (n: number) => `${(n * 100).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %`;

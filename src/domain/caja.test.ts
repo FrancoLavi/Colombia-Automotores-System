@@ -285,3 +285,27 @@ describe("cambio de quién financia (K15)", () => {
     expect(efectoCambioFinancista({ ...base, puesto: 0, de: "SALON", a: "INVERSOR" })).toBeNull();
   });
 });
+
+import { pagoAlInversor } from "./caja";
+
+describe("cómo se le paga al inversor lo de una venta (K10, R3)", () => {
+  it("con ganancia: devolución de capital y pago de ganancia por separado", () => {
+    expect(pagoAlInversor(10_000_000, 750_000).map((m) => [m.categoria, m.importe])).toEqual([
+      ["DEVOLUCION_CAPITAL", 10_000_000],
+      ["PAGO_INVERSOR", 750_000],
+    ]);
+  });
+
+  it("con pérdida: un solo pago por el capital menos su mitad de la pérdida", () => {
+    expect(pagoAlInversor(10_000_000, -700_000)).toEqual([{ sentido: "EGRESO", categoria: "DEVOLUCION_CAPITAL", importe: 9_300_000, salda: ["CAPITAL", "GANANCIA"] }]);
+  });
+
+  it("si la pérdida supera el capital, el inversor reintegra la diferencia", () => {
+    expect(pagoAlInversor(1_000_000, -1_500_000)).toEqual([{ sentido: "INGRESO", categoria: "REINTEGRO_INVERSOR", importe: 500_000, salda: ["CAPITAL", "GANANCIA"] }]);
+    expect(pagoAlInversor(-2_000_000, 300_000)[0]).toMatchObject({ sentido: "INGRESO", categoria: "REINTEGRO_INVERSOR", importe: 1_700_000 });
+  });
+
+  it("si se compensan justo no se mueve plata", () => {
+    expect(pagoAlInversor(700_000, -700_000)).toEqual([]);
+  });
+});

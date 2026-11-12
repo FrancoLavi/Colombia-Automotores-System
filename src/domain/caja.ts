@@ -18,6 +18,8 @@ export const ETIQUETA_CATEGORIA: Record<string, string> = {
   PAGO_INVERSOR: "Pago a inversor",
   DEVOLUCION_CAPITAL: "Devolución de capital",
   APORTE: "Aporte de capital",
+  REINTEGRO_INVERSOR: "Reintegro de un inversor",
+  CAMBIO_FINANCISTA: "Cambio de quién financia",
   INGRESO_EXTRAORDINARIO: "Ingreso extraordinario",
   PAGO_CUENTA: "Pago de cuenta",
   COBRO_CUENTA: "Cobro de cuenta",
@@ -68,7 +70,7 @@ export interface Fondos {
   ajena: number;
 }
 
-const pesosAR = (n: number) => `$ ${n.toLocaleString("es-AR")}`;
+const pesosAR = (n: number) => `$ ${n.toLocaleString("es-AR", { minimumFractionDigits: Math.round(n * 100) % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 /**
  * K13: no puede salir plata que no hay. Compara cómo estaba la caja antes de la operación y cómo
@@ -220,6 +222,42 @@ export function compraSaleDeCaja(a: { tipoIngreso: TipoIngreso; financista: Tipo
  */
 export function capitalDelInversor(a: { tipoIngreso: TipoIngreso; financista: TipoParticipe; valorCompraArs: number; gastosDelDueno?: number }): number {
   return a.tipoIngreso !== "CONSIGNACION" && a.financista === "INVERSOR" ? r2(a.valorCompraArs + (a.gastosDelDueno ?? 0)) : 0;
+}
+
+// ---------- Pagarle al inversor lo de una venta (K10, R3) ----------
+
+export interface MovimientoAlInversor {
+  sentido: Sentido;
+  categoria: "DEVOLUCION_CAPITAL" | "PAGO_INVERSOR" | "REINTEGRO_INVERSOR";
+  importe: number;
+  /** Qué partes de lo que se le debía salda este movimiento. */
+  salda: ("CAPITAL" | "GANANCIA")[];
+}
+
+/**
+ * K10/R3: cómo se le paga al inversor lo que quedó pendiente de una venta, en un solo paso.
+ * - Venta con ganancia: dos movimientos, la devolución de capital y el pago de su ganancia (no se mezclan).
+ * - Venta con pérdida: su mitad de la pérdida se descuenta del capital y sale **un solo pago por la
+ *   diferencia**. Si la pérdida (o un usado que se llevó, K12) supera lo que tenía puesto, en vez de cobrar
+ *   él, devuelve la diferencia: un **reintegro** que entra a la caja.
+ * Así el movimiento de caja es siempre la plata que de verdad cambia de manos.
+ */
+export function pagoAlInversor(capital: number, ganancia: number): MovimientoAlInversor[] {
+  const c = r2(capital);
+  const g = r2(ganancia);
+  if (c > 0 && g > 0) {
+    return [
+      { sentido: "EGRESO", categoria: "DEVOLUCION_CAPITAL", importe: c, salda: ["CAPITAL"] },
+      { sentido: "EGRESO", categoria: "PAGO_INVERSOR", importe: g, salda: ["GANANCIA"] },
+    ];
+  }
+  const salda: ("CAPITAL" | "GANANCIA")[] = [];
+  if (c !== 0) salda.push("CAPITAL");
+  if (g !== 0) salda.push("GANANCIA");
+  const neto = r2(c + g);
+  if (neto === 0) return [];
+  if (neto < 0) return [{ sentido: "INGRESO", categoria: "REINTEGRO_INVERSOR", importe: -neto, salda }];
+  return [{ sentido: "EGRESO", categoria: c > 0 ? "DEVOLUCION_CAPITAL" : "PAGO_INVERSOR", importe: neto, salda }];
 }
 
 // ---------- Quién paga cada gasto del auto (R8) ----------

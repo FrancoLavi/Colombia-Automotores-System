@@ -200,28 +200,55 @@ export function FormAnular({ id }: { id: number }) {
   );
 }
 
-export function FormPagarGanancia({
-  id,
-  importe,
-  etiqueta,
-  capital = false,
+/**
+ * K10/R3: le paga al inversor todo lo de una venta en un paso. Con pérdida, su mitad se descuenta del
+ * capital y sale un solo pago; si la pérdida supera lo que tenía puesto, él reintegra la diferencia.
+ */
+export function FormLiquidarInversor({
+  liquidacionId,
+  participeId,
+  nombre,
+  capital,
+  ganancia,
   saldos,
 }: {
-  id: number;
-  importe: number;
-  etiqueta: string;
-  /** K10: devolución del capital del inversor (no es ganancia). */
-  capital?: boolean;
-  /** K14: para preseleccionar el medio que tiene con qué pagar. */
+  liquidacionId: number;
+  participeId: number;
+  nombre: string;
+  capital: number;
+  ganancia: number;
   saldos: { efectivo: number; banco: number };
 }) {
-  const sugerido = medioSugerido(saldos, importe);
+  const neto = Math.round((capital + ganancia) * 100) / 100;
+  const reintegro = neto < 0;
+  const sugerido = reintegro ? "EFECTIVO" : medioSugerido(saldos, neto);
   const [r, enviar] = useActionState(async (prev: Resultado, fd: FormData) => {
-    const res = await a.pagarGananciaAccion(id, prev, fd);
-    if (res.ok && res.id) void ofrecerComprobante(res.id, capital ? "Devolución registrada" : "Pago registrado");
+    const res = await a.liquidarInversorAccion(liquidacionId, participeId, prev, fd);
+    if (res.ok && res.id) void ofrecerComprobante(res.id, reintegro ? "Reintegro registrado" : "Pago registrado");
     return res;
   }, INICIAL);
-  if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">Pagado</span>;
+  if (r.ok) return <span className="chip bg-ok-fondo text-ok-texto">{reintegro ? "Reintegrado" : "Pagado"}</span>;
+  const detalle = reintegro ? (
+    <>
+      <p>
+        {nombre} tiene que <b>devolverle al salón {pesos(-neto)}</b>: {ganancia < 0 ? "su parte de la pérdida es mayor que lo que se le debía" : "se llevó en usados más de lo que tenía puesto"}.
+      </p>
+      <p>Entra a la caja por el medio elegido y la venta queda saldada con {nombre}.</p>
+    </>
+  ) : ganancia < 0 ? (
+    <>
+      <p>
+        Capital que puso {pesos(capital)} menos su mitad de la pérdida {pesos(-ganancia)}: <b>sale un solo pago de {pesos(neto)}</b> por el medio elegido.
+      </p>
+      <p>La venta queda saldada con {nombre}.</p>
+    </>
+  ) : (
+    <p>
+      Sale de la caja por el medio elegido: {capital > 0 && <>la devolución de su capital ({pesos(capital)})</>}
+      {capital > 0 && ganancia > 0 && " y "}
+      {ganancia > 0 && <>su ganancia ({pesos(ganancia)})</>}, cada una con su movimiento. La devolución de capital no cuenta como ganancia.
+    </p>
+  );
   return (
     <form action={enviar} className="flex flex-wrap items-center justify-end gap-1.5">
       <select name="medio" aria-label="Medio" defaultValue={sugerido} className="min-h-11 rounded-lg border border-campo-borde px-2 text-sm">
@@ -231,24 +258,14 @@ export function FormPagarGanancia({
       <BotonConfirmar
         className="btn-secundario"
         pendiente="…"
-        titulo={importe < 0 ? `¿Registrar el reintegro de ${pesos(-importe)}?` : `¿${etiqueta} ${pesos(importe)}?`}
-        detalle={
-          importe < 0
-            ? capital
-              ? "El inversor se llevó en usados más de lo que tenía puesto: la diferencia entra a la caja."
-              : "La pérdida que le toca al inversor entra a la caja."
-            : capital
-              ? "Sale de la caja por el medio elegido: se le devuelve al inversor lo que puso para comprar el auto. No cuenta como ganancia."
-              : "Sale de la caja por el medio elegido y la ganancia queda marcada como pagada."
-        }
+        titulo={reintegro ? `¿Registrar que ${nombre} devuelve ${pesos(-neto)}?` : `¿Pagarle ${pesos(neto)} a ${nombre}?`}
+        detalle={detalle}
+        confirmar={reintegro ? "Registrar reintegro" : "Pagado"}
       >
-        {importe < 0 ? "Registrar reintegro" : etiqueta}
+        {reintegro ? "Reintegró" : "Pagado"}
       </BotonConfirmar>
       <ErrorLinea r={r} className="w-full text-right text-xs text-aviso-texto" />
-      {/* K14: avisarlo antes, así no se come el rechazo de K13 para enterarse. */}
-      {sugerido === "BANCO" && (
-        <span className="w-full text-right text-xs text-apagado">El efectivo no alcanza para {pesos(importe)}: sugerido banco.</span>
-      )}
+      {!reintegro && sugerido === "BANCO" && <span className="w-full text-right text-xs text-apagado">El efectivo no alcanza para {pesos(neto)}: sugerido banco.</span>}
     </form>
   );
 }
@@ -310,7 +327,8 @@ export function FormPagoCuenta({
     if (res.ok && res.id) void ofrecerComprobante(res.id, tipo === "A_COBRAR" ? "Cobro registrado" : "Pago registrado");
     return res;
   }, INICIAL);
-  if (r.ok)
+  // Un pago parcial deja saldo: el formulario sigue, con el saldo nuevo, para cargar el resto.
+  if (r.ok && saldo <= 0)
     return (
       <span className="flex flex-wrap items-center justify-end gap-2">
         <span className="chip bg-ok-fondo text-ok-texto">{tipo === "A_COBRAR" ? "Cobrado" : "Pagado"}</span>
@@ -327,6 +345,7 @@ export function FormPagoCuenta({
         Importe
       </label>
       <InputMoneda
+        key={saldo}
         id={`imp-${id}`}
         name="importe"
         defaultValue={saldo}
@@ -343,6 +362,19 @@ export function FormPagoCuenta({
         {tipo === "A_COBRAR" ? "Cobrado" : "Pagado"}
       </BotonEnviar>
       <ErrorLinea r={r} className="w-full text-right text-xs text-aviso-texto" />
+      {r.ok && (
+        <span className="w-full text-right text-xs text-ok-texto">
+          {tipo === "A_COBRAR" ? "Cobro" : "Pago"} parcial registrado
+          {r.id && (
+            <>
+              {" · "}
+              <a href={`/caja/movimiento/${r.id}/comprobante`} target="_blank" rel="noreferrer" className="font-semibold">
+                comprobante PDF
+              </a>
+            </>
+          )}
+        </span>
+      )}
       {!r.error && tipo === "A_PAGAR" && sugerido === "BANCO" && (
         <span className="w-full text-right text-xs text-apagado">El efectivo no alcanza para {pesos(saldo)}: sugerido banco.</span>
       )}

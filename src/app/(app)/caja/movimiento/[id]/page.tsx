@@ -110,7 +110,7 @@ export default async function MovimientoPage({ params }: { params: Promise<{ id:
         </section>
       )}
 
-      {mov.manual && !mov.anulado && (
+      {mov.deshacer && (
         <section className="tarjeta flex flex-col gap-2">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Icono nombre="anular" /> Eliminar
@@ -118,6 +118,8 @@ export default async function MovimientoPage({ params }: { params: Promise<{ id:
           <p className="text-sm text-apagado">
             Se anula: deja de contar en la caja pero queda tachado en la planilla, con el motivo, para que siempre se pueda ver qué pasó.
             {mov.categoria === "TRANSFERENCIA_INTERNA" && " Al ser un pase entre efectivo y banco, se anulan las dos partes."}
+            {mov.deshacer === "CUENTA" && " La cuenta vuelve a quedar abierta por este importe en Cuentas pendientes, para registrarlo de nuevo con el medio o el importe correctos."}
+            {mov.deshacer === "INVERSOR" && " Lo de esta venta vuelve a quedar pendiente con el inversor en Cuentas pendientes, para registrarlo de nuevo."}
           </p>
           <FormAnular id={mov.id} />
         </section>

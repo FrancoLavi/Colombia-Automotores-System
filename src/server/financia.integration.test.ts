@@ -42,7 +42,7 @@ describe("cambiar quién financia un auto en stock (K15)", () => {
     await veh.actualizarVehiculo(U, id, await datosDe(id, { participeId: INVERSOR }), { modo: "PASE", medio: "BANCO" });
     const despues = await caja.patrimonio();
     const ingreso = (await movimientosDelAuto(id)).find((m) => m.sentido === "INGRESO")!;
-    expect(ingreso).toMatchObject({ categoria: "PAGO_COMPRA", importe: 8_000_000, medio: "BANCO", participeId: INVERSOR });
+    expect(ingreso).toMatchObject({ categoria: "CAMBIO_FINANCISTA", importe: 8_000_000, medio: "BANCO", participeId: INVERSOR });
     expect(despues.caja.banco).toBe(antes.caja.banco + 8_000_000);
     expect(despues.stockInversores).toBe(antes.stockInversores + 8_000_000);
     // Lo del salón no cambia: tenía el auto y ahora tiene la plata.
@@ -58,7 +58,7 @@ describe("cambiar quién financia un auto en stock (K15)", () => {
     const otro = await autoDisponible("FIN003", { participeId: INVERSOR, valorCompra: 5_000_000 });
     const antes = await caja.patrimonio();
     await veh.actualizarVehiculo(U, otro, await datosDe(otro, { participeId: SALON }), { modo: "PASE", medio: "EFECTIVO" });
-    const egreso = (await movimientosDelAuto(otro)).find((m) => m.sentido === "EGRESO" && m.categoria === "DEVOLUCION_CAPITAL")!;
+    const egreso = (await movimientosDelAuto(otro)).find((m) => m.sentido === "EGRESO" && m.categoria === "CAMBIO_FINANCISTA")!;
     expect(egreso).toMatchObject({ importe: 5_000_000, medio: "EFECTIVO", participeId: INVERSOR });
     const despues = await caja.patrimonio();
     expect(despues.caja.efectivo).toBe(antes.caja.efectivo - 5_000_000);
@@ -142,7 +142,7 @@ describe("quién paga cada gasto del auto (R8)", () => {
     const id = await autoDisponible("GAS004", { participeId: INVERSOR, valorCompra: 3_000_000 });
     await veh.agregarGasto(U, id, { categoriaId: 1, fecha: "2026-10-03", descripcion: null, importe: 200_000, estado: "PAGADO", medio: "EFECTIVO", pagadoPor: "DUENO" });
     await veh.actualizarVehiculo(U, id, await datosDe(id, { participeId: SALON }), { modo: "PASE", medio: "BANCO" });
-    expect((await movimientosDelAuto(id)).find((m) => m.categoria === "DEVOLUCION_CAPITAL")!.importe).toBe(3_200_000);
+    expect((await movimientosDelAuto(id)).find((m) => m.categoria === "CAMBIO_FINANCISTA")!.importe).toBe(3_200_000);
     const gastos = await db.select().from(s.gastos).where(eq(s.gastos.vehiculoId, id));
     expect(gastos.every((g) => g.pagadoPor === "SALON")).toBe(true);
   });

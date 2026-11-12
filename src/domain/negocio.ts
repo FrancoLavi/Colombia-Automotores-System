@@ -126,8 +126,10 @@ export interface PagoCobertura {
 export function cobertura(precio: number, pagos: PagoCobertura[]) {
   const vigentes = pagos.filter((p) => p.estado !== "DEVUELTA" && p.estado !== "RETENIDA");
   const suma = (f: (p: PagoCobertura) => boolean) => r2(vigentes.filter(f).reduce((s, p) => s + p.importe, 0));
-  const caja = suma((p) => p.tipo === "SENIA" || p.tipo === "EFECTIVO" || p.tipo === "TRANSFERENCIA" || p.tipo === "OTRO");
-  const aCobrar = suma((p) => p.tipo === "CREDITO");
+  const enPlata = (p: PagoCobertura) => p.tipo === "SENIA" || p.tipo === "EFECTIVO" || p.tipo === "TRANSFERENCIA" || p.tipo === "OTRO";
+  // Un pago en plata que todavía no se cobró no está en la caja: cuenta como a cobrar, igual que un crédito.
+  const caja = suma((p) => enPlata(p) && p.estado !== "PENDIENTE");
+  const aCobrar = suma((p) => p.tipo === "CREDITO" || (enPlata(p) && p.estado === "PENDIENTE"));
   const permuta = suma((p) => p.tipo === "PERMUTA");
   const cubierto = r2(caja + aCobrar + permuta);
   return { caja, aCobrar, permuta, cubierto, faltante: r2(precio - cubierto), completo: Math.abs(precio - cubierto) < 0.005 };

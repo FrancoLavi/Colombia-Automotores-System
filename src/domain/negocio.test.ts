@@ -86,7 +86,8 @@ describe("cobertura de la venta (S5)", () => {
       { tipo: "PERMUTA", importe: 4_000_000, estado: "PENDIENTE" },
       { tipo: "SENIA", importe: 100_000, estado: "DEVUELTA" },
     ]);
-    expect(c).toEqual({ caja: 3_000_000, aCobrar: 3_000_000, permuta: 4_000_000, cubierto: 10_000_000, faltante: 0, completo: true });
+    // El efectivo que todavía no se cobró no está en la caja: va a cobrar, como el crédito.
+    expect(c).toEqual({ caja: 300_000, aCobrar: 5_700_000, permuta: 4_000_000, cubierto: 10_000_000, faltante: 0, completo: true });
   });
 });
 

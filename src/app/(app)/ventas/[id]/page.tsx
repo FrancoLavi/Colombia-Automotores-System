@@ -58,7 +58,8 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
   const aCobrar = pendientes.reduce((s, x) => s + x.p.importe, 0);
   const l = f.liquidacion ?? f.prevista;
   // K10: al cerrar, al inversor se le devuelve el capital que puso además de su parte (R3).
-  const capital = capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: f.financista?.tipo ?? "SALON", valorCompraArs: v.valorCompraArs });
+  // R8: con los gastos que pagó él de su bolsillo.
+  const capital = capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: f.financista?.tipo ?? "SALON", valorCompraArs: v.valorCompraArs, gastosDelDueno: f.gastosDelDueno });
   // K12: si se lleva un usado de esta venta, va a cuenta del capital y se le devuelve menos plata.
   const capitalEnPlata = r2(capital - f.capitalReinvertido);
   const usadosACuenta = f.pagos.filter((x) => x.permuta && f.financista?.tipo === "INVERSOR" && x.permuta.participeId === f.financista.id);
@@ -311,6 +312,7 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
                 <div className="flex justify-between gap-3">
                   <span>
                     <b>{f.financista?.nombre}</b> · capital que puso
+                    {f.gastosDelDueno > 0 && <span className="block text-xs text-apagado">incluye {m(f.gastosDelDueno)} de gastos que pagó él</span>}
                   </span>
                   <span className="num">{m(capital)}</span>
                 </div>
@@ -327,12 +329,22 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
                     <span className="num">−{m(u!.valorCompraArs)}</span>
                   </div>
                 ))}
-                {f.capitalReinvertido !== 0 && (
+                {/* R3: con pérdida, su mitad se descuenta de lo que se le devuelve. */}
+                {l.parteInversor < 0 && (
+                  <div className="flex justify-between gap-3 border-t border-borde pt-2 text-sm">
+                    <span>
+                      su mitad de la pérdida
+                      <Ayuda>La venta dio pérdida y se reparte mitad y mitad: la parte de {f.financista?.nombre} se descuenta del capital que se le devuelve.</Ayuda>
+                    </span>
+                    <span className="num text-aviso-texto">{m(l.parteInversor)}</span>
+                  </div>
+                )}
+                {(f.capitalReinvertido !== 0 || l.parteInversor < 0) && (
                   <div className="flex justify-between gap-3 border-t border-borde pt-2">
                     <span>
-                      <b>{f.financista?.nombre}</b> · se le devuelve en plata
+                      <b>{f.financista?.nombre}</b> · {capitalEnPlata + Math.min(0, l.parteInversor) < 0 ? "tiene que devolverle al salón" : "se le devuelve en plata"}
                     </span>
-                    <span className="num">{m(capitalEnPlata)}</span>
+                    <span className="num font-semibold">{m(Math.abs(capitalEnPlata + Math.min(0, l.parteInversor)))}</span>
                   </div>
                 )}
               </div>
@@ -340,7 +352,12 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
             {l.regla !== "SALON_TOTAL" && (
               <div className="flex justify-between gap-3 rounded-lg bg-info-fondo p-3.5">
                 <span>
-                  <b>{f.financista?.nombre}</b> · {l.regla === "INVERSOR_BASE" ? `${porcentaje(l.costo ? l.gananciaBase / l.costo / 2 : 0)} del costo` : "mitad"}
+                  <b>{f.financista?.nombre}</b> ·{" "}
+                  {l.regla === "INVERSOR_BASE"
+                    ? `${porcentaje(l.costo ? l.gananciaBase / l.costo / 2 : 0)} del costo`
+                    : l.parteInversor < 0
+                      ? "mitad de la pérdida (ya descontada de lo que se le devuelve)"
+                      : "mitad"}
                 </span>
                 <span className="num">{m(l.parteInversor)}</span>
               </div>
@@ -375,7 +392,12 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
                 {usd(f.usd.ventaUsd)} (dólar $ {f.tcRef?.toLocaleString("es-AR")}) · resultado <b>{usd(f.usd.gananciaUsd)} ({porcentaje(f.usd.margen)})</b>. Solo informativo.
               </div>
             )}
-            {v.tipoIngreso === "CONSIGNACION" && <p className="text-sm text-suave">Al cerrar queda a pagar al dueño el monto pactado: {m(v.valorCompraArs)}.</p>}
+            {v.tipoIngreso === "CONSIGNACION" && (
+              <p className="text-sm text-suave">
+                Al cerrar queda a pagar al dueño el monto pactado{f.gastosDelDueno > 0 ? ` más los gastos que pagó él (${m(f.gastosDelDueno)})` : ""}:{" "}
+                {m(v.valorCompraArs + f.gastosDelDueno)}.
+              </p>
+            )}
           </div>
         </section>
       )}

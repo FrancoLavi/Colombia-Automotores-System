@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type InputHTMLAttributes } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type InputHTMLAttributes } from "react";
 
 /** Pone los puntos de miles mientras se escribe: "1500000" → "1.500.000"; la coma queda para los decimales. */
 export function conMiles(v: string, negativo = false): string {
@@ -32,6 +32,23 @@ export function InputMoneda({ defaultValue, value, onChange, negativo = false, .
   const texto = value !== undefined ? value : propio;
   const ref = useRef<HTMLInputElement>(null);
   const cursor = useRef<number | null>(null);
+
+  // Cuando el formulario se limpia después de guardar, el importe también vuelve a su valor inicial.
+  // Sin esto quedaba cargado y un segundo clic registraba otra vez la misma plata.
+  const inicial = useRef({ defaultValue, negativo, onChange, controlado: value !== undefined });
+  inicial.current = { defaultValue, negativo, onChange, controlado: value !== undefined };
+  useEffect(() => {
+    const form = ref.current?.form;
+    if (!form) return;
+    const limpiar = () => {
+      const { defaultValue: d, negativo: n, onChange: cambiar, controlado } = inicial.current;
+      const texto0 = textoMoneda(d, n);
+      if (!controlado) setPropio(texto0);
+      cambiar?.(texto0);
+    };
+    form.addEventListener("reset", limpiar);
+    return () => form.removeEventListener("reset", limpiar);
+  }, []);
 
   // Después de reformatear, deja el cursor después del mismo dígito que estaba.
   useLayoutEffect(() => {

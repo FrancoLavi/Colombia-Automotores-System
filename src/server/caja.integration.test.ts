@@ -118,7 +118,7 @@ describe("movimientos y cuentas manuales", () => {
 
   it("solo se anulan movimientos manuales; el pase anula sus dos patas", async () => {
     const { movimientos } = await caja.movimientos({});
-    const automatico = movimientos.find((m) => m.m.categoria === "GASTO_VEHICULO")!;
+    const automatico = movimientos.find((m) => m.m.categoria === "GASTO_VEHICULO" && !m.m.cuentaPendienteId)!;
     await expect(caja.anularMovimiento(U, automatico.m.id, "error")).rejects.toThrow(/otra operación/);
     const antes = await caja.movimientos({});
     const pase = antes.movimientos.find((m) => m.m.categoria === "TRANSFERENCIA_INTERNA")!;
