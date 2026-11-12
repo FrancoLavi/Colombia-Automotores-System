@@ -29,7 +29,7 @@ export async function fotoFondos(t: Tx): Promise<Fondos> {
  * la foto que se sacó al principio. Si la operación deja en negativo el efectivo, el banco o la
  * caja del salón, se cancela todo.
  */
-export async function exigirFondos(t: Tx, antes: Fondos) {
-  const error = faltaDeFondos(antes, await fotoFondos(t));
+export async function exigirFondos(t: Tx, antes: Fondos, opciones: { anulando?: boolean } = {}) {
+  const error = faltaDeFondos(antes, await fotoFondos(t), undefined, opciones.anulando);
   if (error) throw new ErrorNegocio(error);
 }

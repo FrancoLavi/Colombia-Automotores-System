@@ -101,6 +101,10 @@ describe("deshacer un cobro o pago de Cuentas pendientes", () => {
     const id = await autoDisponible("PER004", { participeId: SALON, valorCompra: 2_000_000 });
     await veh.agregarGasto(U, id, { categoriaId: 1, fecha: "2026-11-02", descripcion: "Chapa", importe: 300_000, estado: "PENDIENTE", medio: "EFECTIVO" });
     const gasto = (await db.select().from(s.gastos).where(eq(s.gastos.vehiculoId, id)))[0];
+    // Sin proveedor cargado, la cuenta no usa el detalle como si fuera una persona.
+    const cuenta = (await db.query.cuentasPendientes.findFirst({ where: eq(s.cuentasPendientes.id, gasto.cuentaPendienteId!) }))!;
+    expect(cuenta.contraparte).toMatch(/^Proveedor de /);
+    expect(cuenta.notas).toMatch(/\(Chapa\)$/);
     const mov = await caja.registrarPagoCuenta(U, gasto.cuentaPendienteId!, 300_000, "EFECTIVO");
     await expect(veh.eliminarGasto(U, id, gasto.id)).rejects.toThrow(/pagos/);
     // La ficha del movimiento ofrece anularlo (antes mandaba de vuelta al auto).

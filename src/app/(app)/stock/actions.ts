@@ -154,6 +154,7 @@ export async function gastoAccion(id: number, _: Resultado, fd: FormData): Promi
       estado: opcion(fd, "estado", ["PAGADO", "PENDIENTE"] as const, "PAGADO"),
       medio: opcion(fd, "medio", ["EFECTIVO", "BANCO"] as const, "EFECTIVO"),
       pagadoPor: opcion(fd, "pagadoPor", ["SALON", "DUENO"] as const, "SALON"),
+      proveedor: texto(fd, "proveedor"),
     });
     return "Gasto cargado.";
   });

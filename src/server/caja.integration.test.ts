@@ -109,7 +109,7 @@ describe("movimientos y cuentas manuales", () => {
 
   it("un gasto a pagar se marca pagado al cancelar su cuenta", async () => {
     const auto = await autoDisponible("BB222BB");
-    await veh.agregarGasto(U, auto, { categoriaId: 1, fecha: "2026-10-05", descripcion: "Chapista", importe: 500_000, estado: "PENDIENTE", medio: "EFECTIVO" });
+    await veh.agregarGasto(U, auto, { categoriaId: 1, fecha: "2026-10-05", descripcion: "Puerta", importe: 500_000, estado: "PENDIENTE", medio: "EFECTIVO", proveedor: "Chapista" });
     const c = (await caja.listarCuentas({ tipo: "A_PAGAR" })).find((x) => x.c.contraparte === "Chapista")!;
     await caja.registrarPagoCuenta(U, c.c.id, 500_000, "EFECTIVO");
     const ficha = (await veh.fichaVehiculo(auto))!;
@@ -131,6 +131,8 @@ describe("movimientos y cuentas manuales", () => {
   it("ajuste exige sentido; el importe tiene que ser positivo", async () => {
     await expect(caja.crearMovimiento(U, { categoria: "AJUSTE", sentido: null, medio: "EFECTIVO", importe: 10, concepto: "x", fecha: new Date(), participeId: null })).rejects.toThrow(/ingreso o egreso/);
     await expect(caja.crearMovimiento(U, { categoria: "GASTO_SALON", sentido: null, medio: "EFECTIVO", importe: 0, concepto: "x", fecha: new Date(), participeId: null })).rejects.toThrow(/mayor a cero/);
+    // K7: un inversor no hace aportes de capital; su plata va atada a un auto.
+    await expect(caja.crearMovimiento(U, { categoria: "APORTE", sentido: null, medio: "EFECTIVO", importe: 1_000, concepto: "x", fecha: new Date(), participeId: INVERSOR })).rejects.toThrow(/auto que financia/);
   });
 });
 

@@ -347,6 +347,12 @@ export function FormGasto({
             </select>
           </label>
         )}
+        {!delDueno && estado === "PENDIENTE" && (
+          <label className="campo">
+            A quién se le debe
+            <input name="proveedor" placeholder="Ej: chapista Gómez" />
+          </label>
+        )}
         {!delDueno && estado === "PAGADO" && (
           <label className="campo">
             Medio

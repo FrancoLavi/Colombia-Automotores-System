@@ -7,7 +7,6 @@ import { vistaMoneda } from "@/lib/moneda";
 import { movimientos, opcionesDeAutos, patrimonio, pendientesPorPagar } from "@/server/caja";
 import { CamposFiltroAuto, TdAuto, ThAuto } from "@/components/auto";
 import { leerFiltroAuto } from "@/domain/autos";
-import { datosFormulario } from "@/server/vehiculos";
 import { listarPersonas } from "@/server/configuracion";
 import { fecha, hoyIso } from "@/lib/formato";
 import { ETIQUETA_CATEGORIA, type Medio } from "@/domain/caja";
@@ -26,12 +25,11 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
   const desde = sp.desde ?? `${hoy.slice(0, 8)}01`;
   const hasta = sp.hasta ?? hoy;
   const filtroAuto = leerFiltroAuto(sp);
-  const [{ m }, mov, pendientes, p, { participes }, personas, opciones] = await Promise.all([
+  const [{ m }, mov, pendientes, p, personas, opciones] = await Promise.all([
     vistaMoneda(),
     movimientos({ desde, hasta, medio: sp.medio as Medio | undefined, categoria: sp.categoria, q: sp.q, ...filtroAuto }),
     pendientesPorPagar(),
     patrimonio(),
-    datosFormulario(),
     listarPersonas(true),
     opcionesDeAutos(),
   ]);
@@ -117,7 +115,7 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
           Cobros de ventas, pagos de autos y gastos de cada auto se registran solos desde Ventas y Stock. Los sueldos y retiros quedan a nombre de una persona
           (se cargan en Configuración → Personas).
         </p>
-        <FormMovimiento participes={participes} personas={personas} />
+        <FormMovimiento personas={personas} />
       </details>
 
       <section className="tarjeta flex flex-col gap-3 p-0">

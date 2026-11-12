@@ -6,6 +6,12 @@ import { saldosActuales } from "@/server/caja";
 import { VehiculoForm } from "../../vehiculo-form";
 import { editarVehiculoAccion } from "../../actions";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const ficha = await fichaVehiculo(Number((await params).id));
+  const v = ficha?.v;
+  return { title: `${v ? `Editar ${v.marca} ${v.modelo}` : "Editar auto"} · Colombia Automotores` };
+}
+
 export default async function EditarVehiculoPage({ params }: { params: Promise<{ id: string }> }) {
   await requerirUsuario();
   const id = Number((await params).id);

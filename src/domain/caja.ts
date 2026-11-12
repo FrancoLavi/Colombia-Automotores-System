@@ -7,7 +7,7 @@ export type Sentido = "INGRESO" | "EGRESO";
 export const ETIQUETA_CATEGORIA: Record<string, string> = {
   COBRO_VENTA: "Cobro de venta",
   SENIA: "Seña",
-  DEVOLUCION_SENIA: "Devolución",
+  DEVOLUCION_SENIA: "Devolución al cliente",
   COBRO_CREDITO: "Cobro de crédito",
   PAGO_COMPRA: "Pago de compra",
   PAGO_CONSIGNANTE: "Pago a consignante",
@@ -78,9 +78,21 @@ const pesosAR = (n: number) => `$ ${n.toLocaleString("es-AR", { minimumFractionD
  * negativo **por culpa de esta operación**. Si ya venían en negativo (datos viejos), no frena lo
  * que no los empeora, como pagarle a un inversor lo que se le debe.
  * Devuelve el error para mostrar, o null si se puede.
+ * Al anular un ingreso no hay medio para elegir: el aviso explica que esa plata ya se usó.
  */
-export function faltaDeFondos(antes: Fondos, despues: Fondos, moneda: (n: number) => string = pesosAR): string | null {
+export function faltaDeFondos(antes: Fondos, despues: Fondos, moneda: (n: number) => string = pesosAR, anulando = false): string | null {
   const empeora = (a: number, d: number) => d < 0 && d < a - 0.005;
+  if (anulando) {
+    const donde = empeora(antes.efectivo, despues.efectivo)
+      ? { texto: "el efectivo", hay: antes.efectivo, falta: -despues.efectivo }
+      : empeora(antes.banco, despues.banco)
+        ? { texto: "el banco", hay: antes.banco, falta: -despues.banco }
+        : empeora(r2(antes.efectivo + antes.banco - antes.ajena), r2(despues.efectivo + despues.banco - despues.ajena))
+          ? { texto: "la caja del salón", hay: r2(antes.efectivo + antes.banco - antes.ajena), falta: -r2(despues.efectivo + despues.banco - despues.ajena) }
+          : null;
+    if (!donde) return null;
+    return `No se puede anular: esa plata ya se usó. En ${donde.texto} hay ${moneda(Math.max(0, donde.hay))} y quedaría en negativo por ${moneda(donde.falta)}. Si el ingreso estaba mal cargado, primero corregí o anulá los pagos que salieron después, o cargá el ingreso correcto antes de anular este.`;
+  }
   if (empeora(antes.efectivo, despues.efectivo)) {
     return `No alcanza el efectivo: hay ${moneda(Math.max(0, antes.efectivo))} y faltarían ${moneda(-despues.efectivo)}. Si la plata sale del banco, elegí Banco o registrá primero la extracción (pase Banco → Efectivo).`;
   }
