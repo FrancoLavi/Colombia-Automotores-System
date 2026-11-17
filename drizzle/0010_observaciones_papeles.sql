@@ -1,0 +1,1 @@
+ALTER TABLE "documentos_vehiculo" ADD COLUMN "observaciones" text;

@@ -117,7 +117,14 @@ export async function precioAccion(id: number, _: Resultado, fd: FormData): Prom
 export async function documentoAccion(vehiculoId: number, documentoId: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(() =>
-    svc.registrarDocumento(u.id, vehiculoId, documentoId, opcion(fd, "estado", ["PENDIENTE", "RECIBIDO", "NO_APLICA"] as const), fechaIso(fd, "fechaVencimiento")),
+    svc.registrarDocumento(
+      u.id,
+      vehiculoId,
+      documentoId,
+      opcion(fd, "estado", ["PENDIENTE", "RECIBIDO", "NO_APLICA"] as const),
+      fechaIso(fd, "fechaVencimiento"),
+      texto(fd, "observaciones"),
+    ),
   );
   revalidatePath(`/stock/${vehiculoId}`);
   return r;
