@@ -232,7 +232,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
           {f.documentos.map((d) => (
-            <FilaDocumento key={`${d.id}|${d.estado}|${d.fechaVencimiento}`} vehiculoId={id} doc={d} />
+            <FilaDocumento key={`${d.id}|${d.estado}|${d.fechaVencimiento}|${d.observaciones}`} vehiculoId={id} doc={d} />
           ))}
         </section>
 

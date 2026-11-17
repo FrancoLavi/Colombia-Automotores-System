@@ -46,6 +46,7 @@ async function documentosDe(ids: number[], ex: Tx | typeof db = db) {
       fechaRecepcion: s.documentosVehiculo.fechaRecepcion,
       fechaVencimiento: s.documentosVehiculo.fechaVencimiento,
       archivoUrl: s.documentosVehiculo.archivoUrl,
+      observaciones: s.documentosVehiculo.observaciones,
       soloPrendados: s.tiposDocumento.soloPrendados,
       recibidoPor: s.usuarios.nombre,
     })
@@ -532,6 +533,7 @@ export async function registrarDocumento(
   documentoId: number,
   estado: "PENDIENTE" | "RECIBIDO" | "NO_APLICA",
   fechaVencimiento: string | null,
+  observaciones: string | null = null,
 ) {
   await db.transaction(async (t) => {
     const antes = await t.query.documentosVehiculo.findFirst({
@@ -540,19 +542,26 @@ export async function registrarDocumento(
     if (!antes) throw new ErrorNegocio("El papel no existe");
     const tipo = await t.query.tiposDocumento.findFirst({ where: eq(s.tiposDocumento.id, antes.tipoDocumentoId) });
     const recibido = estado === "RECIBIDO";
+    const nota = observaciones?.trim() || null;
     const cambios = {
       estado,
       fechaVencimiento,
+      observaciones: nota,
       fechaRecepcion: recibido ? (antes.estado === "RECIBIDO" ? antes.fechaRecepcion : hoyIso()) : null,
       recibidoPor: recibido ? (antes.estado === "RECIBIDO" ? antes.recibidoPor : usuarioId) : null,
     };
     await t.update(s.documentosVehiculo).set(cambios).where(eq(s.documentosVehiculo.id, documentoId));
+    // Si lo único que cambió fue la nota, el estado no se nombra: el texto diría "recibido"
+    // sobre un papel que ya estaba recibido y en la auditoría parecería un cambio que no hubo.
+    const soloNota = estado === antes.estado && fechaVencimiento === antes.fechaVencimiento && nota !== antes.observaciones;
     const texto = { PENDIENTE: "marcado pendiente", RECIBIDO: "recibido", NO_APLICA: "no aplica" }[estado];
     await auditar(t, {
       usuarioId, entidad: ENTIDAD, entidadId: vehiculoId, accion: "MODIFICAR",
-      antes: { estado: antes.estado, fechaVencimiento: antes.fechaVencimiento },
-      despues: { estado, fechaVencimiento },
-      descripcion: `Papel "${tipo?.nombre}": ${texto}`,
+      antes: { estado: antes.estado, fechaVencimiento: antes.fechaVencimiento, observaciones: antes.observaciones },
+      despues: { estado, fechaVencimiento, observaciones: nota },
+      descripcion: soloNota
+        ? `Papel "${tipo?.nombre}": ${nota ? `observación "${nota}"` : "observación borrada"}`
+        : `Papel "${tipo?.nombre}": ${texto}`,
     });
   });
 }

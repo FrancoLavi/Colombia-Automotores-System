@@ -251,6 +251,8 @@ export const documentosVehiculo = pgTable(
     fechaVencimiento: date("fecha_vencimiento"),
     recibidoPor: integer("recibido_por").references(() => usuarios.id),
     archivoUrl: text("archivo_url"),
+    /** Nota del papel: "adeuda $ 80.000 de patente", "el 08 lo firma el martes"… */
+    observaciones: text("observaciones"),
   },
   (t) => [uniqueIndex("documentos_vehiculo_uq").on(t.vehiculoId, t.tipoDocumentoId)],
 );

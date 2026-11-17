@@ -109,6 +109,7 @@ type Documento = {
   fechaVencimiento: string | null;
   recibidoPor: string | null;
   archivoUrl: string | null;
+  observaciones: string | null;
 };
 
 const ETIQUETA_DOC = { PENDIENTE: "Pendiente", RECIBIDO: "En condiciones ✓", NO_APLICA: "No aplica" } as const;
@@ -154,6 +155,17 @@ export function FilaDocumento({ vehiculoId, doc }: { vehiculoId: number; doc: Do
             </option>
           ))}
         </select>
+        {/* La nota del papel: deudas de patente, cuándo firman el 08, qué falta. Se guarda al
+            salir del campo, igual que el vencimiento, para no agregar otro botón por fila. */}
+        <input
+          name="observaciones"
+          defaultValue={doc.observaciones ?? ""}
+          placeholder="Observación"
+          title="Deudas, faltantes o avisos de este papel. Ej: adeuda $ 80.000 de patente."
+          aria-label={`Observación de ${doc.nombre}`}
+          onBlur={(e) => e.target.value.trim() !== (doc.observaciones ?? "") && enviarYa()}
+          className="min-h-11 w-full flex-1 rounded-lg border border-campo-borde px-2 sm:w-auto sm:min-w-56"
+        />
       </form>
       {recibido && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-apagado">

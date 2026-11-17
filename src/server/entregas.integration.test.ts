@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, schema as s } from "@/db";
 import { prepararBase } from "@/test/db";
 import { autoDisponible, baseAuto, baseContacto, INVERSOR, saldoCaja, U, fondear } from "@/test/fabricas";
@@ -19,7 +19,13 @@ const datos = (d: Partial<veh.DatosVehiculo> = {}): veh.DatosVehiculo => ({
 });
 const papeles = (id: number) =>
   db
-    .select({ id: s.documentosVehiculo.id, nombre: s.tiposDocumento.nombre, estado: s.documentosVehiculo.estado, archivoUrl: s.documentosVehiculo.archivoUrl })
+    .select({
+      id: s.documentosVehiculo.id,
+      nombre: s.tiposDocumento.nombre,
+      estado: s.documentosVehiculo.estado,
+      archivoUrl: s.documentosVehiculo.archivoUrl,
+      observaciones: s.documentosVehiculo.observaciones,
+    })
     .from(s.documentosVehiculo)
     .innerJoin(s.tiposDocumento, eq(s.tiposDocumento.id, s.documentosVehiculo.tipoDocumentoId))
     .where(eq(s.documentosVehiculo.vehiculoId, id));
@@ -60,6 +66,30 @@ describe("comprobante de un papel", () => {
     expect(await veh.adjuntarComprobante(U, id, titulo.id, null)).toBe("b.jpg");
     expect((await papeles(id)).find((d) => d.nombre === "Título")!.archivoUrl).toBeNull();
     expect(await db.select().from(s.archivos).where(eq(s.archivos.vehiculoId, id))).toHaveLength(0);
+  });
+});
+
+describe("observación de un papel", () => {
+  it("se guarda, se puede borrar y queda en la auditoría sin inventar un cambio de estado", async () => {
+    const id = await veh.crearVehiculo(U, datos({ dominio: "CO222MP" }), { modo: "SIN_REGISTRO" });
+    const [patente] = (await papeles(id)).filter((d) => d.nombre === "Título");
+
+    await veh.registrarDocumento(U, id, patente.id, "PENDIENTE", null, "  Adeuda $ 80.000 de patente  ");
+    expect((await papeles(id)).find((d) => d.id === patente.id)!.observaciones).toBe("Adeuda $ 80.000 de patente");
+
+    // Cambia solo la nota: la auditoría no debe decir "marcado pendiente", que no pasó.
+    const ultima = async () =>
+      (await db.select().from(s.auditoria).where(eq(s.auditoria.entidadId, id)).orderBy(desc(s.auditoria.id)).limit(1))[0];
+    expect((await ultima()).descripcion).toMatch(/observación "Adeuda \$ 80\.000 de patente"/);
+
+    // Vacío y espacios se guardan como null, no como cadena vacía.
+    await veh.registrarDocumento(U, id, patente.id, "PENDIENTE", null, "   ");
+    expect((await papeles(id)).find((d) => d.id === patente.id)!.observaciones).toBeNull();
+    expect((await ultima()).descripcion).toMatch(/observación borrada/);
+
+    // Si además cambia el estado, manda el estado.
+    await veh.registrarDocumento(U, id, patente.id, "RECIBIDO", null, "Lo trajo el gestor");
+    expect((await ultima()).descripcion).toMatch(/recibido/);
   });
 });
 
