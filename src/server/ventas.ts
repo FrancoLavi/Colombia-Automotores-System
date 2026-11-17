@@ -7,6 +7,7 @@ import { cobertura, costoTotal, deudasPorVenta, liquidar, margenUsd, precioSuger
 import { capitalDelInversor, deudaConConsignante, gastosDelDueno } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
+import { registrarValorDeVenta } from "./valores";
 import { ErrorNegocio } from "./errores";
 import { exigirFondos, fotoFondos } from "./fondos";
 import { obtenerParametros } from "./parametros";
@@ -283,6 +284,8 @@ export interface PagoNuevo {
   banco: string | null;
   vence: string | null;
   cobradoAhora: boolean;
+  /** T7: si el pago es un cheque, los datos del papel. */
+  cheque?: { numero: string | null; librador: string | null; libradorCuit: string | null; fechaEmision: string | null; fechaPago: string } | null;
 }
 
 /** S3/S4: seña, efectivo, transferencia, crédito u otro. La seña reserva el auto. */
@@ -294,6 +297,7 @@ export async function agregarPago(usuarioId: number, id: number, p: PagoNuevo) {
     const error = validarPagoNuevo(await totalDe(t, op), pagos, p.importe);
     if (error) throw new ErrorNegocio(error);
     if (p.tipo === "CREDITO" && !p.banco) throw new ErrorNegocio("Indicá el banco del crédito");
+    if (p.tipo === "CHEQUE" && !p.cheque?.fechaPago) throw new ErrorNegocio("Indicá la fecha de pago del cheque");
     const v = (await t.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, op.vehiculoId) }))!;
     const c = (await t.query.contactos.findFirst({ where: eq(s.contactos.id, op.contactoId) }))!;
 
@@ -316,17 +320,37 @@ export async function agregarPago(usuarioId: number, id: number, p: PagoNuevo) {
         .returning();
       movimientoId = m.id;
     }
-    await t.insert(s.pagosOperacion).values({
-      operacionId: id,
-      tipo: p.tipo,
-      importe: p.importe,
-      fecha: p.fecha,
-      medio: p.tipo === "CREDITO" ? null : medio,
-      banco: p.banco,
-      vence: p.tipo === "SENIA" ? p.vence : null,
-      estado: cobrado ? "COBRADO" : "PENDIENTE",
-      movimientoId,
-    });
+    const [pagoFila] = await t
+      .insert(s.pagosOperacion)
+      .values({
+        operacionId: id,
+        tipo: p.tipo,
+        importe: p.importe,
+        fecha: p.fecha,
+        medio: p.tipo === "CREDITO" || p.tipo === "CHEQUE" ? null : medio,
+        banco: p.banco,
+        vence: p.tipo === "SENIA" ? p.vence : null,
+        estado: cobrado ? "COBRADO" : "PENDIENTE",
+        movimientoId,
+      })
+      .returning();
+    // T7: el cheque queda registrado como valor en cartera. Su cuenta a cobrar nace al cerrar
+    // la venta, igual que la de un crédito bancario.
+    if (p.tipo === "CHEQUE" && p.cheque) {
+      await registrarValorDeVenta(t, usuarioId, pagoFila.id, id, {
+        tipo: "CHEQUE",
+        numero: p.cheque.numero,
+        banco: p.banco,
+        librador: p.cheque.librador,
+        libradorCuit: p.cheque.libradorCuit,
+        importe: p.importe,
+        fechaEmision: p.cheque.fechaEmision,
+        fechaPago: p.cheque.fechaPago,
+        recibidoDe: nombre(c),
+        contactoId: c.id,
+        notas: null,
+      });
+    }
     if (p.tipo === "SENIA" && op.estado === "PREVENTA") {
       await t.update(s.operaciones).set({ estado: "SENIADA" }).where(eq(s.operaciones.id, id));
       await cambiarEstadoVehiculo(t, v.id, "RESERVADO", usuarioId, `Reservado por seña (${numeroOperacion(id)})`);
@@ -457,21 +481,30 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
         await t.update(s.pagosOperacion).set({ estado: "COBRADO" }).where(eq(s.pagosOperacion.id, p.id));
         continue;
       }
+      // T7: el cheque ya está cargado como valor; su cuenta es la que se cobra desde Tesorería.
+      const valor = p.tipo === "CHEQUE" ? await t.query.valores.findFirst({ where: eq(s.valores.pagoOperacionId, p.id) }) : null;
       const [cta] = await t
         .insert(s.cuentasPendientes)
         .values({
           tipo: "A_COBRAR",
-          origen: p.tipo === "CREDITO" ? "CREDITO_BANCARIO" : "MANUAL",
-          contraparte: p.tipo === "CREDITO" ? `Banco ${p.banco ?? ""}`.trim() : nombre(c),
+          origen: p.tipo === "CREDITO" ? "CREDITO_BANCARIO" : p.tipo === "CHEQUE" ? "VALOR" : "MANUAL",
+          contraparte:
+            p.tipo === "CREDITO"
+              ? `Banco ${p.banco ?? ""}`.trim()
+              : p.tipo === "CHEQUE"
+                ? (valor?.librador?.trim() || nombre(c))
+                : nombre(c),
           contactoId: c.id,
           vehiculoId: v.id,
           operacionId: id,
           importe: p.importe,
           saldo: p.importe,
+          vencimiento: p.tipo === "CHEQUE" ? (valor?.fechaPago ?? null) : null,
           notas: `${ETIQUETA_PAGO[p.tipo]} ${numeroOperacion(id)}`,
         })
         .returning();
       await t.update(s.pagosOperacion).set({ cuentaPendienteId: cta.id }).where(eq(s.pagosOperacion.id, p.id));
+      if (valor) await t.update(s.valores).set({ cuentaPendienteId: cta.id }).where(eq(s.valores.id, valor.id));
     }
 
     // S7: consignación → se le debe al dueño el monto pactado, más los gastos que pagó él (R8).

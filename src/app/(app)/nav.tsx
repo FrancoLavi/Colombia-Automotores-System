@@ -16,6 +16,8 @@ const ICONO = {
   entregas: "M3 5h14v12H3zM3 8.5h14M7 3v4M13 3v4M6.5 12h3",
   caja: "M2 6h16v9H2zM10 13a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM5 8.5v2M15 8.5v2",
   patrimonio: "M10 3v7h7a7 7 0 1 1-7-7Zm2.5-.5A7 7 0 0 1 17.5 7.5H12.5z",
+  // Tesorería: un cheque con su firma.
+  tesoreria: "M2.5 5h15v10h-15zM5.5 12h5M13 8.5h1.5",
   reportes: "M3 17h14M5 14V9M9 14V5M13 14v-3M17 14V7",
   historial: "M10 17a7 7 0 1 0-7-7M3 6v4h4M10 6.5V10l2.5 2",
   configuracion: "M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.3 4.3l1.8 1.8M13.9 13.9l1.8 1.8M4.3 15.7l1.8-1.8M13.9 6.1l1.8-1.8",
@@ -37,6 +39,7 @@ const GRUPOS: { titulo: string | null; items: { href: string; label: string; ico
     titulo: "Finanzas",
     items: [
       { href: "/caja", label: "Caja", icono: "caja" },
+      { href: "/tesoreria", label: "Tesorería", icono: "tesoreria" },
       { href: "/patrimonio", label: "Patrimonio", icono: "patrimonio" },
       { href: "/reportes", label: "Reportes", icono: "reportes" },
     ],

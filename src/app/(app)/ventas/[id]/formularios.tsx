@@ -35,6 +35,7 @@ export function FormPago({ id, faltante, haySena }: { id: number; faltante: numb
             <option value="EFECTIVO">Efectivo</option>
             <option value="TRANSFERENCIA">Transferencia</option>
             <option value="CREDITO">Crédito bancario</option>
+            <option value="CHEQUE">Cheque</option>
             <option value="OTRO">Otro</option>
           </select>
         </label>
@@ -58,6 +59,40 @@ export function FormPago({ id, faltante, haySena }: { id: number; faltante: numb
               <option value="Santander" />
             </datalist>
           </label>
+        )}
+        {tipo === "CHEQUE" && (
+          <>
+            <label className="campo">
+              Banco
+              <input name="banco" list="bancos" placeholder="Nación, Provincia…" />
+              <datalist id="bancos">
+                <option value="Provincia" />
+                <option value="Nación" />
+                <option value="Galicia" />
+                <option value="Santander" />
+              </datalist>
+            </label>
+            <label className="campo">
+              Paga el *
+              <input type="date" name="chequeFechaPago" required />
+            </label>
+            <label className="campo">
+              N° de cheque
+              <input name="chequeNumero" placeholder="00123456" />
+            </label>
+            <label className="campo">
+              Librador (quién lo firma)
+              <input name="chequeLibrador" placeholder="Si no es el comprador" />
+            </label>
+            <label className="campo">
+              CUIT del librador
+              <input name="chequeLibradorCuit" placeholder="30-12345678-9" />
+            </label>
+            <label className="campo">
+              Fecha de emisión
+              <input type="date" name="chequeFechaEmision" />
+            </label>
+          </>
         )}
         {tipo === "SENIA" && (
           <label className="campo">
