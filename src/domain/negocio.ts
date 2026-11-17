@@ -117,7 +117,7 @@ export function margenUsd(precio: number, costo: number, tcIngreso: number, tcAc
 }
 
 export interface PagoCobertura {
-  tipo: "SENIA" | "EFECTIVO" | "TRANSFERENCIA" | "CREDITO" | "PERMUTA" | "OTRO";
+  tipo: "SENIA" | "EFECTIVO" | "TRANSFERENCIA" | "CREDITO" | "CHEQUE" | "PERMUTA" | "OTRO";
   importe: number;
   estado: "PENDIENTE" | "COBRADO" | "DEVUELTA" | "RETENIDA";
 }
@@ -129,7 +129,8 @@ export function cobertura(precio: number, pagos: PagoCobertura[]) {
   const enPlata = (p: PagoCobertura) => p.tipo === "SENIA" || p.tipo === "EFECTIVO" || p.tipo === "TRANSFERENCIA" || p.tipo === "OTRO";
   // Un pago en plata que todavía no se cobró no está en la caja: cuenta como a cobrar, igual que un crédito.
   const caja = suma((p) => enPlata(p) && p.estado !== "PENDIENTE");
-  const aCobrar = suma((p) => p.tipo === "CREDITO" || (enPlata(p) && p.estado === "PENDIENTE"));
+  // T7: un cheque tampoco está en la caja hasta que el banco lo acredita.
+  const aCobrar = suma((p) => p.tipo === "CREDITO" || p.tipo === "CHEQUE" || (enPlata(p) && p.estado === "PENDIENTE"));
   const permuta = suma((p) => p.tipo === "PERMUTA");
   const cubierto = r2(caja + aCobrar + permuta);
   return { caja, aCobrar, permuta, cubierto, faltante: r2(precio - cubierto), completo: Math.abs(precio - cubierto) < 0.005 };

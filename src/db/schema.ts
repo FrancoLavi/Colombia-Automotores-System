@@ -46,7 +46,7 @@ export const estadoGastoEnum = pgEnum("estado_gasto", ["PAGADO", "PENDIENTE"]);
 export const pagadorGastoEnum = pgEnum("pagador_gasto", ["SALON", "DUENO"]);
 
 export const estadoOperacionEnum = pgEnum("estado_operacion", ["PREVENTA", "SENIADA", "CERRADA", "ENTREGADA", "CAIDA"]);
-export const tipoPagoEnum = pgEnum("tipo_pago", ["SENIA", "EFECTIVO", "TRANSFERENCIA", "CREDITO", "PERMUTA", "OTRO"]);
+export const tipoPagoEnum = pgEnum("tipo_pago", ["SENIA", "EFECTIVO", "TRANSFERENCIA", "CREDITO", "CHEQUE", "PERMUTA", "OTRO"]);
 export const estadoPagoEnum = pgEnum("estado_pago", ["PENDIENTE", "COBRADO", "DEVUELTA", "RETENIDA"]);
 export const estadoDistribucionEnum = pgEnum("estado_distribucion", ["PENDIENTE", "PAGADO"]);
 /** K10: lo que se le debe al inversor por una venta es el capital que puso más su ganancia. */
@@ -63,7 +63,19 @@ export const categoriaMovimientoEnum = pgEnum("categoria_movimiento", [
   "REINTEGRO_INVERSOR", "CAMBIO_FINANCISTA",
 ]);
 export const tipoCuentaEnum = pgEnum("tipo_cuenta", ["A_COBRAR", "A_PAGAR"]);
-export const origenCuentaEnum = pgEnum("origen_cuenta", ["CREDITO_BANCARIO", "SALDO_COMPRA", "CONSIGNANTE", "GASTO", "MANUAL"]);
+export const origenCuentaEnum = pgEnum("origen_cuenta", ["CREDITO_BANCARIO", "SALDO_COMPRA", "CONSIGNANTE", "GASTO", "VALOR", "MANUAL"]);
+
+// T7 · Tesorería: cheques y pagarés recibidos.
+export const tipoValorEnum = pgEnum("tipo_valor", ["CHEQUE", "PAGARE"]);
+/**
+ * EN_CARTERA: lo tenemos. DEPOSITADO: fue al banco, falta que acredite. ACREDITADO: entró la plata.
+ * ENDOSADO: se usó para pagarle a un tercero. RECHAZADO: rebotó, se le reclama al librador.
+ * INCOBRABLE: se dio por perdido (recién ahí impacta como pérdida).
+ * VENCIDO no es un estado: se deduce de la fecha de pago (ver src/domain/valores.ts).
+ */
+export const estadoValorEnum = pgEnum("estado_valor", [
+  "EN_CARTERA", "DEPOSITADO", "ACREDITADO", "ENDOSADO", "RECHAZADO", "INCOBRABLE",
+]);
 export const estadoCuentaEnum = pgEnum("estado_cuenta", ["ABIERTA", "CANCELADA"]);
 
 // ---------- Usuarios y auditoría ----------
@@ -417,6 +429,40 @@ export const cuentasPendientes = pgTable("cuentas_pendientes", {
   vencimiento: date("vencimiento"),
   estado: estadoCuentaEnum("estado").notNull().default("ABIERTA"),
   notas: text("notas"),
+  creadoEn: creadoEn(),
+});
+
+/**
+ * T7 · Un cheque o pagaré recibido. Guarda **el papel**, no la plata: el importe vive en la
+ * cuenta a cobrar (`cuentaPendienteId`), que es lo que ya suma el patrimonio y lo que se cobra
+ * desde Cuentas pendientes. Separarlo así hace imposible contar el mismo peso dos veces.
+ */
+export const valores = pgTable("valores", {
+  id: serial("id").primaryKey(),
+  tipo: tipoValorEnum("tipo").notNull().default("CHEQUE"),
+  numero: text("numero"),
+  banco: text("banco"),
+  /** Quién firmó el cheque. Puede no ser el cliente: es común que paguen con uno de un tercero. */
+  librador: text("librador"),
+  libradorCuit: text("librador_cuit"),
+  importe: pesos("importe").notNull(),
+  fechaEmision: date("fecha_emision"),
+  /** La que manda para el vencimiento: los 30 días se cuentan desde acá, no desde la emisión. */
+  fechaPago: date("fecha_pago").notNull(),
+  estado: estadoValorEnum("estado").notNull().default("EN_CARTERA"),
+  /** De quién lo recibimos. */
+  contactoId: integer("contacto_id").references(() => contactos.id),
+  recibidoDe: text("recibido_de"),
+  operacionId: integer("operacion_id").references(() => operaciones.id),
+  pagoOperacionId: integer("pago_operacion_id"),
+  /** La cuenta a cobrar que representa su plata. Se cancela al acreditar, endosar o darlo por perdido. */
+  cuentaPendienteId: integer("cuenta_pendiente_id").references(() => cuentasPendientes.id),
+  /** Endoso: a quién se lo dimos y qué deuda canceló. */
+  endosadoA: text("endosado_a"),
+  cuentaPagadaId: integer("cuenta_pagada_id").references(() => cuentasPendientes.id),
+  fechaEndoso: date("fecha_endoso"),
+  notas: text("notas"),
+  creadoPor: integer("creado_por").references(() => usuarios.id),
   creadoEn: creadoEn(),
 });
 

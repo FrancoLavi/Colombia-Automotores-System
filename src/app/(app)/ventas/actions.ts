@@ -50,7 +50,7 @@ export async function precioAccion(id: number, _: Resultado, fd: FormData): Prom
 export async function pagoAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
   const u = await requerirUsuario();
   const r = await ejecutar(async () => {
-    const tipo = opcion(fd, "tipo", ["SENIA", "EFECTIVO", "TRANSFERENCIA", "CREDITO", "OTRO"] as const);
+    const tipo = opcion(fd, "tipo", ["SENIA", "EFECTIVO", "TRANSFERENCIA", "CREDITO", "CHEQUE", "OTRO"] as const);
     await svc.agregarPago(u.id, id, {
       tipo,
       importe: importeRequerido(fd, "importe", "Importe"),
@@ -59,8 +59,20 @@ export async function pagoAccion(id: number, _: Resultado, fd: FormData): Promis
       banco: texto(fd, "banco"),
       vence: fechaIso(fd, "vence"),
       cobradoAhora: fd.get("cobradoAhora") !== "NO",
+      // T7: los datos del papel, para que quede en Tesorería.
+      cheque:
+        tipo === "CHEQUE"
+          ? {
+              numero: texto(fd, "chequeNumero"),
+              librador: texto(fd, "chequeLibrador"),
+              libradorCuit: texto(fd, "chequeLibradorCuit"),
+              fechaEmision: fechaIso(fd, "chequeFechaEmision"),
+              fechaPago: requerido(fd, "chequeFechaPago", "Fecha de pago del cheque"),
+            }
+          : null,
     });
-    return tipo === "SENIA" ? "Seña registrada: el auto quedó reservado." : "Pago registrado.";
+    if (tipo === "SENIA") return "Seña registrada: el auto quedó reservado.";
+    return tipo === "CHEQUE" ? "Cheque registrado: queda en Tesorería hasta que acredite." : "Pago registrado.";
   });
   revalidar(id);
   return r;

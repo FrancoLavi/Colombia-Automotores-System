@@ -17,6 +17,7 @@ export const ETIQUETA_PAGO: Record<TipoPago, string> = {
   EFECTIVO: "Efectivo",
   TRANSFERENCIA: "Transferencia",
   CREDITO: "Crédito bancario",
+  CHEQUE: "Cheque",
   PERMUTA: "Usado en parte de pago",
   OTRO: "Otro",
 };
@@ -52,7 +53,8 @@ export function faltantesParaCerrar(
 /** Al registrar un pago antes del cierre: ¿entra a caja ya? */
 export function seCobraAlRegistrar(tipo: TipoPago, cobradoAhora: boolean): boolean {
   if (tipo === "SENIA") return true;
-  if (tipo === "PERMUTA" || tipo === "CREDITO") return false;
+  // T7: el cheque entra a la caja recién cuando el banco lo acredita, no al registrarlo.
+  if (tipo === "PERMUTA" || tipo === "CREDITO" || tipo === "CHEQUE") return false;
   return cobradoAhora;
 }
 
