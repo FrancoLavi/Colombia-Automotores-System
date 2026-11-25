@@ -18,6 +18,7 @@ import {
   FilaDocumento,
   FormGasto,
   FormPeritaje,
+  FormCorregirCompra,
   FormPrecio,
   FormUbicacion,
   SubirFotos,
@@ -172,6 +173,15 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
               <FormGasto id={id} categorias={categorias} vendido={vendido} dueno={f.dueno} consignacion={v.tipoIngreso === "CONSIGNACION"} />
             </div>
           </details>
+          {/* R6 + V7: en un auto vendido de un inversor o en consignación, la compra se corrige rehaciendo el reparto. */}
+          {vendido && (v.tipoIngreso === "CONSIGNACION" || (v.tipoIngreso === "COMPRA" && f.financista?.tipo === "INVERSOR")) && (
+            <FormCorregirCompra
+              id={id}
+              moneda={v.monedaCompra}
+              valor={v.monedaCompra === "USD" ? (v.valorCompraUsd ?? 0) : v.valorCompraArs}
+              tc={v.tcIngreso}
+            />
+          )}
         </section>
 
         <section className="tarjeta flex flex-col">

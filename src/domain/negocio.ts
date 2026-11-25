@@ -106,6 +106,67 @@ export function deudasPorVenta(
 }
 
 /**
+ * R6 (excepción por error de carga): rehace la liquidación congelada cuando la compra del auto
+ * estaba mal cargada —típicamente el dólar fijado (V7)—. Solo cambia el valor de compra: el precio,
+ * los gastos que entraron al costo y el margen que valía al cerrar quedan como estaban.
+ */
+export function reliquidarPorCompra(
+  l: Liquidacion,
+  input: { valorAnterior: number; valorNuevo: number; financista: TipoParticipe; tipoIngreso: TipoIngreso },
+): Liquidacion {
+  // El margen no se guarda: se recupera de la liquidación (redondeado, son valores como 0,15).
+  const margen = l.costo > 0 ? Math.round((l.gananciaBase / l.costo) * 10_000) / 10_000 : MARGEN_BASE;
+  return liquidar({
+    costo: r2(l.costo - input.valorAnterior + input.valorNuevo),
+    precio: l.precio,
+    financista: input.financista,
+    tipoIngreso: input.tipoIngreso,
+    margen,
+  });
+}
+
+export interface DistribucionExistente {
+  id: number;
+  tipo: DeudaVenta["tipo"];
+  destino: TipoParticipe;
+  importe: number;
+  /** Ya se le pagó al inversor (la del salón figura pagada siempre, K5: no cuenta). */
+  pagada: boolean;
+}
+
+export type CambioDistribucion =
+  | { accion: "MODIFICAR"; id: number; importe: number }
+  | { accion: "AGREGAR"; tipo: DeudaVenta["tipo"]; destino: TipoParticipe; importe: number }
+  | { accion: "QUITAR"; id: number };
+
+/**
+ * R6 + K16: qué cambia en lo que se le debe a cada uno al corregir una venta cerrada. Lo que ya se
+ * le pagó al inversor no se toca: si cambiaría, vuelve en `bloqueadas` y hay que anular ese pago
+ * en Caja primero (K16), para no dejar un pago hecho con números viejos.
+ */
+export function cambiosDeDistribucion(existentes: DistribucionExistente[], nuevas: DeudaVenta[]) {
+  const cambios: CambioDistribucion[] = [];
+  const bloqueadas: DistribucionExistente[] = [];
+  const clave = (x: { tipo: string; destino: string }) => `${x.tipo}|${x.destino}`;
+  const porClave = new Map(nuevas.map((n) => [clave(n), n]));
+  for (const e of existentes) {
+    const n = porClave.get(clave(e));
+    porClave.delete(clave(e));
+    const importe = n ? r2(n.importe) : 0;
+    if (Math.abs(importe - e.importe) < 0.005) continue;
+    if (e.pagada) {
+      bloqueadas.push(e);
+      continue;
+    }
+    cambios.push(importe === 0 ? { accion: "QUITAR", id: e.id } : { accion: "MODIFICAR", id: e.id, importe });
+  }
+  for (const n of porClave.values()) {
+    if (r2(n.importe) !== 0) cambios.push({ accion: "AGREGAR", tipo: n.tipo, destino: n.destino, importe: r2(n.importe) });
+  }
+  return { cambios, bloqueadas };
+}
+
+/**
  * R5: margen en dólares (informativo). El costo en USD usa el TC fijado al ingreso (V7);
  * el precio se convierte con el blue de hoy (o el de la venta).
  */

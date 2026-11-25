@@ -18,6 +18,28 @@ export async function blueOnline(): Promise<{ valor: number; actualizado: string
   }
 }
 
+// Histórico del blue (venta) por día, también fines de semana. Fuente pública y gratuita: https://argentinadatos.com
+const URL_HISTORICO = "https://api.argentinadatos.com/v1/cotizaciones/dolares/blue";
+
+/**
+ * V7: el blue de un día pasado, para fijar el dólar de un auto que se carga después de comprado.
+ * Primero mira si hay uno guardado de ese día; si no, lo trae de internet. Sin conexión, null.
+ */
+export async function blueDeFecha(fecha: string): Promise<number | null> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
+  const guardado = await db.query.tiposCambio.findFirst({ where: eq(s.tiposCambio.fecha, fecha) });
+  if (guardado) return guardado.valor;
+  if (process.env.DOLAR_API === "off") return null;
+  try {
+    const r = await fetch(`${URL_HISTORICO}/${fecha.replaceAll("-", "/")}`, { signal: AbortSignal.timeout(4_000), next: { revalidate: 86_400 } });
+    if (!r.ok) return null;
+    const d = (await r.json()) as { venta?: number };
+    return typeof d.venta === "number" && d.venta > 0 ? d.venta : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Último dólar guardado. */
 export async function ultimoDolar() {
   const [u] = await db.select().from(s.tiposCambio).orderBy(desc(s.tiposCambio.fecha)).limit(1);

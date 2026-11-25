@@ -76,6 +76,54 @@ export function BotonHabilitar({ id, faltantes }: { id: number; faltantes: strin
   );
 }
 
+/**
+ * R6 (excepción) + V7: en un auto ya vendido, corrige el valor de compra o el dólar fijado si se
+ * cargaron mal, y rehace el reparto de su venta. Se muestra plegado: es para corregir errores.
+ */
+export function FormCorregirCompra({ id, moneda, valor, tc }: { id: number; moneda: "USD" | "ARS"; valor: number; tc: number }) {
+  const [r, enviar] = useActionState(a.corregirCompraAccion.bind(null, id), INICIAL);
+  const [monedaSel, setMoneda] = useState(moneda);
+  return (
+    <details className="border-t border-linea pt-3">
+      <summary className="cursor-pointer text-sm font-medium">Corregir compra</summary>
+      <form action={enviar} className="mt-3 flex flex-col gap-3">
+        <p className="text-sm text-apagado">
+          Si el valor de compra o el dólar fijado se cargaron mal, corregilos acá: se rehace el reparto de la venta y lo que se le debe al
+          inversor o al consignante. Si ya se le pagó, primero anulá ese pago en Caja.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="campo">
+            Moneda
+            <select name="monedaCompra" value={monedaSel} onChange={(e) => setMoneda(e.target.value as "USD" | "ARS")}>
+              <option value="USD">USD</option>
+              <option value="ARS">ARS</option>
+            </select>
+          </label>
+          <label className="campo">
+            Valor de compra ({monedaSel === "USD" ? "USD" : "$"}) *
+            <InputMoneda name="valorCompra" defaultValue={valor} required />
+          </label>
+          <label className="campo">
+            Dólar blue fijado *
+            <InputMoneda name="tcIngreso" defaultValue={tc} required />
+          </label>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <Mensaje r={r} />
+          <BotonConfirmar
+            className="btn-secundario ml-auto"
+            titulo="¿Corregir la compra?"
+            detalle="Cambia el costo del auto y se rehace el reparto de su venta: la ganancia y lo que se le debe al inversor o al consignante. Queda en el historial."
+            confirmar="Corregir compra"
+          >
+            Corregir compra
+          </BotonConfirmar>
+        </div>
+      </form>
+    </details>
+  );
+}
+
 export function FormPrecio({ id, ajuste, publicado, sugerido }: { id: number; ajuste: number; publicado: number | null; sugerido: number }) {
   const [r, enviar] = useActionState(a.precioAccion.bind(null, id), INICIAL);
   return (
