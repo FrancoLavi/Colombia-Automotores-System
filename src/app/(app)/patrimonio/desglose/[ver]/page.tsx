@@ -194,8 +194,8 @@ function Autos({ d, m, filtro }: { d: Desglose; m: Moneda; filtro: FiltroAuto })
       ) : autos.length === 0 ? (
         <p className="p-4 text-sm text-apagado">Ningún auto coincide con los filtros.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="tabla">
+        <div className="md:overflow-x-auto">
+          <table className="tabla tabla-tarjetas">
             <thead>
               <tr>
                 <ThAuto />
@@ -211,22 +211,22 @@ function Autos({ d, m, filtro }: { d: Desglose; m: Moneda; filtro: FiltroAuto })
             <tbody>
               {autos.map((a) => (
                 <tr key={a.id}>
-                  <TdAuto auto={a} href={`/stock/${a.id}`} anio />
-                  <td>
+                  <TdAuto auto={a} href={`/stock/${a.id}`} anio clase="max-md:order-1" />
+                  <td className="max-md:order-3">
                     <ChipEstado estado={a.estado} />
                   </td>
-                  <td>{a.dueno}</td>
-                  <td className="num text-right">{m(a.valorCompraArs)}</td>
-                  <td className="num text-right">{m(a.gastos)}</td>
-                  <td className="num text-right font-semibold">{m(a.costo)}</td>
-                  <td className="num text-right">{a.capitalInversor ? m(a.capitalInversor) : "—"}</td>
-                  <td className="num text-right">{m(a.delSalon)}</td>
+                  <td className="max-md:order-3 max-md:text-xs max-md:text-apagado" data-etiqueta="Financia">{a.dueno}</td>
+                  <td className="num text-right max-md:order-4 max-md:text-xs" data-etiqueta="Compra">{m(a.valorCompraArs)}</td>
+                  <td className="num text-right max-md:order-4 max-md:text-xs" data-etiqueta="Gastos">{m(a.gastos)}</td>
+                  <td className="num text-right font-semibold max-md:order-2 max-md:ml-auto">{m(a.costo)}</td>
+                  <td className="num text-right max-md:order-4 max-md:text-xs" data-etiqueta="Del inversor">{a.capitalInversor ? m(a.capitalInversor) : "—"}</td>
+                  <td className="num text-right max-md:order-4 max-md:text-xs" data-etiqueta="Del salón">{m(a.delSalon)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-semibold">
-                <td colSpan={5}>{filtrado ? `Total de lo filtrado (${autos.length})` : "Total"}</td>
+                <td colSpan={5} className="max-md:basis-full">{filtrado ? `Total de lo filtrado (${autos.length})` : "Total"}</td>
                 <td className="num text-right">{m(t((a) => a.valorCompraArs))}</td>
                 <td className="num text-right">{m(t((a) => a.gastos))}</td>
                 <td className="num text-right">{m(filtrado ? t((a) => a.costo) : d.p.stock)}</td>

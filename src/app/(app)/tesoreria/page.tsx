@@ -27,13 +27,13 @@ export default async function TesoreriaPage() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-semibold">Tesorería</h1>
-        <p className="text-suave">
+        <p className="text-suave max-md:hidden">
           Los cheques y pagarés que recibimos. Mientras están en cartera son plata <b>a cobrar</b>, no plata en la caja:
           entran a la caja recién cuando el banco los acredita.
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
         <Tarjeta titulo="En cartera" valor={resumen.enCartera} detalle="Todavía no se depositaron" />
         <Tarjeta titulo="Depositados" valor={resumen.depositados} detalle="Esperando que acrediten" />
         <Tarjeta titulo="Rebotados" valor={resumen.rechazados} detalle="Se le reclama al librador" alerta={resumen.rechazados > 0} />
@@ -49,8 +49,8 @@ export default async function TesoreriaPage() {
 
       <FormNuevoValor />
 
-      <section className="tarjeta overflow-x-auto p-0">
-        <table className="w-full text-sm">
+      <section className="tarjeta p-0 md:overflow-x-auto">
+        <table className="tabla-tarjetas w-full text-sm">
           <thead>
             <tr className="border-b border-linea text-left text-[13px] text-suave">
               <th className="p-3">Valor</th>
@@ -74,7 +74,7 @@ export default async function TesoreriaPage() {
               const chip = CHIP_ALARMA[v.alarma];
               return (
                 <tr key={v.id} className="border-b border-linea align-top">
-                  <td className="p-3">
+                  <td className="p-3 max-md:order-1 max-md:p-0">
                     <div className="font-medium">
                       {ETIQUETA_VALOR[v.tipo]} {v.numero ? `N° ${v.numero}` : ""}
                     </div>
@@ -85,20 +85,20 @@ export default async function TesoreriaPage() {
                       </Link>
                     )}
                   </td>
-                  <td className="p-3">
+                  <td className="p-3 max-md:order-3 max-md:basis-full max-md:p-0">
                     <div>{v.deQuien}</div>
                     {v.libradorCuit && <div className="text-[13px] text-suave">{v.libradorCuit}</div>}
                   </td>
-                  <td className="num p-3">{fecha(v.fechaPago)}</td>
-                  <td className="num p-3">{fecha(v.vence)}</td>
-                  <td className="num p-3 text-right font-medium">{pesos(v.importe)}</td>
-                  <td className="p-3">
-                    <div className="flex flex-col items-start gap-1">
+                  <td className="num p-3 max-md:order-4 max-md:p-0 max-md:text-xs" data-etiqueta="Paga el">{fecha(v.fechaPago)}</td>
+                  <td className="num p-3 max-md:order-4 max-md:p-0 max-md:text-xs" data-etiqueta="Vence">{fecha(v.vence)}</td>
+                  <td className="num p-3 text-right font-medium max-md:order-2 max-md:ml-auto max-md:p-0 max-md:font-semibold">{pesos(v.importe)}</td>
+                  <td className="p-3 max-md:order-4 max-md:basis-full max-md:p-0">
+                    <div className="flex flex-col items-start gap-1 max-md:flex-row max-md:flex-wrap">
                       <span className="chip border border-borde bg-superficie">{ETIQUETA_ESTADO[v.estado]}</span>
                       {chip && <span className={`chip ${chip.clase}`}>{chip.texto}</span>}
                     </div>
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right max-md:order-5 max-md:basis-full max-md:p-0 max-md:text-left">
                     <AccionesValor
                       id={v.id}
                       estado={v.estado}
@@ -143,10 +143,10 @@ export default async function TesoreriaPage() {
 
 function Tarjeta({ titulo, valor, detalle, alerta = false }: { titulo: string; valor: number; detalle: string; alerta?: boolean }) {
   return (
-    <div className={`tarjeta flex flex-col gap-1 ${alerta && valor > 0 ? "border-aviso-texto" : ""}`}>
+    <div className={`tarjeta flex flex-col gap-1 max-sm:flex-row max-sm:flex-wrap max-sm:items-center max-sm:justify-between max-sm:py-3 ${alerta && valor > 0 ? "border-aviso-texto" : ""}`}>
       <span className="text-[13px] uppercase tracking-wide text-suave">{titulo}</span>
-      <span className="num text-2xl font-semibold">{pesos(valor)}</span>
-      <span className="text-[13px] text-apagado">{detalle}</span>
+      <span className="num text-xl font-semibold sm:text-2xl">{pesos(valor)}</span>
+      <span className="text-[13px] text-apagado max-sm:hidden">{detalle}</span>
     </div>
   );
 }

@@ -89,8 +89,8 @@ export default async function ConsignacionesPage() {
               {g.filas.length} {g.filas.length === 1 ? "auto" : "autos"}
             </span>
           </div>
-          <div className="relative overflow-x-auto">
-            <table className="tabla">
+          <div className="relative md:overflow-x-auto">
+            <table className="tabla tabla-tarjetas">
               <thead>
                 <tr>
                   <ThAuto />
@@ -105,16 +105,16 @@ export default async function ConsignacionesPage() {
               <tbody>
                 {g.filas.map((f) => (
                   <tr key={f.auto.id}>
-                    <TdAuto auto={f.auto} href={`/stock/${f.auto.id}`} anio />
-                    <td>
+                    <TdAuto auto={f.auto} href={`/stock/${f.auto.id}`} anio clase="max-md:order-1" />
+                    <td className="max-md:order-2 max-md:ml-auto">
                       <ChipEstado estado={f.auto.estado} />
                     </td>
-                    <td className="num text-right">{m(f.pide)}</td>
-                    <td className="num text-right">
+                    <td className="num text-right max-md:order-3 max-md:basis-full max-md:text-left" data-etiqueta="Pide el dueño">{m(f.pide)}</td>
+                    <td className="num text-right max-md:order-3 max-md:basis-full max-md:text-left" data-etiqueta="Gastos">
                       {f.gastos ? m(f.gastos) : "—"}
                       {f.gastosDelDueno > 0 && <span className="block text-xs text-apagado">{m(f.gastosDelDueno)} los pagó el dueño</span>}
                     </td>
-                    <td className="num text-right">
+                    <td className="num text-right max-md:order-3 max-md:basis-full max-md:text-left" data-etiqueta="Precio">
                       {m(f.precio)}
                       <span className="block text-xs text-apagado">
                         {f.venta ? (
@@ -126,8 +126,8 @@ export default async function ConsignacionesPage() {
                         )}
                       </span>
                     </td>
-                    <td className={`num text-right font-semibold ${f.paraElSalon < 0 ? "text-aviso-texto" : "text-ok-texto"}`}>{m(f.paraElSalon)}</td>
-                    <td>
+                    <td data-etiqueta="Para el salón" className={`num text-right font-semibold max-md:order-3 max-md:basis-full max-md:text-left ${f.paraElSalon < 0 ? "text-aviso-texto" : "text-ok-texto"}`}>{m(f.paraElSalon)}</td>
+                    <td className="max-md:order-4 max-md:basis-full">
                       {!f.venta ? (
                         <span className="text-sm text-apagado">Se paga al vender</span>
                       ) : f.cuentaId ? (

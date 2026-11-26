@@ -54,7 +54,8 @@ export const metadata: Metadata = {
   description: "Gestión de stock, ventas, caja y patrimonio",
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1 };
+// viewportFit "cover": en iPhone con barra de gestos, la barra de accesos de abajo usa safe-area-inset-bottom para no quedar debajo.
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   // El tema se resuelve en el servidor para que la página ya llegue pintada y no pegue un flash blanco.

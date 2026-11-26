@@ -88,7 +88,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
           )}
         </div>
       </FormFiltros>
-      <section className="tarjeta overflow-x-auto p-0">
+      <section className="tarjeta p-0 md:overflow-x-auto">
         {pedidos.length === 0 ? (
           filtrando ? (
             <p className="p-4 text-suave">No hay pedidos con estos filtros.</p>
@@ -96,7 +96,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
             <Vacio>No hay pedidos abiertos. Se registran desde la ficha de cada contacto.</Vacio>
           )
         ) : (
-          <table className="tabla">
+          <table className="tabla tabla-tarjetas">
             <thead>
               <tr>
                 <th>Busca</th>
@@ -110,20 +110,20 @@ export default async function PedidosPage({ searchParams }: { searchParams: Prom
             <tbody>
               {pedidos.map((p) => (
                 <FilaPedido key={p.id} contactoId={p.contacto.id} pedido={p} marcas={marcasStock}>
-                  <td className="whitespace-normal">
+                  <td className="whitespace-normal max-md:order-1 max-md:basis-full">
                     <b>{describirPedido(p)}</b>
                     {p.notas && <div className="text-xs text-apagado">{p.notas}</div>}
                   </td>
-                  <td>
+                  <td className="max-md:order-3">
                     <Link href={`/contactos/${p.contacto.id}`}>
                       {nombreContacto(p.contacto)}
                     </Link>
                   </td>
-                  <td>
+                  <td className="max-md:order-3">
                     <Telefono telefono={p.contacto.telefono} />
                   </td>
-                  <td className="num">{fecha(p.creadoEn)}</td>
-                  <td className="whitespace-normal">
+                  <td className="num max-md:order-3 max-md:text-xs max-md:text-apagado">{fecha(p.creadoEn)}</td>
+                  <td className="whitespace-normal max-md:order-4 max-md:basis-full">
                     {p.coincidencias.length ? (
                       <div className="flex flex-wrap gap-1.5">
                         {p.coincidencias.map((v) => (

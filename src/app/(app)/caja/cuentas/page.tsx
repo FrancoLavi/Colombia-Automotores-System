@@ -53,8 +53,8 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
     filas.length === 0 ? (
       <p className="p-4 text-sm text-apagado">No hay cuentas {tipo === "A_COBRAR" ? "a cobrar" : "a pagar"}.</p>
     ) : (
-      <div className="relative overflow-x-auto">
-        <table className="tabla">
+      <div className="relative md:overflow-x-auto">
+        <table className="tabla tabla-tarjetas">
           <thead>
             <tr>
               <th>{tipo === "A_COBRAR" ? "Nos debe" : "Le debemos a"}</th>
@@ -69,18 +69,18 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
           <tbody>
             {filas.map(({ c, auto }) => (
               <tr key={c.id}>
-                <td className="font-semibold">{c.contraparte}</td>
-                <td>{ORIGEN[c.origen]}</td>
-                <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} />
-                <td className="max-w-xs whitespace-normal text-sm">
+                <td className="font-semibold max-md:order-1">{c.contraparte}</td>
+                <td className="max-md:order-3 max-md:text-xs max-md:text-apagado">{ORIGEN[c.origen]}</td>
+                <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} clase="max-md:order-3 max-md:text-xs" />
+                <td className="max-w-xs whitespace-normal text-sm max-md:order-4 max-md:max-w-none max-md:basis-full">
                   {c.operacionId ? <Link href={`/ventas/${c.operacionId}`}>{c.notas}</Link> : c.notas}
                 </td>
-                <td className={`num ${c.vencimiento && c.vencimiento < hoy ? "font-semibold text-aviso-texto" : ""}`}>{fecha(c.vencimiento)}</td>
-                <td className="num text-right">
+                <td data-etiqueta="Vence" className={`num max-md:order-3 max-md:text-xs ${c.vencimiento ? "" : "max-md:hidden"} ${c.vencimiento && c.vencimiento < hoy ? "font-semibold text-aviso-texto" : ""}`}>{fecha(c.vencimiento)}</td>
+                <td className="num text-right max-md:order-2 max-md:ml-auto max-md:font-semibold">
                   {m(c.saldo)}
                   {c.saldo !== c.importe && <span className="block text-xs text-apagado">de {m(c.importe)}</span>}
                 </td>
-                <td>
+                <td className="max-md:order-5 max-md:basis-full">
                   <FormPagoCuenta id={c.id} saldo={c.saldo} tipo={c.tipo} deVenta={c.origen === "CREDITO_BANCARIO" || (c.origen === "MANUAL" && c.operacionId != null)} saldos={saldos} />
                 </td>
               </tr>
@@ -95,7 +95,7 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
       <header className="flex flex-col gap-3">
         <h1 className="text-3xl font-bold">Cuentas pendientes</h1>
         <NavCaja actual="/caja/cuentas" />
-        <p className="max-w-3xl text-suave">
+        <p className="max-w-3xl text-suave max-md:hidden">
           Todo lo que todavía hay que cobrar o pagar, en un solo lugar: lo que nos deben (créditos que el banco no liquidó, saldos de clientes), lo que les
           debemos a terceros (vendedores, consignantes, proveedores) y lo que les debemos a los inversores por sus autos ya vendidos.
         </p>
@@ -106,22 +106,22 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
       </FormFiltros>
       {hayFiltroAuto(filtro) && <p className="-mt-2 text-sm text-apagado">Los totales de abajo son solo de los autos filtrados.</p>}
 
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Resumen" className="grid gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {[
           { t: "A cobrar", v: total(aCobrar), href: "#cobrar", tono: "ok" as const, pie: "Entra a la caja cuando se cobra", icono: "cuenta" as const },
           { t: "A pagar a inversores", v: totalInversores, href: "#inversores", tono: "aviso" as const, pie: "Ya está en la caja, pero es de ellos", icono: "inversor" as const },
           { t: "A pagar a consignantes", v: total(aConsignantes), href: "#consignantes", tono: "aviso" as const, pie: "Ya está en la caja, pero es de los dueños", icono: "persona" as const },
           { t: "A pagar a terceros", v: total(aPagar), href: "#terceros", tono: "aviso" as const, pie: "Sale de la caja cuando se paga", icono: "cuenta" as const },
         ].map((x) => (
-          <a key={x.t} href={x.href} className="tarjeta flex flex-col gap-1.5 text-tinta no-underline transition-colors hover:border-tinta">
+          <a key={x.t} href={x.href} className="tarjeta flex flex-col gap-1.5 text-tinta no-underline transition-colors hover:border-tinta max-sm:flex-row max-sm:items-center max-sm:justify-between max-sm:py-3">
             <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-apagado">
               <span className={`inline-flex size-8 items-center justify-center rounded-lg ${x.tono === "ok" ? "bg-ok-fondo text-ok-texto" : "bg-aviso-fondo text-aviso-texto"}`}>
                 <Icono nombre={x.icono} className="size-[18px]" />
               </span>
               {x.t}
             </span>
-            <span className="num text-3xl">{m(x.v)}</span>
-            <span className="text-[13px] text-apagado">{x.pie}</span>
+            <span className="num text-xl sm:text-3xl">{m(x.v)}</span>
+            <span className="text-[13px] text-apagado max-sm:hidden">{x.pie}</span>
           </a>
         ))}
       </section>
@@ -218,8 +218,8 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
         <section className="tarjeta flex flex-col p-0">
           <h2 className="p-4 pb-1 text-lg font-semibold">Últimos cobros y pagos</h2>
           <p className="px-4 pb-2 text-sm text-apagado">Lo que ya se marcó como cobrado o pagado. De cada uno se puede volver a sacar el comprobante.</p>
-          <div className="relative overflow-x-auto">
-            <table className="tabla">
+          <div className="relative md:overflow-x-auto">
+            <table className="tabla tabla-tarjetas">
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -234,17 +234,17 @@ export default async function CuentasPage({ searchParams }: { searchParams: Prom
               <tbody>
                 {recientes.map(({ m: x, auto }) => (
                   <tr key={x.id} className={x.anulado ? "text-apagado line-through" : ""}>
-                    <td className="num">{fecha(x.fecha)}</td>
-                    <td>
+                    <td className="num max-md:order-3 max-md:text-xs max-md:text-apagado">{fecha(x.fecha)}</td>
+                    <td className="max-md:order-1">
                       <span className={`chip ${x.sentido === "INGRESO" ? "bg-ok-fondo text-ok-texto" : "bg-aviso-fondo text-aviso-texto"}`}>{x.sentido === "INGRESO" ? "Cobrado" : "Pagado"}</span>
                     </td>
-                    <td className="max-w-xs whitespace-normal text-sm">
+                    <td className="max-w-xs whitespace-normal text-sm max-md:order-3 max-md:max-w-none max-md:basis-full">
                       <Link href={`/caja/movimiento/${x.id}`}>{x.concepto}</Link>
                     </td>
-                    <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} />
-                    <td>{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>
-                    <td className="num text-right">{m(x.importe)}</td>
-                    <td>
+                    <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} clase="max-md:order-4 max-md:text-xs" />
+                    <td className="max-md:order-4 max-md:text-xs max-md:text-apagado">{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>
+                    <td className="num text-right max-md:order-2 max-md:ml-auto max-md:font-semibold">{m(x.importe)}</td>
+                    <td className="max-md:order-4 max-md:ml-auto">
                       <a href={`/caja/movimiento/${x.id}/comprobante`} target="_blank" rel="noreferrer" className="whitespace-nowrap text-sm font-semibold">
                         PDF
                       </a>

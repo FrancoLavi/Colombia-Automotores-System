@@ -40,32 +40,32 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
         <div className="flex flex-col gap-3">
           <h1 className="text-3xl font-bold">Caja</h1>
           <NavCaja actual="/caja" />
-          <p className="max-w-2xl text-suave">
+          <p className="max-w-2xl text-suave max-md:hidden">
             Solo la plata líquida: efectivo y banco. Lo invertido en autos y lo que hay por cobrar está en <Link href="/patrimonio">Patrimonio</Link>.
           </p>
         </div>
         <IlustracionCaja className="hidden h-24 w-auto sm:block" />
       </header>
 
-      <section aria-label="Saldos" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Saldos" className="grid gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {[
           { t: "Efectivo", v: mov.saldos.efectivo, pie: null, href: "/caja/saldo/efectivo", icono: "efectivo" as const },
           { t: "Banco", v: mov.saldos.banco, pie: null, href: "/caja/saldo/banco", icono: "banco" as const },
           { t: "Total en caja", v: mov.saldos.total, pie: "Toda la plata que hay", href: "/caja/saldo/total", icono: "total" as const },
         ].map((x) => (
-          <Link key={x.t} href={x.href} className="tarjeta flex flex-col gap-1.5 text-tinta no-underline transition-colors hover:border-tinta">
+          <Link key={x.t} href={x.href} className="tarjeta flex flex-col gap-1.5 text-tinta no-underline transition-colors hover:border-tinta max-sm:flex-row max-sm:items-center max-sm:justify-between max-sm:py-3">
             <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-apagado">
               <span className="inline-flex size-8 items-center justify-center rounded-lg bg-info-fondo text-info-texto">
                 <Icono nombre={x.icono} className="size-[18px]" />
               </span>
               {x.t}
             </span>
-            <span className={`num text-3xl ${x.v < 0 ? "text-aviso-texto" : ""}`}>{m(x.v)}</span>
-            <span className="text-[13px] text-apagado">{x.pie ? `${x.pie} · ` : ""}Ver de dónde sale →</span>
+            <span className={`num text-xl sm:text-3xl ${x.v < 0 ? "text-aviso-texto" : ""}`}>{m(x.v)}</span>
+            <span className="text-[13px] text-apagado max-sm:hidden">{x.pie ? `${x.pie} · ` : ""}Ver de dónde sale →</span>
           </Link>
         ))}
         {/* K11: de la plata que hay, la que es del salón. El resto se les debe a los inversores. */}
-        <div className="tarjeta relative flex flex-col gap-1.5 border-tinta transition-colors hover:bg-fondo">
+        <div className="tarjeta relative flex flex-col gap-1.5 border-tinta transition-colors hover:bg-fondo max-sm:flex-row max-sm:flex-wrap max-sm:items-center max-sm:justify-between max-sm:py-3">
           {/* Por encima del enlace que cubre la tarjeta, para que la ayuda se pueda abrir. */}
           <span className="relative z-10 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-apagado">
             <span className="inline-flex size-8 items-center justify-center rounded-lg bg-ok-fondo text-ok-texto">
@@ -74,8 +74,8 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
             Del salón
             <Ayuda>De la plata que hay en caja, lo que es del salón: se descuenta lo que se les debe a los inversores (su capital y su ganancia) y a los consignantes (lo pactado) por autos ya vendidos. Es solo plata líquida: en Patrimonio el salón suma además sus autos y lo que le deben, por eso ahí da otro número.</Ayuda>
           </span>
-          <span className={`num text-3xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</span>
-          <Link href="/caja/saldo/salon" className="text-[13px] text-apagado no-underline after:absolute after:inset-0">
+          <span className={`num text-xl sm:text-3xl ${p.cajaSalon < 0 ? "text-aviso-texto" : ""}`}>{m(p.cajaSalon)}</span>
+          <Link href="/caja/saldo/salon" className="text-[13px] text-apagado no-underline after:absolute after:inset-0 max-sm:basis-full">
             {p.ajeno === 0 ? "Toda la caja es del salón" : `${m(p.ajeno)} son de inversores${p.deudaConsignantes ? " y consignantes" : ""}`} · Ver de dónde sale →
           </Link>
         </div>
@@ -164,11 +164,11 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
             Neto del período <b className="num">{m(mov.ingresos - mov.egresos)}</b>
           </span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="md:overflow-x-auto">
           {mov.movimientos.length === 0 ? (
             <Vacio>No hay movimientos en este período.</Vacio>
           ) : (
-            <table className="tabla">
+            <table className="tabla tabla-tarjetas">
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -185,27 +185,27 @@ export default async function CajaPage({ searchParams }: { searchParams: Promise
               <tbody>
                 {mov.movimientos.map(({ m: x, usuario, manual, auto }) => (
                   <FilaEnlace key={x.id} href={`/caja/movimiento/${x.id}`} className={x.anulado ? "text-apagado line-through" : ""}>
-                    <td className="num">{fecha(x.fecha)}</td>
-                    <td>
+                    <td className="num max-md:order-4 max-md:text-xs max-md:text-apagado">{fecha(x.fecha)}</td>
+                    <td className="max-md:order-1 max-md:font-semibold">
                       <span className="flex items-center gap-2.5">
                         <InsigniaMovimiento categoria={x.categoria} sentido={x.sentido} anulado={x.anulado} />
                         {ETIQUETA_CATEGORIA[x.categoria]}
                       </span>
                     </td>
-                    <td className="max-w-md whitespace-normal">
+                    <td className="max-w-md whitespace-normal max-md:order-3 max-md:max-w-none max-md:basis-full max-md:text-[15px]">
                       {x.operacionId ? <Link href={`/ventas/${x.operacionId}`}>{x.concepto}</Link> : x.vehiculoId ? <Link href={`/stock/${x.vehiculoId}`}>{x.concepto}</Link> : x.concepto}
                       {x.anulado && x.motivoAnulacion && <span className="block text-xs no-underline">Anulado: {x.motivoAnulacion}</span>}
                     </td>
-                    <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} />
-                    <td>{personas.find((p) => p.id === x.personaId)?.nombre ?? ""}</td>
-                    <td>{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>
-                    <td className={`num text-right ${x.sentido === "INGRESO" ? "text-ok-texto" : "text-aviso-texto"}`}>
+                    <TdAuto auto={auto?.id ? auto : null} href={auto?.id ? `/stock/${auto.id}` : undefined} clase="max-md:order-5 max-md:text-xs" />
+                    <td className="max-md:order-7 max-md:text-xs max-md:text-apagado">{personas.find((p) => p.id === x.personaId)?.nombre ?? ""}</td>
+                    <td className="max-md:order-6 max-md:text-xs max-md:text-apagado">{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>
+                    <td className={`num text-right max-md:order-2 max-md:ml-auto max-md:font-semibold ${x.sentido === "INGRESO" ? "text-ok-texto" : "text-aviso-texto"}`}>
                       {x.sentido === "INGRESO" ? "+ " : "− "}
                       {m(x.importe)}
                     </td>
-                    <td>{usuario}</td>
-                    <td className="whitespace-nowrap">
-                      <Link href={`/caja/movimiento/${x.id}`} className="text-sm no-underline">
+                    <td className="max-md:hidden">{usuario}</td>
+                    <td className="whitespace-nowrap max-md:order-8 max-md:basis-full">
+                      <Link href={`/caja/movimiento/${x.id}`} className="text-sm no-underline max-md:hidden">
                         Ver →
                       </Link>
                       {manual && !x.anulado && <FormAnular id={x.id} />}

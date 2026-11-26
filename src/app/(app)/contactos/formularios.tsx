@@ -524,7 +524,7 @@ export function FilaPedido({ contactoId, pedido, marcas, children }: { contactoI
   return (
     <tr>
       {children}
-      <td>
+      <td className="max-md:order-5">
         <button
           type="button"
           className="btn min-h-11 border border-borde bg-superficie px-3 text-xs"

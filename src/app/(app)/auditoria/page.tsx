@@ -71,7 +71,7 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Pr
         {filas.length === 0 ? (
           <p className="p-6 text-suave">No hay cambios con estos filtros.</p>
         ) : (
-          <table className="tabla">
+          <table className="tabla tabla-tarjetas">
             <thead>
               <tr>
                 <th>Fecha y hora</th>
@@ -87,10 +87,10 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Pr
                 const cambios = a.cambios ? Object.entries(a.cambios).filter(([k]) => !["id", "creadoEn"].includes(k)) : [];
                 return (
                   <tr key={a.id}>
-                    <td className="num">{fechaHora(a.fecha)}</td>
-                    <td>{usuario ?? "Sistema"}</td>
-                    <td>{ruta ? <Link href={ruta}>{e.texto}</Link> : (e?.texto ?? a.entidad)}</td>
-                    <td className="max-w-xl whitespace-normal">
+                    <td className="num max-md:order-3 max-md:text-xs max-md:text-apagado">{fechaHora(a.fecha)}</td>
+                    <td className="max-md:order-3 max-md:text-xs max-md:text-apagado">{usuario ?? "Sistema"}</td>
+                    <td className="max-md:order-1 max-md:text-sm max-md:font-semibold">{ruta ? <Link href={ruta}>{e.texto}</Link> : (e?.texto ?? a.entidad)}</td>
+                    <td className="max-w-xl whitespace-normal max-md:order-2 max-md:max-w-none max-md:basis-full">
                       {a.descripcion ?? a.accion.toLowerCase()}
                       {a.accion === "MODIFICAR" && cambios.length > 0 && cambios.length <= 6 && (
                         <details className="text-xs text-apagado">

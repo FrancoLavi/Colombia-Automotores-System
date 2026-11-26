@@ -12,14 +12,20 @@ export function FormDolar({ actual }: { actual: { fecha: string; valor: number; 
   const [r, accion] = useActionState(tipoCambioAccion, INICIAL);
   const [pendiente, iniciar] = useTransition();
   const [aviso, setAviso] = useState("");
+  // En el celular los botones ocupan media pantalla: se muestran solo al tocar "Cambiar".
+  const [abierto, setAbierto] = useState(false);
   return (
-    <div className="flex flex-col items-end gap-1">
-      <form action={accion} className="flex flex-wrap items-center justify-end gap-2 text-sm">
-        <span className="text-suave">
+    <div className="flex flex-col items-end gap-1 max-md:w-full max-md:items-stretch">
+      <form action={accion} className="flex flex-wrap items-center justify-end gap-2 text-sm max-md:justify-start">
+        <span className="text-suave max-md:flex-1">
           Dólar blue{actual ? ` (${actual.fecha}): ` : ": sin cargar"}
           {actual && <b className="num text-tinta">$ {actual.valor.toLocaleString("es-AR")}</b>}
           {actual?.fuente === "API" && <span className="text-apagado"> · online</span>}
         </span>
+        <button type="button" className="btn px-2 text-acento md:hidden" aria-expanded={abierto} onClick={() => setAbierto(!abierto)}>
+          {abierto ? "Listo" : "Cambiar"}
+        </button>
+        <span className={`${abierto ? "flex" : "hidden"} w-full flex-wrap items-center gap-2 md:flex md:w-auto`}>
         <button
           type="button"
           disabled={pendiente}
@@ -39,6 +45,7 @@ export function FormDolar({ actual }: { actual: { fecha: string; valor: number; 
         </label>
         <InputMoneda id="dolar-hoy" name="valor" placeholder="A mano" className="min-h-11 w-24 rounded-lg border border-campo-borde bg-superficie px-3" />
         <BotonEnviar className="btn-secundario">Guardar</BotonEnviar>
+        </span>
       </form>
       {(r.error || aviso) && <span className={`text-xs ${r.error ? "text-aviso-texto" : "text-apagado"}`}>{r.error || aviso}</span>}
     </div>

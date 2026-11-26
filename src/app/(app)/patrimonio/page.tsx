@@ -169,8 +169,8 @@ export default async function PatrimonioPage({ searchParams }: { searchParams: P
         ) : filas.length === 0 ? (
           <Vacio>Ningún auto coincide con los filtros.</Vacio>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="tabla">
+          <div className="md:overflow-x-auto">
+            <table className="tabla tabla-tarjetas">
               <thead>
                 <tr>
                   <ThAuto />
@@ -183,13 +183,13 @@ export default async function PatrimonioPage({ searchParams }: { searchParams: P
               <tbody>
                 {filas.map(({ a, x }) => (
                   <tr key={a.id}>
-                    <TdAuto auto={a} href={`/stock/${a.id}`} anio />
-                    <td>
+                    <TdAuto auto={a} href={`/stock/${a.id}`} anio clase="max-md:order-1" />
+                    <td className="max-md:order-3">
                       <ChipEstado estado={a.estado} />
                     </td>
-                    <td>{x.participe.nombre}</td>
-                    <td className="num text-right">{m(a.invertido)}</td>
-                    <td className="num text-right text-apagado">{usd(a.invertido / a.tcIngreso)}</td>
+                    <td className="max-md:order-3 max-md:text-xs max-md:text-apagado" data-etiqueta="Financia">{x.participe.nombre}</td>
+                    <td className="num text-right max-md:order-2 max-md:ml-auto max-md:font-semibold">{m(a.invertido)}</td>
+                    <td className="num text-right text-apagado max-md:order-3 max-md:ml-auto max-md:text-xs">{usd(a.invertido / a.tcIngreso)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -200,7 +200,7 @@ export default async function PatrimonioPage({ searchParams }: { searchParams: P
                       Total de lo filtrado ({filas.length} {filas.length === 1 ? "auto" : "autos"})
                     </td>
                     <td className="num text-right font-semibold">{m(filas.reduce((s, f) => s + f.a.invertido, 0))}</td>
-                    <td className="num text-right text-apagado">{usd(filas.reduce((s, f) => s + f.a.invertido / f.a.tcIngreso, 0))}</td>
+                    <td className="num text-right text-apagado max-md:basis-full max-md:text-xs">{usd(filas.reduce((s, f) => s + f.a.invertido / f.a.tcIngreso, 0))}</td>
                   </tr>
                 )}
                 {!filtrado && conAutos.map((x) => (
@@ -209,7 +209,7 @@ export default async function PatrimonioPage({ searchParams }: { searchParams: P
                       {x.participe.tipo === "SALON" ? "Fondos propios del salón" : `Puesto por ${x.participe.nombre}`}
                     </td>
                     <td className="num text-right font-semibold">{m(x.capital)}</td>
-                    <td className="num text-right text-apagado">{usd(x.capitalUsd)}</td>
+                    <td className="num text-right text-apagado max-md:basis-full max-md:text-xs">{usd(x.capitalUsd)}</td>
                   </tr>
                 ))}
               </tfoot>
