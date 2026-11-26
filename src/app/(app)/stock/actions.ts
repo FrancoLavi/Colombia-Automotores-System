@@ -10,6 +10,8 @@ import { normalizarDominio } from "@/domain/importar";
 import { hoyIso } from "@/lib/formato";
 import { guardarArchivo, borrarArchivo } from "@/lib/almacenamiento";
 import * as svc from "@/server/vehiculos";
+import { corregirCompraVendido } from "@/server/ventas";
+import { blueDeFecha } from "@/server/dolar";
 import { leerPlanilla, importarFilas, type FilaImportacion, type OpcionesImportacion } from "@/server/importar-stock";
 
 const UBICACIONES = ["SALON", "CHAPISTA", "ALISTAJE", "MECANICO", "OTRO"] as const;
@@ -74,6 +76,29 @@ export async function editarVehiculoAccion(id: number, _: Resultado, fd: FormDat
   if (!r.ok) return r;
   revalidatePath(`/stock/${id}`);
   redirect(`/stock/${id}`);
+}
+
+/** V7: el blue del día en que se compró el auto, para no fijarle el de hoy a una compra vieja. */
+export async function blueDeFechaAccion(fecha: string): Promise<number | null> {
+  await requerirUsuario();
+  return blueDeFecha(fecha);
+}
+
+/** R6 (excepción) + V7: corrige la compra de un auto vendido y rehace el reparto de su venta. */
+export async function corregirCompraAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {
+  const u = await requerirUsuario();
+  const r = await ejecutar(async () => {
+    await corregirCompraVendido(u.id, id, {
+      monedaCompra: opcion(fd, "monedaCompra", ["ARS", "USD"] as const, "ARS"),
+      valorCompra: importeRequerido(fd, "valorCompra", "Valor de compra"),
+      tcIngreso: importeRequerido(fd, "tcIngreso", "Dólar blue fijado"),
+    });
+    return "Compra corregida: se rehízo el reparto de la venta.";
+  });
+  revalidatePath(`/stock/${id}`);
+  revalidatePath("/ventas", "layout");
+  revalidatePath("/caja", "layout");
+  return r;
 }
 
 export async function ubicacionAccion(id: number, _: Resultado, fd: FormData): Promise<Resultado> {

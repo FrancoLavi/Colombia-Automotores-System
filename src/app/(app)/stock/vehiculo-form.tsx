@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { InputMoneda, textoMoneda } from "@/components/input-moneda";
 import { INICIAL, type Resultado } from "@/lib/form";
 import { Bandera } from "@/components/banderas";
@@ -9,7 +9,8 @@ import { BotonConfirmar } from "@/components/dialogo";
 import { efectoCambioFinancista, medioSugerido } from "@/domain/caja";
 import { compraEnPesos, precioSugerido } from "@/domain/negocio";
 import { interpretarImporte } from "@/domain/importar";
-import { nombreContacto, pesos, usd, hoyIso } from "@/lib/formato";
+import { nombreContacto, pesos, usd, hoyIso, fecha as fechaAR } from "@/lib/formato";
+import { blueDeFechaAccion } from "./actions";
 import { ETIQUETA_UBICACION, type Ubicacion } from "@/domain/stock";
 
 type Participe = { id: number; nombre: string; tipo: "SALON" | "INVERSOR" };
@@ -80,6 +81,27 @@ export function VehiculoForm({
     textoMoneda(inicial ? (inicial.monedaCompra === "USD" ? inicial.valorCompraUsd : inicial.valorCompraArs) : null),
   );
   const [tc, setTc] = useState(textoMoneda(inicial ? inicial.tcIngreso : tcSugerido));
+  // V7: el dólar fijado es el del día de la compra. Si el auto se carga después, se trae el blue de esa fecha.
+  const [avisoTc, setAvisoTc] = useState<string | null>(null);
+  const consulta = useRef(0);
+  async function cambioFecha(f: string) {
+    // Mientras se tipea el año, el input pasa por fechas como 0002-01-01: no se consulta.
+    if (!f || Number(f.slice(0, 4)) < 2000) return;
+    const esta = ++consulta.current;
+    if (f >= hoyIso()) {
+      if (tcSugerido) setTc(textoMoneda(tcSugerido));
+      setAvisoTc(null);
+      return;
+    }
+    const valor = await blueDeFechaAccion(f);
+    if (esta !== consulta.current) return; // llegó tarde: ya se eligió otra fecha
+    if (valor) {
+      setTc(textoMoneda(valor));
+      setAvisoTc(`Se fijó el blue del ${fechaAR(f)}: ${pesos(valor)}. Si la compra se pactó con otro dólar, corregilo.`);
+    } else {
+      setAvisoTc(`No se pudo traer el blue del ${fechaAR(f)}. Revisá el dólar fijado: tiene que ser el de la fecha de compra, no el de hoy.`);
+    }
+  }
   const [pagoModo, setPagoModo] = useState("PAGADO");
   const [prendado, setPrendado] = useState(inicial?.prendado ?? false);
   const salon = participes.find((p) => p.tipo === "SALON");
@@ -278,7 +300,7 @@ export function VehiculoForm({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="campo">
             Fecha de ingreso
-            <input type="date" name="fechaIngreso" defaultValue={inicial?.fechaIngreso ?? hoyIso()} />
+            <input type="date" name="fechaIngreso" defaultValue={inicial?.fechaIngreso ?? hoyIso()} onChange={(e) => void cambioFecha(e.target.value)} />
           </label>
           <label className="campo">
             Moneda
@@ -299,6 +321,7 @@ export function VehiculoForm({
             <InputMoneda name="tcIngreso" value={tc} onChange={setTc} required />
           </label>
         </div>
+        {avisoTc && <p className="text-sm text-aviso-texto">{avisoTc}</p>}
         {conversion && (
           <p className="text-sm text-suave">
             Equivale a <b className="num text-tinta">{pesos(conversion.ars)}</b> ({usd(conversion.usd)}). Precio sugerido sin gastos:{" "}

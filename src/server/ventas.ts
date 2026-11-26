@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, sql } from "drizzl
 import { db, schema as s, type Tx } from "@/db";
 import { auditar } from "@/lib/auditoria";
 import { hoyIso, fechaHora } from "@/lib/formato";
-import { cobertura, costoTotal, deudasPorVenta, liquidar, margenUsd, precioSugerido, r2 } from "@/domain/negocio";
+import { cambiosDeDistribucion, cobertura, compraEnPesos, costoTotal, deudasPorVenta, liquidar, margenUsd, precioSugerido, r2, reliquidarPorCompra, type Liquidacion } from "@/domain/negocio";
 import { capitalDelInversor, deudaConConsignante, gastosDelDueno } from "@/domain/caja";
 import { ABIERTAS, faltantesParaCerrar, numeroOperacion, seCobraAlRegistrar, totalOperacion, validarPagoNuevo, ETIQUETA_PAGO, type EstadoOperacion, type TipoPago } from "@/domain/ventas";
 import { alarmaEntrega, pendientesParaEntregar } from "@/domain/entregas";
@@ -549,6 +549,129 @@ export async function cerrarOperacion(usuarioId: number, id: number, tcVenta: nu
       antes: { estado: op.estado }, despues: { estado: "CERRADA" },
       descripcion: `Venta cerrada · ganancia $ ${l.ganancia.toLocaleString("es-AR")} (${l.regla === "INVERSOR_BASE" ? "7,5 % inversor" : l.regla === "INVERSOR_MITADES" ? "mitad y mitad" : "100 % salón"})`,
     });
+  });
+}
+
+export interface CorreccionCompra {
+  monedaCompra: "USD" | "ARS";
+  valorCompra: number;
+  tcIngreso: number;
+}
+
+/**
+ * R6 (excepción) + V7: corrige el valor de compra o el dólar fijado de un auto que ya se vendió,
+ * cuando estaban mal cargados, y rehace la liquidación de su venta con lo que se le debe a cada uno.
+ * Solo para autos de un inversor o en consignación: su compra no pasó por la caja (K9, S7). Lo que ya
+ * se le pagó al inversor o al consignante hay que anularlo antes en Caja (K16).
+ */
+export async function corregirCompraVendido(usuarioId: number, vehiculoId: number, d: CorreccionCompra) {
+  await db.transaction(async (t) => {
+    const antesFondos = await fotoFondos(t); // K13: más deuda con el inversor achica la caja del salón
+    const v = await t.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, vehiculoId) });
+    if (!v) throw new ErrorNegocio("El auto no existe");
+    if (v.estado !== "VENDIDO" && v.estado !== "ENTREGADO") {
+      throw new ErrorNegocio("El auto todavía no se vendió: corregí la compra desde Editar datos");
+    }
+    const op = await t.query.operaciones.findFirst({
+      where: and(eq(s.operaciones.vehiculoId, vehiculoId), inArray(s.operaciones.estado, ["CERRADA", "ENTREGADA"])),
+    });
+    const liq = op ? await t.query.liquidaciones.findFirst({ where: eq(s.liquidaciones.operacionId, op.id) }) : null;
+    if (!op || !liq) throw new ErrorNegocio("No se encontró la venta cerrada de este auto");
+    const financista = (await t.query.participes.findFirst({ where: eq(s.participes.id, liq.participeId) }))!;
+    if (v.tipoIngreso === "PERMUTA") {
+      throw new ErrorNegocio("Este auto entró como parte de pago de otra venta: su valor es lo que se le reconoció al cliente y no se corrige desde acá");
+    }
+    if (v.tipoIngreso === "COMPRA" && financista.tipo === "SALON") {
+      throw new ErrorNegocio("La compra de este auto la pagó el salón y ya está en la caja: esta corrección es solo para autos de un inversor o en consignación");
+    }
+
+    const compra = compraEnPesos(d.valorCompra, d.monedaCompra, d.tcIngreso);
+    const valorAnterior = v.valorCompraArs;
+    const etiqueta = `${v.marca} ${v.modelo}${v.dominio ? ` ${v.dominio}` : ""}`;
+    const { gastosDelDueno: gastosDueno } = await costoYGastosDelDueno(t, v.id, compra.ars);
+    const l = reliquidarPorCompra({ ...liq, regla: liq.regla as Liquidacion["regla"] }, { valorAnterior, valorNuevo: compra.ars, financista: financista.tipo, tipoIngreso: v.tipoIngreso });
+
+    // K10/K12: lo que se le debe al inversor con el valor corregido.
+    if (financista.tipo === "INVERSOR" && v.tipoIngreso !== "CONSIGNACION") {
+      const usados = await t
+        .select({ tipoIngreso: s.vehiculos.tipoIngreso, valorCompraArs: s.vehiculos.valorCompraArs })
+        .from(s.vehiculos)
+        .where(and(eq(s.vehiculos.operacionOrigenId, op.id), eq(s.vehiculos.participeId, financista.id)));
+      const nuevas = deudasPorVenta(l, {
+        financista: financista.tipo,
+        capitalInversor: capitalDelInversor({ tipoIngreso: v.tipoIngreso, financista: financista.tipo, valorCompraArs: compra.ars, gastosDelDueno: gastosDueno }),
+        capitalReinvertido: usados.reduce((a, x) => a + capitalDelInversor({ tipoIngreso: x.tipoIngreso, financista: financista.tipo, valorCompraArs: x.valorCompraArs }), 0),
+      });
+      const salon = (await t.query.participes.findFirst({ where: eq(s.participes.tipo, "SALON") }))!;
+      const actuales = await t.select().from(s.distribuciones).where(eq(s.distribuciones.liquidacionId, liq.id));
+      const { cambios, bloqueadas } = cambiosDeDistribucion(
+        actuales.map((x) => ({
+          id: x.id,
+          tipo: x.tipo,
+          destino: x.participeId === salon.id ? ("SALON" as const) : ("INVERSOR" as const),
+          importe: x.importe,
+          // K5: la parte del salón figura pagada desde el cierre; solo cuenta lo pagado al inversor.
+          pagada: x.participeId !== salon.id && x.estado === "PAGADO",
+        })),
+        nuevas,
+      );
+      if (bloqueadas.length) {
+        throw new ErrorNegocio(`A ${financista.nombre} ya se le pagó lo de esta venta: anulá ese pago en Caja y después corregí la compra (K16).`);
+      }
+      for (const c of cambios) {
+        if (c.accion === "MODIFICAR") await t.update(s.distribuciones).set({ importe: c.importe }).where(eq(s.distribuciones.id, c.id));
+        else if (c.accion === "QUITAR") await t.delete(s.distribuciones).where(eq(s.distribuciones.id, c.id));
+        else {
+          await t.insert(s.distribuciones).values({
+            liquidacionId: liq.id,
+            participeId: c.destino === "INVERSOR" ? financista.id : salon.id,
+            tipo: c.tipo,
+            importe: c.importe,
+            estado: c.destino === "INVERSOR" ? "PENDIENTE" : "PAGADO",
+          });
+        }
+      }
+    }
+
+    // S7 + R8: al consignante se le debe lo pactado (el valor de compra) más sus gastos.
+    if (v.tipoIngreso === "CONSIGNACION") {
+      const cta = await t.query.cuentasPendientes.findFirst({
+        where: and(eq(s.cuentasPendientes.operacionId, op.id), eq(s.cuentasPendientes.origen, "CONSIGNANTE")),
+      });
+      if (cta && (cta.estado !== "ABIERTA" || Math.abs(cta.saldo - cta.importe) >= 0.005)) {
+        throw new ErrorNegocio(`Al consignante ya se le pagó parte de esta venta: anulá ese pago en Caja y después corregí la compra (K16).`);
+      }
+      const seLeDebe = deudaConConsignante(compra.ars, gastosDueno);
+      if (cta) await t.update(s.cuentasPendientes).set({ importe: seLeDebe, saldo: seLeDebe }).where(eq(s.cuentasPendientes.id, cta.id));
+    }
+
+    await t
+      .update(s.liquidaciones)
+      .set({
+        regla: l.regla, costo: l.costo, ganancia: l.ganancia, gananciaBase: l.gananciaBase, sobreprecio: l.sobreprecio,
+        parteInversor: l.parteInversor, parteSalon: l.parteSalon, tcIngreso: d.tcIngreso, costoUsd: r2(l.costo / d.tcIngreso),
+      })
+      .where(eq(s.liquidaciones.id, liq.id));
+    const [despues] = await t
+      .update(s.vehiculos)
+      .set({ monedaCompra: d.monedaCompra, valorCompraUsd: d.monedaCompra === "USD" ? compra.usd : null, valorCompraArs: compra.ars, tcIngreso: d.tcIngreso })
+      .where(eq(s.vehiculos.id, vehiculoId))
+      .returning();
+
+    const detalle = `compra $ ${valorAnterior.toLocaleString("es-AR")} → $ ${compra.ars.toLocaleString("es-AR")} (dólar $ ${v.tcIngreso.toLocaleString("es-AR")} → $ ${d.tcIngreso.toLocaleString("es-AR")})`;
+    await auditar(t, {
+      usuarioId, entidad: "vehiculo", entidadId: vehiculoId, accion: "MODIFICAR",
+      antes: { monedaCompra: v.monedaCompra, valorCompraUsd: v.valorCompraUsd, valorCompraArs: v.valorCompraArs, tcIngreso: v.tcIngreso },
+      despues: { monedaCompra: despues.monedaCompra, valorCompraUsd: despues.valorCompraUsd, valorCompraArs: despues.valorCompraArs, tcIngreso: despues.tcIngreso },
+      descripcion: `Compra corregida después de vendido · ${detalle}`,
+    });
+    await auditar(t, {
+      usuarioId, entidad: ENTIDAD, entidadId: op.id, accion: "MODIFICAR",
+      antes: { regla: liq.regla, costo: liq.costo, ganancia: liq.ganancia, parteInversor: liq.parteInversor, parteSalon: liq.parteSalon },
+      despues: { regla: l.regla, costo: l.costo, ganancia: l.ganancia, parteInversor: l.parteInversor, parteSalon: l.parteSalon },
+      descripcion: `Liquidación rehecha por corrección de la compra del ${etiqueta} · ganancia $ ${liq.ganancia.toLocaleString("es-AR")} → $ ${l.ganancia.toLocaleString("es-AR")}`,
+    });
+    await exigirFondos(t, antesFondos);
   });
 }
 

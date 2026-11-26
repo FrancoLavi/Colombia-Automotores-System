@@ -390,6 +390,14 @@ export async function actualizarVehiculo(usuarioId: number, id: number, d: Datos
     const antesFondos = await fotoFondos(t); // K13: para comparar al final
     const antes = await t.query.vehiculos.findFirst({ where: eq(s.vehiculos.id, id) });
     if (!antes) throw new ErrorNegocio("El auto no existe");
+    // R6: en un auto vendido, la compra está en la liquidación de su venta; cambiarla acá la dejaría descuadrada.
+    const nuevos = camposVehiculo(d);
+    if (
+      (antes.estado === "VENDIDO" || antes.estado === "ENTREGADO") &&
+      (nuevos.valorCompraArs !== antes.valorCompraArs || nuevos.tcIngreso !== antes.tcIngreso || nuevos.monedaCompra !== antes.monedaCompra)
+    ) {
+      throw new ErrorNegocio("El auto ya se vendió: el valor de compra y el dólar se corrigen con \"Corregir compra\" en la ficha del auto, que también rehace el reparto de la venta");
+    }
     await verificarDominio(t, d.dominio, id);
     const participeId = await financistaValido(t, d);
     const cambiaFinancista = participeId !== antes.participeId && antes.tipoIngreso !== "CONSIGNACION" && d.tipoIngreso !== "CONSIGNACION";

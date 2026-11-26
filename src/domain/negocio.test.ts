@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { costoTotal, precioSugerido, compraEnPesos, liquidar, deudasPorVenta, margenUsd, cobertura, patrimonio, diasEnStock } from "./negocio";
+import { costoTotal, precioSugerido, compraEnPesos, liquidar, deudasPorVenta, reliquidarPorCompra, cambiosDeDistribucion, margenUsd, cobertura, patrimonio, diasEnStock } from "./negocio";
 
 describe("costo y precio", () => {
   it("suma compra y gastos, sin los extraordinarios", () => {
@@ -190,5 +190,64 @@ describe("el usado que se lleva el inversor va a cuenta de su capital (K12)", ()
   it("si el usado vale más que el capital, la diferencia la reintegra", () => {
     const deudas = deudasPorVenta(l, { financista: "INVERSOR", capitalInversor, capitalReinvertido: 35_000_000 });
     expect(deudas.find((d) => d.tipo === "CAPITAL")).toEqual({ tipo: "CAPITAL", destino: "INVERSOR", importe: -3_700_000 });
+  });
+});
+
+describe("corregir la compra de un auto ya vendido (R6, V7)", () => {
+  // USD 10.000 cargados con el blue de hoy ($ 1.555) cuando el auto se compró con el de hace un año ($ 1.000).
+  const mal = liquidar({ costo: 15_550_000, precio: 12_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+
+  it("rehace el reparto con el valor de compra correcto, mismo precio y margen", () => {
+    const bien = reliquidarPorCompra(mal, { valorAnterior: 15_550_000, valorNuevo: 10_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+    expect(mal.regla).toBe("INVERSOR_MITADES");
+    expect(bien).toMatchObject({ regla: "INVERSOR_BASE", costo: 10_000_000, precio: 12_000_000, ganancia: 2_000_000, gananciaBase: 1_500_000, parteInversor: 750_000, parteSalon: 1_250_000 });
+  });
+
+  it("mantiene los gastos que ya estaban en el costo y el margen de ese momento", () => {
+    const conGastos = liquidar({ costo: 10_500_000, precio: 12_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA", margen: 0.2 });
+    const bien = reliquidarPorCompra(conGastos, { valorAnterior: 10_000_000, valorNuevo: 9_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+    expect(bien.costo).toBe(9_500_000);
+    expect(bien.gananciaBase).toBe(1_900_000);
+  });
+
+  it("ajusta lo que se le debe al inversor si todavía no se le pagó", () => {
+    const antes = deudasPorVenta(mal, { financista: "INVERSOR", capitalInversor: 15_550_000 });
+    const existentes = antes.map((d, i) => ({ id: i + 1, ...d, pagada: false }));
+    const bien = reliquidarPorCompra(mal, { valorAnterior: 15_550_000, valorNuevo: 10_000_000, financista: "INVERSOR", tipoIngreso: "COMPRA" });
+    const { cambios, bloqueadas } = cambiosDeDistribucion(existentes, deudasPorVenta(bien, { financista: "INVERSOR", capitalInversor: 10_000_000 }));
+    expect(bloqueadas).toEqual([]);
+    expect(cambios).toEqual([
+      { accion: "MODIFICAR", id: 1, importe: 10_000_000 },
+      { accion: "MODIFICAR", id: 2, importe: 750_000 },
+      { accion: "MODIFICAR", id: 3, importe: 1_250_000 },
+    ]);
+  });
+
+  it("no toca lo que ya se le pagó al inversor: lo devuelve como bloqueado", () => {
+    const existentes = [
+      { id: 1, tipo: "CAPITAL" as const, destino: "INVERSOR" as const, importe: 15_550_000, pagada: true },
+      { id: 2, tipo: "GANANCIA" as const, destino: "SALON" as const, importe: -1_775_000, pagada: false },
+    ];
+    const { cambios, bloqueadas } = cambiosDeDistribucion(existentes, [
+      { tipo: "CAPITAL", destino: "INVERSOR", importe: 10_000_000 },
+      { tipo: "GANANCIA", destino: "INVERSOR", importe: 750_000 },
+      { tipo: "GANANCIA", destino: "SALON", importe: 1_250_000 },
+    ]);
+    expect(bloqueadas.map((b) => b.id)).toEqual([1]);
+    expect(cambios).toEqual([
+      { accion: "MODIFICAR", id: 2, importe: 1_250_000 },
+      { accion: "AGREGAR", tipo: "GANANCIA", destino: "INVERSOR", importe: 750_000 },
+    ]);
+  });
+
+  it("quita lo que pasa a cero y no cambia lo que da igual", () => {
+    const { cambios } = cambiosDeDistribucion(
+      [
+        { id: 1, tipo: "CAPITAL", destino: "INVERSOR", importe: 10_000_000, pagada: false },
+        { id: 2, tipo: "GANANCIA", destino: "INVERSOR", importe: -100_000, pagada: false },
+      ],
+      [{ tipo: "CAPITAL", destino: "INVERSOR", importe: 10_000_000 }],
+    );
+    expect(cambios).toEqual([{ accion: "QUITAR", id: 2 }]);
   });
 });
