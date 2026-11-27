@@ -165,8 +165,8 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
         {d.resumen.length === 0 ? (
           <p className="text-sm text-apagado">{filtrado ? "Ningún movimiento coincide con los filtros." : "Todavía no hay movimientos."}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="tabla">
+          <div className="md:overflow-x-auto">
+            <table className="tabla tabla-tarjetas">
               <thead>
                 <tr>
                   <th>Tipo</th>
@@ -179,24 +179,24 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
               <tbody>
                 {d.resumen.map((c) => (
                   <tr key={c.categoria}>
-                    <td>
+                    <td className="max-md:order-1">
                       <span className="flex items-center gap-2.5">
                         <InsigniaMovimiento categoria={c.categoria} sentido={c.neto >= 0 ? "INGRESO" : "EGRESO"} />
                         {ETIQUETA_CATEGORIA[c.categoria] ?? c.categoria}
                       </span>
                     </td>
-                    <td className="num text-right">{c.cantidad}</td>
-                    <td className="num text-right text-ok-texto">{c.ingresos ? `+ ${m(c.ingresos)}` : ""}</td>
-                    <td className="num text-right text-aviso-texto">{c.egresos ? `− ${m(c.egresos)}` : ""}</td>
-                    <td className={`num text-right font-semibold ${c.neto < 0 ? "text-aviso-texto" : ""}`}>{m(c.neto)}</td>
+                    <td className="num text-right max-md:order-3 max-md:text-xs max-md:text-apagado" data-etiqueta="Movimientos">{c.cantidad}</td>
+                    <td className="num text-right text-ok-texto max-md:order-3 max-md:text-xs">{c.ingresos ? `+ ${m(c.ingresos)}` : ""}</td>
+                    <td className="num text-right text-aviso-texto max-md:order-3 max-md:text-xs">{c.egresos ? `− ${m(c.egresos)}` : ""}</td>
+                    <td className={`num text-right font-semibold max-md:order-2 max-md:ml-auto ${c.neto < 0 ? "text-aviso-texto" : ""}`}>{m(c.neto)}</td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-tinta font-semibold">
-                  <td>{filtrado ? "Total de lo filtrado" : "Total"}</td>
+                  <td className="max-md:order-1">{filtrado ? "Total de lo filtrado" : "Total"}</td>
                   <td />
-                  <td className="num text-right text-ok-texto">+ {m(ingresos)}</td>
-                  <td className="num text-right text-aviso-texto">− {m(egresos)}</td>
-                  <td className={`num text-right ${neto < 0 ? "text-aviso-texto" : ""}`}>{m(neto)}</td>
+                  <td className="num text-right text-ok-texto max-md:order-3 max-md:text-xs">+ {m(ingresos)}</td>
+                  <td className="num text-right text-aviso-texto max-md:order-3 max-md:text-xs">− {m(egresos)}</td>
+                  <td className={`num text-right max-md:order-2 max-md:ml-auto ${neto < 0 ? "text-aviso-texto" : ""}`}>{m(neto)}</td>
                 </tr>
               </tbody>
             </table>
@@ -212,11 +212,11 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
             primera fila sin filtros es el saldo actual. Tocá una fila para ver el movimiento, ir al trámite que lo generó y corregirlo o anularlo.
           </Ayuda>
         </h2>
-        <div className="overflow-x-auto">
+        <div className="md:overflow-x-auto">
           {d.movimientos.length === 0 ? (
             <Vacio>{filtrado ? "Ningún movimiento coincide con los filtros." : "Todavía no hay movimientos."}</Vacio>
           ) : (
-            <table className="tabla">
+            <table className="tabla tabla-tarjetas">
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -235,25 +235,25 @@ async function Movimientos({ m, medio, sp }: { m: Moneda; medio?: Medio; sp: Bus
               <tbody>
                 {d.movimientos.map((x) => (
                   <FilaEnlace key={x.id} href={`/caja/movimiento/${x.id}`} className={x.anulado ? "text-apagado line-through" : ""}>
-                    <td className="num">{fecha(x.fecha)}</td>
-                    <td>
+                    <td className="num max-md:order-4 max-md:text-xs max-md:text-apagado">{fecha(x.fecha)}</td>
+                    <td className="max-md:order-1 max-md:font-semibold">
                       <span className="flex items-center gap-2.5 no-underline">
                         <InsigniaMovimiento categoria={x.categoria} sentido={x.sentido} anulado={x.anulado} />
                         {ETIQUETA_CATEGORIA[x.categoria]}
                       </span>
                     </td>
-                    <td className="max-w-md whitespace-normal">
+                    <td className="max-w-md whitespace-normal max-md:order-3 max-md:max-w-none max-md:basis-full max-md:text-[15px]">
                       {x.operacionId ? <Link href={`/ventas/${x.operacionId}`}>{x.concepto}</Link> : x.vehiculoId ? <Link href={`/stock/${x.vehiculoId}`}>{x.concepto}</Link> : x.concepto}
                       {x.anulado && <span className="block text-xs no-underline">Anulado{x.motivoAnulacion ? `: ${x.motivoAnulacion}` : ""} · no cuenta en el saldo</span>}
                     </td>
-                    <TdAuto auto={x.auto?.id ? x.auto : null} href={x.auto?.id ? `/stock/${x.auto.id}` : undefined} />
-                    <td>{x.persona ?? ""}</td>
-                    {!medio && <td>{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>}
-                    <td className="num text-right text-ok-texto">{x.sentido === "INGRESO" ? `+ ${m(x.importe)}` : ""}</td>
-                    <td className="num text-right text-aviso-texto">{x.sentido === "EGRESO" ? `− ${m(x.importe)}` : ""}</td>
-                    <td className={`num text-right font-semibold ${x.saldo < 0 ? "text-aviso-texto" : ""}`}>{m(x.saldo)}</td>
-                    <td>{x.usuario}</td>
-                    <td>
+                    <TdAuto auto={x.auto?.id ? x.auto : null} href={x.auto?.id ? `/stock/${x.auto.id}` : undefined} clase="max-md:order-4 max-md:text-xs" />
+                    <td className="max-md:order-4 max-md:text-xs max-md:text-apagado">{x.persona ?? ""}</td>
+                    {!medio && <td className="max-md:order-4 max-md:text-xs max-md:text-apagado">{x.medio === "EFECTIVO" ? "Efectivo" : "Banco"}</td>}
+                    <td className="num text-right text-ok-texto max-md:order-2 max-md:ml-auto max-md:font-semibold">{x.sentido === "INGRESO" ? `+ ${m(x.importe)}` : ""}</td>
+                    <td className="num text-right text-aviso-texto max-md:order-2 max-md:ml-auto max-md:font-semibold">{x.sentido === "EGRESO" ? `− ${m(x.importe)}` : ""}</td>
+                    <td data-etiqueta="Saldo" className={`num text-right font-semibold max-md:order-4 max-md:ml-auto max-md:text-xs ${x.saldo < 0 ? "text-aviso-texto" : ""}`}>{m(x.saldo)}</td>
+                    <td className="max-md:hidden">{x.usuario}</td>
+                    <td className="max-md:hidden">
                       <Link
                         href={`/caja/movimiento/${x.id}`}
                         className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm no-underline"

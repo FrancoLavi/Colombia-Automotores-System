@@ -63,13 +63,13 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         <CamposFiltroAuto valores={filtroAuto} marcas={marcas} modelos={modelos} />
       </FormFiltros>
 
-      <section className="tarjeta overflow-x-auto p-0">
+      <section className="tarjeta p-0 md:overflow-x-auto">
         {operaciones.length === 0 ? (
           <Vacio>
             No hay operaciones acá. <Link href="/ventas/nueva">Armá una nueva venta</Link>.
           </Vacio>
         ) : (
-          <table className="tabla">
+          <table className="tabla tabla-tarjetas">
             <thead>
               <tr>
                 <th>N°</th>
@@ -87,20 +87,20 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                 const pct = Math.min(100, Math.round((o.cobertura.cubierto / o.total) * 100));
                 return (
                   <FilaEnlace key={o.op.id} href={`/ventas/${o.op.id}`}>
-                    <td>
+                    <td className="max-md:order-4 max-md:text-xs">
                       <Link href={`/ventas/${o.op.id}`} className="num font-medium">
                         {o.numero}
                       </Link>
                     </td>
-                    <td className="num">{fecha(o.op.fechaPreventa)}</td>
-                    <td>
+                    <td className="num max-md:order-4 max-md:text-xs max-md:text-apagado">{fecha(o.op.fechaPreventa)}</td>
+                    <td className="max-md:order-1 max-md:font-semibold">
                       <Link href={`/contactos/${o.contacto.id}`} className="text-tinta">
                         {nombreContacto(o.contacto)}
                       </Link>
                     </td>
-                    <TdAuto auto={o.auto} href={`/stock/${o.auto.id}`} anio />
-                    <td className="num text-right">{m(o.total)}</td>
-                    <td>
+                    <TdAuto auto={o.auto} href={`/stock/${o.auto.id}`} anio clase="max-md:order-3 max-md:text-[13px]" />
+                    <td className="num text-right max-md:order-2 max-md:ml-auto max-md:font-semibold">{m(o.total)}</td>
+                    <td className="max-md:order-4">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-20 rounded-full bg-linea" aria-hidden="true">
                           <div className={`h-2 rounded-full ${pct === 100 ? "bg-ok" : "bg-acento"}`} style={{ width: `${pct}%` }} />
@@ -108,10 +108,10 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                         <span className="num text-xs">{pct} %</span>
                       </div>
                     </td>
-                    <td>
+                    <td className="max-md:order-4 max-md:ml-auto">
                       <ChipOperacion estado={o.op.estado} />
                     </td>
-                    <td className="text-xs">
+                    <td className="text-xs max-md:order-5 max-md:basis-full">
                       {o.venceSena && o.op.estado === "SENIADA" && o.venceSena <= hoy && <span className="chip bg-aviso-texto text-white">Seña vencida</span>}
                       {o.aCobrar > 0 && (o.op.estado === "CERRADA" || o.op.estado === "ENTREGADA") && (
                         <span className="chip bg-aviso-fondo text-aviso-texto">A cobrar {m(o.aCobrar)}</span>

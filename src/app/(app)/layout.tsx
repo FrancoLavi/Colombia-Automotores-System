@@ -10,7 +10,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen md:flex">
       <Nav nombre={u.nombre} salir={salir} enDolares={vista.enDolares} hayDolar={!!tc} />
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-8">
+      {/* Abajo deja lugar para la barra de accesos del celular. */}
+      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-10 md:py-8">
         {vista.enDolares && (
           <p role="status" className="mb-5 rounded-lg border border-celeste bg-info-fondo px-4 py-2.5 text-sm text-info-texto">
             Estás viendo los importes <b>en dólares</b>, convertidos al blue de hoy (<span className="num">$ {vista.tc?.toLocaleString("es-AR")}</span>

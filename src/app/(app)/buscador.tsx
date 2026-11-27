@@ -92,14 +92,15 @@ export function Buscador() {
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-nav-borde px-3 text-sm text-nav-texto hover:bg-nav-hover hover:text-white"
+        // En el celular es solo la lupa, en la barra de arriba; en escritorio, el campo entero.
+        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-nav-borde px-3 text-sm text-nav-texto hover:bg-nav-hover hover:text-white max-md:size-11 max-md:justify-center max-md:border-0 max-md:px-0"
       >
         <span className="flex items-center gap-2">
-          <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <svg viewBox="0 0 20 20" className="size-4 max-md:size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <circle cx="9" cy="9" r="6" />
             <path d="m14 14 4 4" strokeLinecap="round" />
           </svg>
-          Buscar…
+          <span className="max-md:sr-only">Buscar…</span>
         </span>
         <kbd className="hidden rounded border border-nav-borde px-1.5 font-mono text-[11px] opacity-80 md:inline">Ctrl K</kbd>
       </button>

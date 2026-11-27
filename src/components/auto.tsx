@@ -28,12 +28,16 @@ export function ThAuto() {
   );
 }
 
-/** Las tres celdas del auto. Con `href`, la marca y el modelo llevan a la ficha. */
-export function TdAuto({ auto, href, anio }: { auto: (DatosAuto & { anio?: number | null }) | null | undefined; href?: string; anio?: boolean }) {
+/**
+ * Las tres celdas del auto. Con `href`, la marca y el modelo llevan a la ficha.
+ * `clase` se suma a las tres: sirve para ubicarlas en la tarjeta del celular (.tabla-tarjetas).
+ */
+export function TdAuto({ auto, href, anio, clase = "" }: { auto: (DatosAuto & { anio?: number | null }) | null | undefined; href?: string; anio?: boolean; clase?: string }) {
   if (!auto) {
     return (
       <>
-        <td className="text-apagado">—</td>
+        {/* Sin auto, en el celular no se muestra nada (en la tabla, la raya). */}
+        <td className={`text-apagado max-md:hidden ${clase}`}>—</td>
         <td />
         <td />
       </>
@@ -42,12 +46,12 @@ export function TdAuto({ auto, href, anio }: { auto: (DatosAuto & { anio?: numbe
   const texto = (s: string) => (href ? <Link href={href} className="text-tinta">{s}</Link> : s);
   return (
     <>
-      <td className="font-semibold">{texto(auto.marca)}</td>
-      <td>
+      <td className={`font-semibold ${clase}`}>{texto(auto.marca)}</td>
+      <td className={clase}>
         {texto(auto.modelo)}
         {anio && auto.anio ? <span className="num text-apagado"> {auto.anio}</span> : null}
       </td>
-      <td>
+      <td className={clase}>
         <Patente dominio={auto.dominio} />
       </td>
     </>

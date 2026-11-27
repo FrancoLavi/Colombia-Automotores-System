@@ -123,7 +123,7 @@ h1, h2, h3 {
 
 @layer components {
   .tarjeta {
-    @apply rounded-[10px] border border-borde bg-superficie p-5;
+    @apply rounded-[10px] border border-borde bg-superficie p-4 md:p-5;
   }
   .chip {
     @apply inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide;
@@ -156,7 +156,49 @@ h1, h2, h3 {
      queda fijo arriba y el total fijo abajo. Con border-collapse el borde de una celda fija no
      viaja con ella, por eso la línea se dibuja con una sombra. */
   .tabla-scroll {
-    @apply max-h-[60vh] overflow-auto overscroll-contain;
+    /* En el celular no: scrollear una caja adentro de la página, en dos direcciones, es incómodo con el dedo. */
+    @apply overflow-x-auto md:max-h-[60vh] md:overflow-auto md:overscroll-contain;
+  }
+  /*
+   * Celular: cada fila de la tabla pasa a ser una tarjeta. Las celdas fluyen en renglones y
+   * cada pantalla decide con utilidades max-md: qué se oculta (max-md:hidden), qué ocupa todo
+   * el ancho (max-md:basis-full), qué va a la derecha (max-md:ml-auto) y el orden (max-md:order-*).
+   * En escritorio la tabla queda igual.
+   */
+  @media (width < 48rem) {
+    .tabla-tarjetas,
+    .tabla-tarjetas tbody,
+    .tabla-tarjetas tfoot {
+      display: block;
+    }
+    .tabla-tarjetas thead {
+      display: none;
+    }
+    .tabla-tarjetas tr {
+      @apply flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-linea px-4 py-3;
+    }
+    /* Corte de renglón invisible: el primer renglón de la tarjeta es lo de max-md:order-1 y
+       max-md:order-2 (título e importe); lo demás va abajo. */
+    .tabla-tarjetas tbody tr::after {
+      content: "";
+      order: 2;
+      flex-basis: 100%;
+      height: 0;
+    }
+    .tabla-tarjetas td {
+      @apply block border-0 p-0 whitespace-normal;
+    }
+    .tabla-tarjetas td:empty {
+      display: none;
+    }
+    /* Sin el encabezado de la tabla, un importe suelto no dice qué es: la celda lo nombra. */
+    .tabla-tarjetas td[data-etiqueta]::before {
+      content: attr(data-etiqueta) " ";
+      @apply font-sans text-xs font-normal text-apagado;
+    }
+    .tabla-tarjetas tfoot tr {
+      @apply justify-between font-semibold;
+    }
   }
   .tabla-scroll thead th {
     @apply sticky top-0 z-10 bg-superficie;
@@ -187,6 +229,16 @@ h1, h2, h3 {
   :where(a, button, select, input, textarea, summary):focus-visible {
     outline: 2px solid var(--color-acento);
     outline-offset: 2px;
+  }
+}
+
+/* El iPhone hace zoom al tocar un campo con letra menor a 16 px. Fuera de las capas para que
+   le gane a cualquier utilidad de tamaño (text-sm) que tenga el campo. */
+@media (width < 48rem) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 

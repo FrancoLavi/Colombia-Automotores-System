@@ -105,13 +105,13 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         </div>
       </FormFiltros>
 
-      <section className="tarjeta overflow-x-auto p-0">
+      <section className="tarjeta p-0 md:overflow-x-auto">
         {vehiculos.length === 0 ? (
           <Vacio>
             No hay autos con estos filtros. <Link href="/stock/nuevo">Ingresá el primero</Link> o <Link href="/stock/importar">importá la planilla</Link>.
           </Vacio>
         ) : (
-          <table className="tabla">
+          <table className="tabla tabla-tarjetas">
             <thead>
               <tr>
                 <ThAuto />
@@ -130,22 +130,24 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
             <tbody>
               {vehiculos.map((v) => (
                 <FilaEnlace key={v.id} href={`/stock/${v.id}`}>
-                  <TdAuto auto={v} href={`/stock/${v.id}`} />
-                  <td className="text-apagado">{v.version}</td>
-                  <td>{v.anio}</td>
+                  <TdAuto auto={v} href={`/stock/${v.id}`} clase="max-md:order-1" />
+                  <td className="text-apagado max-md:order-3 max-md:text-xs">{v.version}</td>
+                  <td className="max-md:order-1 max-md:text-apagado">{v.anio}</td>
                   <td className="num hidden text-right xl:table-cell">{numero(v.km)}</td>
-                  <td>
+                  <td className="max-md:order-3">
                     <ChipEstado estado={v.estado} />
                     {v.prendado && <span className="chip ml-1 bg-aviso-fondo text-aviso-texto">Prendado</span>}
                   </td>
                   <td className="hidden xl:table-cell">{ETIQUETA_UBICACION[v.ubicacion]}</td>
-                  <td className="num text-right">{v.estado === "POR_INGRESAR" ? "—" : v.dias}</td>
-                  <td className="num text-right">{v.costo > 0 ? m(v.costo) : "—"}</td>
-                  <td className="num text-right">{m(v.precio)}</td>
+                  <td className="num text-right max-md:order-3 max-md:text-xs max-md:text-apagado">
+                    {v.estado === "POR_INGRESAR" ? <span className="max-md:hidden">—</span> : <>{v.dias}<span className="md:hidden"> días</span></>}
+                  </td>
+                  <td className="num text-right max-md:hidden">{v.costo > 0 ? m(v.costo) : "—"}</td>
+                  <td className="num text-right max-md:order-2 max-md:ml-auto max-md:font-semibold">{m(v.precio)}</td>
                   <td className={`num hidden text-right lg:table-cell ${v.margen != null && v.margen <= 0.1 ? "font-semibold text-aviso-texto" : ""}`}>
                     {v.margen != null ? porcentaje(v.margen) : "—"}
                   </td>
-                  <td>
+                  <td className="max-md:order-4 max-md:basis-full">
                     <div className="flex flex-wrap gap-1">
                       {v.alertas.map((a, i) => (
                         <ChipAlerta key={i} severidad={a.severidad}>

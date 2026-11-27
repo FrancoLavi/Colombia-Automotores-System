@@ -53,6 +53,11 @@ const GRUPOS: { titulo: string | null; items: { href: string; label: string; ico
   },
 ];
 const ITEMS = GRUPOS.flatMap((g) => g.items);
+/** Barra de abajo en el celular: lo que se usa todos los días. El resto queda en "Más". */
+const ACCESOS = ["/stock", "/ventas", "/contactos", "/caja"].map((h) => {
+  const i = ITEMS.find((x) => x.href === h)!;
+  return { ...i, label: i.href === "/contactos" ? "Contactos" : i.label };
+});
 
 /** Botón "Ver en USD / Ver en ARS": cambia cómo se muestran los importes en todas las pantallas. */
 export function BotonMoneda({ enDolares, hayDolar }: { enDolares: boolean; hayDolar: boolean }) {
@@ -87,24 +92,38 @@ export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; sa
   const activo = (href: string) => href === elegido;
 
   return (
-    // En escritorio el menú queda fijo y acompaña el scroll de la página; si no entra
-    // a lo alto, scrollea por dentro. En celular sigue siendo el desplegable de arriba.
+    <>
+    {/* En escritorio el menú queda fijo a la izquierda y acompaña el scroll de la página; si no
+        entra a lo alto, scrollea por dentro. En el celular es una barra fija arriba (logo, buscador
+        y menú desplegable) más la barra de accesos de abajo. */}
     <nav
       aria-label="Menú principal"
-      className="bg-nav text-nav-texto md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:self-start md:overflow-y-auto"
+      className="sticky top-0 z-30 bg-nav text-nav-texto md:h-screen md:w-60 md:shrink-0 md:self-start md:overflow-y-auto"
     >
-      <div className="flex items-center justify-between px-5 py-4 md:block md:py-6">
-        <div className="font-display text-xl font-bold text-white">
+      <div className="flex items-center gap-1 py-1.5 pl-4 pr-2 md:block md:px-5 md:py-6">
+        <Link href="/" onClick={() => setAbierto(false)} className="flex-1 font-display text-lg font-bold text-white no-underline md:text-xl">
           Colombia <span className="text-celeste">· gestión</span>
+        </Link>
+        <div className="md:-mx-2 md:mt-5">
+          <Buscador />
         </div>
-        <button type="button" className="btn text-white md:hidden" aria-expanded={abierto} aria-controls="menu-items" onClick={() => setAbierto(!abierto)}>
-          Menú
+        <button
+          type="button"
+          className="btn size-11 px-0 text-white md:hidden"
+          aria-label={abierto ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={abierto}
+          aria-controls="menu-items"
+          onClick={() => setAbierto(!abierto)}
+        >
+          <svg viewBox="0 0 20 20" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <path d={abierto ? "M5 5l10 10M15 5 5 15" : "M3 6h14M3 10h14M3 14h14"} />
+          </svg>
         </button>
       </div>
-      <div className="px-3 pb-3 md:pb-4">
-        <Buscador />
-      </div>
-      <div id="menu-items" className={`${abierto ? "block" : "hidden"} px-3 pb-4 md:block`}>
+      <div
+        id="menu-items"
+        className={`${abierto ? "block" : "hidden"} max-h-[calc(100dvh-3.5rem)] overflow-y-auto px-3 pb-4 md:block md:max-h-none md:overflow-visible`}
+      >
         {GRUPOS.map((g) => (
           <div key={g.titulo ?? "inicio"} className={g.titulo ? "mt-3" : ""}>
             {g.titulo && <div className="px-3.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-nav-texto/60">{g.titulo}</div>}
@@ -135,5 +154,46 @@ export function Nav({ nombre, salir, enDolares, hayDolar }: { nombre: string; sa
         </div>
       </div>
     </nav>
+
+    {/* Celular: accesos a lo que más se usa, al alcance del pulgar. "Más" abre el menú completo. */}
+    <nav
+      aria-label="Accesos rápidos"
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-nav-borde bg-nav pb-[env(safe-area-inset-bottom)] text-nav-texto md:hidden"
+    >
+      {ACCESOS.map((a) => (
+        <Link
+          key={a.href}
+          href={a.href}
+          onClick={() => setAbierto(false)}
+          aria-current={activo(a.href) ? "page" : undefined}
+          className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] no-underline ${activo(a.href) ? "text-white" : ""}`}
+        >
+          <span className={`flex h-7 w-12 items-center justify-center rounded-full ${activo(a.href) ? "bg-nav-activo" : ""}`}>
+            <svg viewBox="0 0 20 20" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d={ICONO[a.icono]} />
+            </svg>
+          </span>
+          {a.label}
+        </Link>
+      ))}
+      <button
+        type="button"
+        aria-expanded={abierto}
+        aria-controls="menu-items"
+        onClick={() => {
+          setAbierto(!abierto);
+          window.scrollTo({ top: 0 });
+        }}
+        className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] ${abierto ? "text-white" : ""}`}
+      >
+        <span className={`flex h-7 w-12 items-center justify-center rounded-full ${abierto ? "bg-nav-activo" : ""}`}>
+          <svg viewBox="0 0 20 20" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M4 10h.01M10 10h.01M16 10h.01" strokeWidth="2.6" />
+          </svg>
+        </span>
+        Más
+      </button>
+    </nav>
+    </>
   );
 }

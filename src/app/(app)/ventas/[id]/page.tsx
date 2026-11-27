@@ -189,8 +189,8 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
           <span className="text-sm text-apagado">Solo efectivo y transferencias entran a la caja.</span>
         </div>
         {f.pagos.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="tabla">
+          <div className="md:overflow-x-auto">
+            <table className="tabla tabla-tarjetas">
               <thead>
                 <tr>
                   <th>Forma</th>
@@ -204,8 +204,8 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
               <tbody>
                 {f.pagos.map(({ p, permuta }) => (
                   <tr key={p.id} className={p.estado === "DEVUELTA" ? "text-apagado line-through" : ""}>
-                    <td>{ETIQUETA_PAGO[p.tipo]}</td>
-                    <td className="whitespace-normal">
+                    <td className="max-md:order-1 max-md:font-semibold">{ETIQUETA_PAGO[p.tipo]}</td>
+                    <td className="whitespace-normal max-md:order-3 max-md:basis-full max-md:text-sm">
                       {p.tipo === "PERMUTA" && permuta ? (
                         <Link href={`/stock/${permuta.id}`}>
                           {permuta.marca} {permuta.modelo} {permuta.anio} {permuta.dominio ?? ""}
@@ -218,12 +218,12 @@ export default async function OperacionPage({ params }: { params: Promise<{ id: 
                         </>
                       )}
                     </td>
-                    <td className="num text-right">{m(p.importe)}</td>
-                    <td>{IMPACTO[p.tipo]}</td>
-                    <td>
+                    <td className="num text-right max-md:order-2 max-md:ml-auto max-md:font-semibold">{m(p.importe)}</td>
+                    <td className="max-md:order-4 max-md:text-xs max-md:text-apagado">{IMPACTO[p.tipo]}</td>
+                    <td className="max-md:order-4">
                       <span className={`chip ${ESTADO_PAGO[p.estado].clase}`}>{p.tipo === "PERMUTA" ? (p.estado === "COBRADO" ? "En stock" : p.estado === "PENDIENTE" ? "Se recibe al cerrar" : ESTADO_PAGO[p.estado].texto) : ESTADO_PAGO[p.estado].texto}</span>
                     </td>
-                    <td>
+                    <td className="max-md:order-4 max-md:ml-auto">
                       {abierta && p.estado !== "DEVUELTA" && p.estado !== "RETENIDA" && <BotonQuitar etiqueta="Quitar pago" accion={quitarPagoAccion.bind(null, id, p.id)} />}
                       {!abierta && op.estado !== "CAIDA" && p.estado === "PENDIENTE" && p.tipo !== "PERMUTA" && <FormCobrar id={id} pagoId={p.id} tipo={p.tipo} />}
                     </td>
